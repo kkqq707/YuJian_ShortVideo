@@ -1,0 +1,1391 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>煜见光影 · 总后台管理系统</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <style>
+        :root {
+            --primary: #0a58ca;
+            --primary-light: #3b7fe0;
+            --primary-dark: #073d8a;
+            --primary-bg: #f0f6ff;
+            --sidebar-width: 260px;
+            --header-height: 64px;
+            --radius: 12px;
+            --text-main: #1a1a2e;
+            --text-sub: #6b7280;
+            --border: #e5e7eb;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f5f7fa; color: var(--text-main); }
+        
+        /* 侧边栏 */
+        .sidebar {
+            position: fixed; left: 0; top: 0; width: var(--sidebar-width); height: 100vh;
+            background: linear-gradient(180deg, #0f172a 0%, #1e293b 100%); color: #fff;
+            display: flex; flex-direction: column; z-index: 100;
+        }
+        .sidebar-logo {
+            height: var(--header-height); display: flex; align-items: center; padding: 0 24px;
+            border-bottom: 1px solid rgba(255,255,255,0.1); font-size: 18px; font-weight: 700;
+        }
+        .sidebar-logo i { color: var(--primary-light); margin-right: 10px; font-size: 22px; }
+        .nav-menu { flex: 1; padding: 16px 0; overflow-y: auto; }
+        .nav-item {
+            padding: 12px 24px; cursor: pointer; display: flex; align-items: center;
+            color: #94a3b8; transition: all 0.2s; border-left: 3px solid transparent;
+        }
+        .nav-item:hover { background: rgba(255,255,255,0.05); color: #fff; }
+        .nav-item.active { background: rgba(10,88,202,0.2); color: #fff; border-left-color: var(--primary-light); }
+        .nav-item i { width: 20px; margin-right: 12px; font-size: 16px; }
+        .nav-section { padding: 16px 24px 8px; font-size: 11px; color: #64748b; text-transform: uppercase; letter-spacing: 1px; }
+        
+        /* 顶部栏 */
+        .header {
+            position: fixed; left: var(--sidebar-width); top: 0; right: 0; height: var(--header-height);
+            background: #fff; border-bottom: 1px solid var(--border); display: flex;
+            align-items: center; justify-content: space-between; padding: 0 32px; z-index: 99;
+        }
+        .page-title { font-size: 20px; font-weight: 600; }
+        .header-right { display: flex; align-items: center; gap: 20px; }
+        .header-icon { width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; color: var(--text-sub); }
+        .header-icon:hover { background: var(--primary-bg); color: var(--primary); }
+        .admin-avatar { display: flex; align-items: center; gap: 10px; cursor: pointer; }
+        .admin-avatar img { width: 36px; height: 36px; border-radius: 50%; background: var(--primary); display: flex; align-items: center; justify-content: center; color: #fff; }
+        .avatar-circle { width: 36px; height: 36px; border-radius: 50%; background: linear-gradient(135deg, var(--primary), var(--primary-light)); display: flex; align-items: center; justify-content: center; color: #fff; font-weight: 600; font-size: 14px; }
+        
+        /* 主内容区 */
+        .main-content { margin-left: var(--sidebar-width); margin-top: var(--header-height); padding: 24px 32px; min-height: calc(100vh - var(--header-height)); }
+        
+        /* 统计卡片 */
+        .stats-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; margin-bottom: 24px; }
+        .stat-card {
+            background: #fff; border-radius: var(--radius); padding: 24px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05); transition: transform 0.2s, box-shadow 0.2s;
+        }
+        .stat-card:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.08); }
+        .stat-label { font-size: 14px; color: var(--text-sub); margin-bottom: 8px; display: flex; align-items: center; justify-content: space-between; }
+        .stat-value { font-size: 28px; font-weight: 700; color: var(--text-main); }
+        .stat-sub { font-size: 12px; color: var(--success); margin-top: 6px; }
+        .stat-icon { width: 44px; height: 44px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 20px; }
+        .icon-blue { background: #e0edff; color: var(--primary); }
+        .icon-green { background: #d1fae5; color: var(--success); }
+        .icon-orange { background: #fef3c7; color: var(--warning); }
+        .icon-purple { background: #ede9fe; color: #8b5cf6; }
+        
+        /* 卡片通用 */
+        .card { background: #fff; border-radius: var(--radius); box-shadow: 0 1px 3px rgba(0,0,0,0.05); margin-bottom: 20px; }
+        .card-header { padding: 20px 24px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; }
+        .card-header h3 { font-size: 16px; font-weight: 600; }
+        .card-body { padding: 24px; }
+        
+        /* 图表区域 */
+        .chart-row { display: grid; grid-template-columns: 2fr 1fr; gap: 20px; margin-bottom: 24px; }
+        .chart-container { height: 300px; }
+        
+        /* 表格 */
+        .table-wrap { overflow-x: auto; }
+        table { width: 100%; border-collapse: collapse; }
+        th, td { padding: 14px 16px; text-align: left; border-bottom: 1px solid var(--border); font-size: 14px; }
+        th { background: #f9fafb; font-weight: 600; color: var(--text-sub); font-size: 13px; }
+        tr:hover { background: #f9fafb; }
+        
+        /* 按钮 */
+        .btn { padding: 8px 16px; border-radius: 8px; border: none; cursor: pointer; font-size: 14px; font-weight: 500; transition: all 0.2s; display: inline-flex; align-items: center; gap: 6px; }
+        .btn-primary { background: var(--primary); color: #fff; }
+        .btn-primary:hover { background: var(--primary-dark); }
+        .btn-outline { background: #fff; border: 1px solid var(--border); color: var(--text-main); }
+        .btn-outline:hover { border-color: var(--primary); color: var(--primary); }
+        .btn-sm { padding: 4px 12px; font-size: 13px; }
+        .btn-danger { color: var(--danger); }
+        
+        /* 状态标签 */
+        .status-badge { padding: 4px 10px; border-radius: 20px; font-size: 12px; font-weight: 500; display: inline-block; }
+        .status-active { background: #d1fae5; color: #065f46; }
+        .status-pending { background: #fef3c7; color: #92400e; }
+        .status-inactive { background: #f3f4f6; color: #6b7280; }
+        .status-danger { background: #fee2e2; color: #991b1b; }
+        
+        /* 搜索栏 */
+        .toolbar { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; gap: 12px; flex-wrap: wrap; }
+        .search-box { position: relative; }
+        .search-box input { padding: 8px 12px 8px 36px; border: 1px solid var(--border); border-radius: 8px; width: 240px; font-size: 14px; }
+        .search-box i { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: var(--text-sub); }
+        .filter-group { display: flex; gap: 8px; }
+        
+        /* 模态框 */
+        .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.5); display: none; align-items: center; justify-content: center; z-index: 1000; }
+        .modal-overlay.show { display: flex; }
+        .modal { background: #fff; border-radius: var(--radius); width: 500px; max-width: 90vw; max-height: 90vh; overflow-y: auto; }
+        .modal-header { padding: 20px 24px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; }
+        .modal-header h3 { font-size: 18px; font-weight: 600; }
+        .modal-close { cursor: pointer; color: var(--text-sub); font-size: 20px; }
+        .modal-body { padding: 24px; }
+        .modal-footer { padding: 16px 24px; border-top: 1px solid var(--border); display: flex; justify-content: flex-end; gap: 12px; }
+        
+        /* 表单 */
+        .form-group { margin-bottom: 16px; }
+        .form-group label { display: block; margin-bottom: 6px; font-size: 14px; font-weight: 500; }
+        .form-group input, .form-group select, .form-group textarea {
+            width: 100%; padding: 10px 12px; border: 1px solid var(--border); border-radius: 8px; font-size: 14px;
+        }
+        .form-group input:focus, .form-group select:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px rgba(10,88,202,0.1); }
+        .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+        
+        /* 分页 */
+        .pagination { display: flex; align-items: center; justify-content: space-between; padding: 16px 0; }
+        .page-info { font-size: 14px; color: var(--text-sub); }
+        .page-buttons { display: flex; gap: 4px; }
+        .page-btn { width: 32px; height: 32px; border: 1px solid var(--border); background: #fff; border-radius: 6px; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 13px; }
+        .page-btn.active { background: var(--primary); color: #fff; border-color: var(--primary); }
+        
+        /* 响应式 */
+        @media (max-width: 1024px) {
+            .sidebar { width: 72px; }
+            .sidebar-logo span, .nav-item span, .nav-section { display: none; }
+            .nav-item { justify-content: center; padding: 14px; }
+            .nav-item i { margin-right: 0; }
+            .header, .main-content { left: 72px; margin-left: 72px; }
+            .stats-row { grid-template-columns: repeat(2, 1fr); }
+            .chart-row { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+    <!-- 侧边栏 -->
+    <div class="sidebar" id="sidebar">
+        <div class="sidebar-logo">
+            <i class="fas fa-cube"></i>
+            <span>煜见光影SaaS</span>
+        </div>
+        <div class="nav-menu">
+            <div class="nav-section">数据概览</div>
+            <div class="nav-item active" data-page="dashboard" onclick="navigateTo('dashboard')">
+                <i class="fas fa-chart-line"></i><span>仪表盘</span>
+            </div>
+            
+            <div class="nav-section">用户管理</div>
+            <div class="nav-item" data-page="admins" onclick="navigateTo('admins')">
+                <i class="fas fa-user-shield"></i><span>管理员列表</span>
+            </div>
+            <div class="nav-item" data-page="users" onclick="navigateTo('users')">
+                <i class="fas fa-users"></i><span>所有用户</span>
+            </div>
+            
+            <div class="nav-section">业务管理</div>
+            <div class="nav-item" data-page="agents" onclick="navigateTo('agents')">
+                <i class="fas fa-handshake"></i><span>代理商管理</span>
+            </div>
+            <div class="nav-item" data-page="enterprises" onclick="navigateTo('enterprises')">
+                <i class="fas fa-building"></i><span>企业客户</span>
+            </div>
+            <div class="nav-item" data-page="plans" onclick="navigateTo('plans')">
+                <i class="fas fa-tags"></i><span>套餐管理</span>
+            </div>
+            <div class="nav-item" data-page="orders" onclick="navigateTo('orders')">
+                <i class="fas fa-file-invoice-dollar"></i><span>订单管理</span>
+            </div>
+            
+            <div class="nav-section">系统配置</div>
+            <div class="nav-item" data-page="system" onclick="navigateTo('system')">
+                <i class="fas fa-cog"></i><span>系统配置</span>
+            </div>
+            <div class="nav-item" data-page="api" onclick="navigateTo('api')">
+                <i class="fas fa-plug"></i><span>API配置中心</span>
+            </div>
+            <div class="nav-item" data-page="roles" onclick="navigateTo('roles')">
+                <i class="fas fa-key"></i><span>权限角色</span>
+            </div>
+            <div class="nav-item" data-page="logs" onclick="navigateTo('logs')">
+                <i class="fas fa-history"></i><span>操作日志</span>
+            </div>
+            <div class="nav-item" data-page="audit" onclick="navigateTo('audit')">
+                <i class="fas fa-clipboard-check"></i><span>内容审核</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- 顶部栏 -->
+    <div class="header">
+        <div class="page-title" id="pageTitle">仪表盘</div>
+        <div class="header-right">
+            <div class="header-icon"><i class="fas fa-bell"></i></div>
+            <div class="header-icon"><i class="fas fa-search"></i></div>
+            <div class="admin-avatar">
+                <div class="avatar-circle">超</div>
+                <span style="font-size: 14px;">超级管理员</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- 主内容 -->
+    <div class="main-content" id="mainContent"></div>
+
+    <!-- 模态框 -->
+    <div class="modal-overlay" id="modalOverlay" onclick="closeModal()">
+        <div class="modal" onclick="event.stopPropagation()">
+            <div class="modal-header">
+                <h3 id="modalTitle">标题</h3>
+                <div class="modal-close" onclick="closeModal()"><i class="fas fa-times"></i></div>
+            </div>
+            <div class="modal-body" id="modalContent"></div>
+            <div class="modal-footer" id="modalFooter">
+                <button class="btn btn-outline" onclick="closeModal()">取消</button>
+                <button class="btn btn-primary" onclick="closeModal();alert('操作成功')">确认</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 模拟数据
+        const APP = {
+            currentPage: 'dashboard',
+            stats: {
+                totalUsers: 12586,
+                totalAgents: 42,
+                totalEnterprises: 386,
+                totalVideos: 156420,
+                todayNew: 128,
+                todayRevenue: 15680
+            },
+            admins: [
+                { id: 1, name: '超级管理员', role: '超级管理员', phone: '138****8888', lastLogin: '2026-07-15 09:30', status: 'active' },
+                { id: 2, name: '运营管理员', role: '运营管理员', phone: '139****6666', lastLogin: '2026-07-14 18:20', status: 'active' },
+                { id: 3, name: '财务管理员', role: '财务管理员', phone: '137****9999', lastLogin: '2026-07-15 08:45', status: 'active' }
+            ],
+            agents: [
+                { id: 1, name: '成都XX科技', contact: '张经理', phone: '13800138001', quota: 50000, usedQuota: 32500, enterprises: 28, createdAt: '2026-01-15', expireAt: '2027-01-15', level: '金牌', status: 'active' },
+                { id: 2, name: '上海YY传媒', contact: '李总', phone: '13900139002', quota: 100000, usedQuota: 78200, enterprises: 56, createdAt: '2025-11-20', expireAt: '2026-11-20', level: '钻石', status: 'active' },
+                { id: 3, name: '广州ZZ网络', contact: '王主管', phone: '13700137003', quota: 20000, usedQuota: 18900, enterprises: 15, createdAt: '2026-03-10', expireAt: '2027-03-10', level: '银牌', status: 'active' },
+                { id: 4, name: '北京WW文化', contact: '赵经理', phone: '13600136004', quota: 30000, usedQuota: 5600, enterprises: 8, createdAt: '2026-05-01', expireAt: '2027-05-01', level: '银牌', status: 'pending' }
+            ],
+            enterprises: [
+                { id: 1, name: '某某品牌有限公司', agent: '成都XX科技', plan: '标准版', quota: 31500, usedQuota: 12800, members: 12, createdAt: '2026-02-10', status: 'active' },
+                { id: 2, name: 'ABC电商集团', agent: '上海YY传媒', plan: '旗舰版', quota: 330000, usedQuota: 156000, members: 35, createdAt: '2025-12-01', status: 'active' },
+                { id: 3, name: '新媒体工作室', agent: '广州ZZ网络', plan: '基础版', quota: 1000, usedQuota: 890, members: 5, createdAt: '2026-04-15', status: 'active' }
+            ],
+            plans: [
+                { id: 1, name: '基础版', price: 99, period: '月', quota: 1000, duration: '30天', features: ['文生视频', '图生视频', '基础素材库'], status: 'active' },
+                { id: 2, name: '标准版', price: 2999, period: '月', quota: 31500, duration: '30天', features: ['文生视频', '图生视频', '数字人口播', '故事板创作', '20个子账号'], status: 'active' },
+                { id: 3, name: '旗舰版', price: 30000, period: '月', quota: 330000, duration: '30天', features: ['全部功能', '200个子账号', '专属客服', 'API调用'], status: 'active' },
+                { id: 4, name: '至尊版', price: 100000, period: '月', quota: 1150000, duration: '30天', features: ['全部功能', '无限子账号', '专属部署', '定制开发'], status: 'inactive' }
+            ],
+            orders: [
+                { id: 'ORD20260715001', client: '某某品牌有限公司', type: '企业', amount: 2999, plan: '标准版', status: 'paid', time: '2026-07-15 10:30' },
+                { id: 'ORD20260714008', client: '成都XX科技', type: '代理商', amount: 9800, plan: '额度充值', status: 'paid', time: '2026-07-14 16:20' },
+                { id: 'ORD20260714005', client: 'ABC电商集团', type: '企业', amount: 30000, plan: '旗舰版', status: 'paid', time: '2026-07-14 11:05' },
+                { id: 'ORD20260713012', client: '新媒体工作室', type: '企业', amount: 99, plan: '基础版', status: 'pending', time: '2026-07-13 19:45' }
+            ],
+            logs: [
+                { id: 1, admin: '超级管理员', action: '登录系统', ip: '192.168.1.100', time: '2026-07-15 09:30:15' },
+                { id: 2, admin: '运营管理员', action: '新增代理商：上海YY传媒', ip: '192.168.1.101', time: '2026-07-14 15:20:33' },
+                { id: 3, admin: '超级管理员', action: '修改套餐价格：标准版', ip: '192.168.1.100', time: '2026-07-14 10:08:42' },
+                { id: 4, admin: '财务管理员', action: '审核订单：ORD20260714008', ip: '192.168.1.102', time: '2026-07-14 09:15:20' }
+            ],
+            monthlyRevenue: [32000, 48000, 41000, 67000, 83000, 102000],
+            monthlyGrowth: [5, 8, 6, 12, 15, 10]
+        };
+
+        // 渲染函数
+        function render(page) {
+            const container = document.getElementById('mainContent');
+            const title = document.getElementById('pageTitle');
+            switch(page) {
+                case 'dashboard': title.innerText = '仪表盘'; container.innerHTML = renderDashboard(); initCharts(); break;
+                case 'admins': title.innerText = '管理员列表'; container.innerHTML = renderAdmins(); break;
+                case 'users': title.innerText = '所有用户'; container.innerHTML = renderUsers(); break;
+                case 'agents': title.innerText = '代理商管理'; container.innerHTML = renderAgents(); break;
+                case 'enterprises': title.innerText = '企业客户管理'; container.innerHTML = renderEnterprises(); break;
+                case 'plans': title.innerText = '套餐管理'; container.innerHTML = renderPlans(); break;
+                case 'orders': title.innerText = '订单管理'; container.innerHTML = renderOrders(); break;
+                case 'system': title.innerText = '系统配置'; container.innerHTML = renderSystem(); break;
+                case 'api': title.innerText = 'API配置中心'; container.innerHTML = renderApiConfig(); break;
+                case 'roles': title.innerText = '权限与角色'; container.innerHTML = renderRoles(); break;
+                case 'logs': title.innerText = '操作日志'; container.innerHTML = renderLogs(); break;
+                case 'audit': title.innerText = '内容审核'; container.innerHTML = renderAudit(); break;
+                default: container.innerHTML = '<div class="card"><div class="card-body">页面开发中</div></div>';
+            }
+            document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+            document.querySelector(`.nav-item[data-page="${page}"]`)?.classList.add('active');
+            setTimeout(() => {
+                if (page === 'dashboard') initCharts();
+            }, 100);
+        }
+
+        function renderDashboard() {
+            return `
+                <div class="stats-row">
+                    <div class="stat-card">
+                        <div class="stat-label"><span>用户总数</span><div class="stat-icon icon-blue"><i class="fas fa-users"></i></div></div>
+                        <div class="stat-value">${APP.stats.totalUsers.toLocaleString()}</div>
+                        <div class="stat-sub"><i class="fas fa-arrow-up"></i> 今日新增 ${APP.stats.todayNew}</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label"><span>代理商数</span><div class="stat-icon icon-green"><i class="fas fa-handshake"></i></div></div>
+                        <div class="stat-value">${APP.stats.totalAgents}</div>
+                        <div class="stat-sub"><i class="fas fa-arrow-up"></i> 较上月 +3</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label"><span>企业客户</span><div class="stat-icon icon-orange"><i class="fas fa-building"></i></div></div>
+                        <div class="stat-value">${APP.stats.totalEnterprises}</div>
+                        <div class="stat-sub"><i class="fas fa-arrow-up"></i> 本月新增 28</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label"><span>视频生成总量</span><div class="stat-icon icon-purple"><i class="fas fa-video"></i></div></div>
+                        <div class="stat-value">${APP.stats.totalVideos.toLocaleString()}</div>
+                        <div class="stat-sub"><i class="fas fa-arrow-up"></i> 今日生成 856</div>
+                    </div>
+                </div>
+                <div class="chart-row">
+                    <div class="card">
+                        <div class="card-header"><h3>收入趋势</h3><span style="font-size:13px;color:var(--text-sub)">近6个月</span></div>
+                        <div class="card-body"><div class="chart-container"><canvas id="revenueChart"></canvas></div></div>
+                    </div>
+                    <div class="card">
+                        <div class="card-header"><h3>用户增长</h3></div>
+                        <div class="card-body"><div class="chart-container"><canvas id="growthChart"></canvas></div></div>
+                    </div>
+                </div>
+                <div class="chart-row">
+                    <div class="card">
+                        <div class="card-header"><h3>最近活动日志</h3></div>
+                        <div class="card-body">
+                            <table>
+                                <thead><tr><th>操作人</th><th>操作内容</th><th>时间</th></tr></thead>
+                                <tbody>
+                                    ${APP.logs.slice(0, 5).map(l => `
+                                        <tr><td>${l.admin}</td><td>${l.action}</td><td style="color:var(--text-sub)">${l.time}</td></tr>
+                                    `).join('')}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    <div class="card">
+                        <div class="card-header"><h3>系统运行状态</h3></div>
+                        <div class="card-body">
+                            <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 0;border-bottom:1px solid var(--border)">
+                                <span>API服务</span><span class="status-badge status-active">运行正常</span>
+                            </div>
+                            <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 0;border-bottom:1px solid var(--border)">
+                                <span>今日调用量</span><span style="font-weight:600">3,856 次</span>
+                            </div>
+                            <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 0;border-bottom:1px solid var(--border)">
+                                <span>成功率</span><span style="font-weight:600;color:var(--success)">99.2%</span>
+                            </div>
+                            <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 0">
+                                <span>剩余额度</span><span style="font-weight:600">856,420 积分</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderAdmins() {
+            return `
+                <div class="toolbar">
+                    <div class="search-box"><i class="fas fa-search"></i><input type="text" placeholder="搜索管理员..."></div>
+                    <button class="btn btn-primary" onclick="openModal('新增管理员', '${encodeURIComponent(`<div class="form-group"><label>管理员名称</label><input type="text" placeholder="请输入名称"></div><div class="form-row"><div class="form-group"><label>手机号</label><input type="text"></div><div class="form-group"><label>角色</label><select><option>超级管理员</option><option>运营管理员</option><option>财务管理员</option></select></div></div><div class="form-group"><label>初始密码</label><input type="password"></div>`)}')">
+                        <i class="fas fa-plus"></i> 新增管理员
+                    </button>
+                </div>
+                <div class="card">
+                    <div class="table-wrap">
+                        <table>
+                            <thead><tr><th>ID</th><th>姓名</th><th>角色</th><th>手机号</th><th>最后登录</th><th>状态</th><th>操作</th></tr></thead>
+                            <tbody>
+                                ${APP.admins.map(a => `
+                                    <tr>
+                                        <td>${a.id}</td><td>${a.name}</td><td><span class="status-badge status-active">${a.role}</span></td>
+                                        <td>${a.phone}</td><td style="color:var(--text-sub)">${a.lastLogin}</td>
+                                        <td><span class="status-badge status-${a.status}">${a.status === 'active' ? '启用' : '禁用'}</span></td>
+                                        <td>
+                                            <button class="btn btn-sm btn-outline">编辑</button>
+                                            <button class="btn btn-sm btn-outline btn-danger">禁用</button>
+                                        </td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderUsers() {
+            return `
+                <div class="toolbar">
+                    <div class="search-box"><i class="fas fa-search"></i><input type="text" placeholder="搜索用户..."></div>
+                    <div class="filter-group">
+                        <select class="btn btn-outline" style="padding:8px 12px"><option>全部角色</option><option>超级管理员</option><option>代理商</option><option>企业用户</option></select>
+                        <select class="btn btn-outline" style="padding:8px 12px"><option>全部状态</option><option>正常</option><option>禁用</option></select>
+                    </div>
+                </div>
+                <div class="card">
+                    <div class="table-wrap">
+                        <table>
+                            <thead><tr><th>ID</th><th>用户名</th><th>角色</th><th>所属企业/代理商</th><th>注册时间</th><th>状态</th><th>操作</th></tr></thead>
+                            <tbody>
+                                ${[
+                                    {id:1, name:'superadmin', role:'超级管理员', org:'平台官方', time:'2025-01-01', status:'active'},
+                                    {id:2, name:'cd_agent', role:'代理商', org:'成都XX科技', time:'2026-01-15', status:'active'},
+                                    {id:3, name:'sh_agent', role:'代理商', org:'上海YY传媒', time:'2025-11-20', status:'active'},
+                                    {id:4, name:'brand_admin', role:'企业用户', org:'某某品牌有限公司', time:'2026-02-10', status:'active'},
+                                    {id:5, name:'abc_creator', role:'企业用户', org:'ABC电商集团', time:'2025-12-05', status:'active'}
+                                ].map(u => `
+                                    <tr>
+                                        <td>${u.id}</td><td>${u.name}</td>
+                                        <td><span class="status-badge status-active">${u.role}</span></td>
+                                        <td>${u.org}</td><td style="color:var(--text-sub)">${u.time}</td>
+                                        <td><span class="status-badge status-${u.status}">${u.status === 'active' ? '正常' : '禁用'}</span></td>
+                                        <td><button class="btn btn-sm btn-outline">详情</button><button class="btn btn-sm btn-outline btn-danger">禁用</button></td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderAgents() {
+            return `
+                <div class="toolbar">
+                    <div class="search-box"><i class="fas fa-search"></i><input type="text" placeholder="搜索代理商..."></div>
+                    <button class="btn btn-primary" onclick="openModal('新增代理商', '${encodeURIComponent(`<div class="form-group"><label>代理商名称</label><input type="text"></div><div class="form-row"><div class="form-group"><label>联系人</label><input type="text"></div><div class="form-group"><label>手机号</label><input type="text"></div></div><div class="form-row"><div class="form-group"><label>等级</label><select><option>银牌</option><option>金牌</option><option>钻石</option></select></div><div class="form-group"><label>初始额度</label><input type="number" value="10000"></div></div><div class="form-row"><div class="form-group"><label>开通时间</label><input type="date"></div><div class="form-group"><label>到期时间</label><input type="date"></div></div>`)}')">
+                        <i class="fas fa-plus"></i> 新增代理商
+                    </button>
+                </div>
+                <div class="card">
+                    <div class="table-wrap">
+                        <table>
+                            <thead><tr><th>ID</th><th>代理商名称</th><th>联系人</th><th>手机号</th><th>等级</th><th>额度</th><th>旗下企业</th><th>到期时间</th><th>状态</th><th>操作</th></tr></thead>
+                            <tbody>
+                                ${APP.agents.map(a => `
+                                    <tr>
+                                        <td>${a.id}</td><td><strong>${a.name}</strong></td><td>${a.contact}</td><td>${a.phone}</td>
+                                        <td><span class="status-badge status-active">${a.level}</span></td>
+                                        <td>${a.usedQuota.toLocaleString()} / ${a.quota.toLocaleString()}</td>
+                                        <td>${a.enterprises}</td><td style="color:var(--text-sub)">${a.expireAt}</td>
+                                        <td><span class="status-badge status-${a.status}">${a.status === 'active' ? '正常' : '待审核'}</span></td>
+                                        <td>
+                                            <button class="btn btn-sm btn-outline">详情</button>
+                                            <button class="btn btn-sm btn-outline">充值</button>
+                                        </td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderEnterprises() {
+            return `
+                <div class="toolbar">
+                    <div class="search-box"><i class="fas fa-search"></i><input type="text" placeholder="搜索企业..."></div>
+                    <div class="filter-group">
+                        <select class="btn btn-outline" style="padding:8px 12px"><option>全部代理商</option><option>成都XX科技</option><option>上海YY传媒</option></select>
+                        <select class="btn btn-outline" style="padding:8px 12px"><option>全部套餐</option><option>基础版</option><option>标准版</option><option>旗舰版</option></select>
+                    </div>
+                </div>
+                <div class="card">
+                    <div class="table-wrap">
+                        <table>
+                            <thead><tr><th>ID</th><th>企业名称</th><th>所属代理商</th><th>套餐</th><th>剩余额度</th><th>成员数</th><th>开通时间</th><th>状态</th><th>操作</th></tr></thead>
+                            <tbody>
+                                ${APP.enterprises.map(e => `
+                                    <tr>
+                                        <td>${e.id}</td><td><strong>${e.name}</strong></td><td>${e.agent}</td>
+                                        <td><span class="status-badge status-active">${e.plan}</span></td>
+                                        <td>${(e.quota - e.usedQuota).toLocaleString()} / ${e.quota.toLocaleString()}</td>
+                                        <td>${e.members}</td><td style="color:var(--text-sub)">${e.createdAt}</td>
+                                        <td><span class="status-badge status-${e.status}">${e.status === 'active' ? '正常' : '过期'}</span></td>
+                                        <td><button class="btn btn-sm btn-outline">详情</button><button class="btn btn-sm btn-outline">调整</button></td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderPlans() {
+            return `
+                <div class="toolbar">
+                    <div></div>
+                    <button class="btn btn-primary" onclick="openModal('新增套餐', '${encodeURIComponent(`<div class="form-group"><label>套餐名称</label><input type="text"></div><div class="form-row"><div class="form-group"><label>价格</label><input type="number"></div><div class="form-group"><label>周期</label><select><option>月</option><option>季</option><option>年</option></select></div></div><div class="form-row"><div class="form-group"><label>积分额度</label><input type="number"></div><div class="form-group"><label>有效期</label><input type="text" value="30天"></div></div><div class="form-group"><label>功能权限（逗号分隔）</label><textarea rows="3">文生视频,图生视频</textarea></div>`)}')">
+                        <i class="fas fa-plus"></i> 新增套餐
+                    </button>
+                </div>
+                <div class="card">
+                    <div class="table-wrap">
+                        <table>
+                            <thead><tr><th>ID</th><th>套餐名称</th><th>价格</th><th>积分额度</th><th>有效期</th><th>功能</th><th>状态</th><th>操作</th></tr></thead>
+                            <tbody>
+                                ${APP.plans.map(p => `
+                                    <tr>
+                                        <td>${p.id}</td><td><strong>${p.name}</strong></td>
+                                        <td style="color:var(--primary);font-weight:600">¥${p.price.toLocaleString()}/${p.period}</td>
+                                        <td>${p.quota.toLocaleString()} 积分</td><td>${p.duration}</td>
+                                        <td style="font-size:12px;color:var(--text-sub);max-width:200px">${p.features.join('、')}</td>
+                                        <td><span class="status-badge status-${p.status}">${p.status === 'active' ? '上架' : '下架'}</span></td>
+                                        <td>
+                                            <button class="btn btn-sm btn-outline">编辑</button>
+                                            <button class="btn btn-sm btn-outline">${p.status === 'active' ? '下架' : '上架'}</button>
+                                        </td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderOrders() {
+            return `
+                <div style="display:flex;justify-content:space-between;margin-bottom:16px;align-items:center;flex-wrap:wrap;gap:12px">
+                    <div class="search-box"><i class="fas fa-search"></i><input type="text" placeholder="搜索订单号/客户名..."></div>
+                    <div style="display:flex;gap:8px">
+                        <select class="btn btn-outline" style="padding:8px 12px"><option>全部类型</option><option>代理商</option><option>企业</option></select>
+                        <select class="btn btn-outline" style="padding:8px 12px"><option>全部状态</option><option>已支付</option><option>待支付</option></select>
+                        <button class="btn btn-outline"><i class="fas fa-file-export"></i> 导出</button>
+                    </div>
+                </div>
+                <div class="card">
+                    <div class="table-wrap">
+                        <table>
+                            <thead><tr><th>订单号</th><th>客户</th><th>类型</th><th>金额</th><th>套餐</th><th>支付状态</th><th>时间</th><th>操作</th></tr></thead>
+                            <tbody>
+                                ${APP.orders.map(o => `
+                                    <tr>
+                                        <td style="font-family:monospace;font-size:12px">${o.id}</td>
+                                        <td><strong>${o.client}</strong></td>
+                                        <td><span class="status-badge status-active">${o.type}</span></td>
+                                        <td style="color:var(--primary);font-weight:600">¥${o.amount.toLocaleString()}</td>
+                                        <td>${o.plan}</td>
+                                        <td><span class="status-badge status-${o.status === 'paid' ? 'active' : 'pending'}">${o.status === 'paid' ? '已支付' : '待支付'}</span></td>
+                                        <td style="color:var(--text-sub)">${o.time}</td>
+                                        <td><button class="btn btn-sm btn-outline">详情</button></td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderSystem() {
+            return `
+                <div class="card">
+                    <div class="card-header"><h3>🏷️ 品牌贴牌配置</h3></div>
+                    <div class="card-body">
+                        <div class="form-row">
+                            <div class="form-group"><label>平台名称</label><input type="text" value="煜见光影SaaS平台"></div>
+                            <div class="form-group"><label>平台Logo</label><input type="file" accept="image/*"></div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group"><label>主色调</label><input type="color" value="#0a58ca" style="height:42px;padding:4px"></div>
+                            <div class="form-group"><label>版权信息</label><input type="text" value="© 2026 煜见光影 All Rights Reserved"></div>
+                        </div>
+                        <button class="btn btn-primary">保存品牌设置</button>
+                    </div>
+                </div>
+                <div class="card">
+                    <div class="card-header"><h3>🌐 域名配置</h3></div>
+                    <div class="card-body">
+                        <div class="form-group"><label>总后台域名</label><input type="text" value="admin.yujianguangying.com"></div>
+                        <div class="form-row">
+                            <div class="form-group"><label>代理商后台域名</label><input type="text" value="agent.yujianguangying.com"></div>
+                            <div class="form-group"><label>企业后台域名</label><input type="text" value="app.yujianguangying.com"></div>
+                        </div>
+                        <button class="btn btn-primary">保存域名配置</button>
+                    </div>
+                </div>
+                <div class="card">
+                    <div class="card-header"><h3>📧 通知与注册配置</h3></div>
+                    <div class="card-body">
+                        <div class="form-row">
+                            <div class="form-group"><label>邮件服务</label><select><option>已启用</option><option>已禁用</option></select></div>
+                            <div class="form-group"><label>短信服务</label><select><option>已启用</option><option>已禁用</option></select></div>
+                        </div>
+                        <div class="form-group">
+                            <label style="display:flex;align-items:center;gap:8px">
+                                <input type="checkbox" checked> 开放企业注册
+                            </label>
+                        </div>
+                        <button class="btn btn-primary">保存配置</button>
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderApiConfig() {
+            return `
+                <div class="card">
+                    <div class="card-header"><h3>🔑 阿里云通用API配置</h3></div>
+                    <div class="card-body">
+                        <div class="form-group"><label>AccessKey ID</label><input type="text" value="LTAI5t7z************"></div>
+                        <div class="form-group"><label>AccessKey Secret</label><input type="password" value="****************"></div>
+                        <div class="form-row">
+                            <div class="form-group"><label>DashScope Endpoint</label><input type="text" value="https://dashscope.aliyuncs.com"></div>
+                            <div class="form-group"><label>工作空间 WorkspaceId</label><input type="text" value="****************"></div>
+                        </div>
+                        <div style="background:var(--primary-bg);padding:16px;border-radius:8px;margin-top:16px">
+                            <div style="display:flex;justify-content:space-between;margin-bottom:8px">
+                                <span>今日调用次数</span><strong>3,856 次</strong>
+                            </div>
+                            <div style="display:flex;justify-content:space-between;margin-bottom:8px">
+                                <span>本月调用量</span><strong>85,420 次</strong>
+                            </div>
+                            <div style="display:flex;justify-content:space-between">
+                                <span>账户剩余额度</span><strong style="color:var(--success)">¥ 12,580.00</strong>
+                            </div>
+                        </div>
+                        <button class="btn btn-primary" style="margin-top:16px">保存配置</button>
+                        <button class="btn btn-outline" style="margin-top:16px;margin-left:8px">测试连接</button>
+                    </div>
+                </div>
+                <div class="card">
+                    <div class="card-header">
+                        <h3>🎬 视频生成模型矩阵</h3>
+                        <span class="status-badge status-active">HappyHorse + 万相双体系</span>
+                    </div>
+                    <div class="card-body">
+                        <table style="width:100%;font-size:13px">
+                            <thead>
+                                <tr style="background:#f9fafb">
+                                    <th style="padding:10px;text-align:left">功能</th>
+                                    <th style="padding:10px;text-align:left">模型ID</th>
+                                    <th style="padding:10px;text-align:left">成本(1080P/秒)</th>
+                                    <th style="padding:10px;text-align:left">积分定价</th>
+                                    <th style="padding:10px;text-align:center">状态</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td><strong>参考生视频</strong> <span style="color:var(--warning);font-size:11px">⭐核心</span></td>
+                                    <td style="font-family:monospace;font-size:11px">happyhorse-1.1-r2v</td>
+                                    <td>~ ¥1.0</td>
+                                    <td>12 积分/秒</td>
+                                    <td style="text-align:center"><span class="status-badge status-active">已启用</span></td>
+                                </tr>
+                                <tr>
+                                    <td><strong>文生视频</strong>（影视级）</td>
+                                    <td style="font-family:monospace;font-size:11px">happyhorse-1.1-t2v</td>
+                                    <td>~ ¥1.0</td>
+                                    <td>12 积分/秒</td>
+                                    <td style="text-align:center"><span class="status-badge status-active">已启用</span></td>
+                                </tr>
+                                <tr>
+                                    <td><strong>图生视频</strong>（影视级）</td>
+                                    <td style="font-family:monospace;font-size:11px">happyhorse-1.1-i2v</td>
+                                    <td>~ ¥1.0</td>
+                                    <td>12 积分/秒</td>
+                                    <td style="text-align:center"><span class="status-badge status-active">已启用</span></td>
+                                </tr>
+                                <tr>
+                                    <td><strong>视频编辑</strong></td>
+                                    <td style="font-family:monospace;font-size:11px">happyhorse-1.1-video-edit</td>
+                                    <td>~ ¥1.2</td>
+                                    <td>15 积分/秒</td>
+                                    <td style="text-align:center"><span class="status-badge status-active">已启用</span></td>
+                                </tr>
+                                <tr>
+                                    <td>文生视频（基础版）</td>
+                                    <td style="font-family:monospace;font-size:11px">wan2.7-t2v</td>
+                                    <td>~ ¥0.6</td>
+                                    <td>8 积分/秒</td>
+                                    <td style="text-align:center"><span class="status-badge status-active">已启用</span></td>
+                                </tr>
+                                <tr>
+                                    <td>图生视频（首尾帧）</td>
+                                    <td style="font-family:monospace;font-size:11px">wan2.7-i2v</td>
+                                    <td>~ ¥0.6</td>
+                                    <td>8 积分/秒</td>
+                                    <td style="text-align:center"><span class="status-badge status-active">已启用</span></td>
+                                </tr>
+                                <tr>
+                                    <td>文生图片</td>
+                                    <td style="font-family:monospace;font-size:11px">wanx-v1</td>
+                                    <td>~ ¥0.08/张</td>
+                                    <td>1 积分/张</td>
+                                    <td style="text-align:center"><span class="status-badge status-active">已启用</span></td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                <div class="card">
+                    <div class="card-header">
+                        <h3>🧑 数字人 / 人像动效模型</h3>
+                        <span class="status-badge status-pending">7个细分能力</span>
+                    </div>
+                    <div class="card-body">
+                        <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+                            <div style="padding:14px;border:1px solid var(--border);border-radius:10px">
+                                <div style="font-weight:600;margin-bottom:4px">🎙️ 数字人口播</div>
+                                <div style="font-size:12px;color:var(--text-sub);margin-bottom:8px">wanx-digital-human</div>
+                                <div style="display:flex;justify-content:space-between;font-size:12px">
+                                    <span>成本：~¥2/秒</span>
+                                    <span class="status-badge status-active">已启用</span>
+                                </div>
+                            </div>
+                            <div style="padding:14px;border:1px solid var(--border);border-radius:10px">
+                                <div style="font-weight:600;margin-bottom:4px">💃 舞动人像 AnimateAnyone</div>
+                                <div style="font-size:12px;color:var(--text-sub);margin-bottom:8px">照片生成跳舞/动作视频</div>
+                                <div style="display:flex;justify-content:space-between;font-size:12px">
+                                    <span>成本：~¥1.5/秒</span>
+                                    <span class="status-badge status-active">已启用</span>
+                                </div>
+                            </div>
+                            <div style="padding:14px;border:1px solid var(--border);border-radius:10px">
+                                <div style="font-weight:600;margin-bottom:4px">😊 悦动人像 EMO</div>
+                                <div style="font-size:12px;color:var(--text-sub);margin-bottom:8px">照片驱动表情和头部动作</div>
+                                <div style="display:flex;justify-content:space-between;font-size:12px">
+                                    <span>成本：~¥1.2/秒</span>
+                                    <span class="status-badge status-inactive">待接入</span>
+                                </div>
+                            </div>
+                            <div style="padding:14px;border:1px solid var(--border);border-radius:10px">
+                                <div style="font-weight:600;margin-bottom:4px">✨ 灵动人像 LivePortrait</div>
+                                <div style="font-size:12px;color:var(--text-sub);margin-bottom:8px">单张照片驱动生动视频</div>
+                                <div style="display:flex;justify-content:space-between;font-size:12px">
+                                    <span>成本：~¥1.0/秒</span>
+                                    <span class="status-badge status-inactive">待接入</span>
+                                </div>
+                            </div>
+                            <div style="padding:14px;border:1px solid var(--border);border-radius:10px">
+                                <div style="font-weight:600;margin-bottom:4px">🗣️ 声动人像 VideoRetalk</div>
+                                <div style="font-size:12px;color:var(--text-sub);margin-bottom:8px">视频对口型、换台词</div>
+                                <div style="display:flex;justify-content:space-between;font-size:12px">
+                                    <span>成本：~¥1.5/秒</span>
+                                    <span class="status-badge status-inactive">待接入</span>
+                                </div>
+                            </div>
+                            <div style="padding:14px;border:1px solid var(--border);border-radius:10px">
+                                <div style="font-weight:600;margin-bottom:4px">🔄 视频换人</div>
+                                <div style="font-size:12px;color:var(--text-sub);margin-bottom:8px">视频中替换人物身份</div>
+                                <div style="display:flex;justify-content:space-between;font-size:12px">
+                                    <span>成本：~¥2.0/秒</span>
+                                    <span class="status-badge status-inactive">待接入</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="card">
+                    <div class="card-header"><h3>🎵 语音服务配置</h3></div>
+                    <div class="card-body">
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>语音合成 TTS</label>
+                                <select>
+                                    <option>开启 - 阿里云智能语音</option>
+                                    <option>关闭</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label>语音识别 ASR（自动字幕）</label>
+                                <select>
+                                    <option>开启</option>
+                                    <option>关闭</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div style="font-size:12px;color:var(--text-sub);background:var(--primary-bg);padding:10px;border-radius:8px">
+                            TTS：¥0.02/千字 → 定价 <strong>0.5积分/百字</strong> &nbsp;|&nbsp;
+                            ASR：¥0.006/分钟 → 定价 <strong>1积分/分钟</strong>
+                        </div>
+                    </div>
+                </div>
+                <div class="card">
+                    <div class="card-header"><h3>🛡️ 阿里云内容安全审核配置</h3><span class="status-badge status-active">视频/图片/文本审核</span></div>
+                    <div class="card-body">
+                        <div style="background:#fef3c7;padding:12px 16px;border-radius:8px;margin-bottom:16px;font-size:13px;color:#92400e">
+                            <i class="fas fa-info-circle"></i> 对接阿里云内容安全（Content Moderation）服务，AI自动审核生成的视频、图片、文本内容，支持异步回调和人工复审
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group"><label>内容安全服务Endpoint</label><input type="text" value="green-cip.cn-shanghai.aliyuncs.com"></div>
+                            <div class="form-group"><label>服务区域</label><select><option>华东2（上海）</option><option>华东1（杭州）</option><option>华北2（北京）</option></select></div>
+                        </div>
+                        <div class="form-group"><label>审核回调地址</label><input type="text" value="https://your-domain.com/api/audit/callback" placeholder="审核完成后阿里云回调的URL"></div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>视频画面审核</label>
+                                <select>
+                                    <option>开启 - 基础版（鉴黄+暴恐+涉政）</option>
+                                    <option>开启 - 高级版（全场景检测）</option>
+                                    <option>关闭</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label>视频语音审核</label>
+                                <select>
+                                    <option>开启</option>
+                                    <option>关闭</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group"><label>截帧间隔（秒/帧）</label><input type="number" value="1" min="0.5" max="10"></div>
+                            <div class="form-group"><label>审核模式</label><select><option>自动通过 + 疑似人工复审</option><option>全部人工审核</option><option>AI自动处理</option></select></div>
+                        </div>
+                        <div style="background:var(--primary-bg);padding:14px;border-radius:8px;margin-top:12px">
+                            <div style="font-size:13px;font-weight:600;margin-bottom:8px">💰 审核成本折算积分</div>
+                            <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;font-size:12px">
+                                <div>视频画面审核：<strong>2积分/15秒</strong></div>
+                                <div>视频语音审核：<strong>1积分/15秒</strong></div>
+                                <div>图片审核：<strong>0.5积分/张</strong></div>
+                                <div>文本审核：<strong>0.1积分/次</strong></div>
+                            </div>
+                        </div>
+                        <button class="btn btn-primary" style="margin-top:16px">保存审核配置</button>
+                        <button class="btn btn-outline" style="margin-top:16px;margin-left:8px">测试审核接口</button>
+                    </div>
+                </div>
+                <div class="card">
+                    <div class="card-header"><h3>⚡ API调用限流</h3></div>
+                    <div class="card-body">
+                        <div class="form-row">
+                            <div class="form-group"><label>每秒请求数(QPS)</label><input type="number" value="50"></div>
+                            <div class="form-group"><label>每日调用上限</label><input type="number" value="100000"></div>
+                        </div>
+                        <button class="btn btn-primary">保存限流设置</button>
+                    </div>
+                </div>
+
+                <!-- OSS对象存储 -->
+                <div class="card">
+                    <div class="card-header">
+                        <h3>📦 OSS 对象存储配置</h3>
+                        <span class="status-badge status-active">素材/成品存储</span>
+                    </div>
+                    <div class="card-body">
+                        <div class="form-row">
+                            <div class="form-group"><label>Bucket 名称</label><input type="text" value="yujian-guangying-prod"></div>
+                            <div class="form-group"><label>Bucket 地域</label><select><option>华东2（上海）</option><option>华东1（杭州）</option><option>华北2（北京）</option><option>华南1（深圳）</option></select></div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group"><label>Endpoint 外网</label><input type="text" value="oss-cn-shanghai.aliyuncs.com"></div>
+                            <div class="form-group"><label>Endpoint 内网</label><input type="text" value="oss-cn-shanghai-internal.aliyuncs.com"></div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group"><label>素材源文件目录</label><input type="text" value="assets/"></div>
+                            <div class="form-group"><label>生成成品目录</label><input type="text" value="output/"></div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group"><label>CDN 加速域名</label><input type="text" value="cdn.yujianguangying.com"></div>
+                            <div class="form-group"><label>存储类型</label><select><option>标准存储</option><option>低频访问存储</option><option>归档存储</option></select></div>
+                        </div>
+                        <div style="background:var(--primary-bg);padding:14px;border-radius:8px;margin-top:12px">
+                            <div style="font-size:13px;font-weight:600;margin-bottom:8px">📁 目录结构规划</div>
+                            <div style="font-size:12px;color:var(--text-sub);font-family:monospace;line-height:1.8">
+                                assets/images/ &nbsp; 图片素材<br>
+                                assets/videos/ &nbsp; 视频素材<br>
+                                assets/audio/ &nbsp;&nbsp; 音频素材<br>
+                                output/video/ &nbsp;&nbsp; 生成视频成品<br>
+                                output/image/ &nbsp;&nbsp; 生成图片成品
+                            </div>
+                        </div>
+                        <button class="btn btn-primary" style="margin-top:16px">保存OSS配置</button>
+                        <button class="btn btn-outline" style="margin-top:16px;margin-left:8px">测试连接</button>
+                    </div>
+                </div>
+
+                <!-- VOD视频点播 -->
+                <div class="card">
+                    <div class="card-header">
+                        <h3>🎥 VOD 视频点播配置</h3>
+                        <span class="status-badge status-pending">媒资管理/转码/播放</span>
+                    </div>
+                    <div class="card-body">
+                        <div style="background:#dbeafe;padding:12px 16px;border-radius:8px;margin-bottom:16px;font-size:13px;color:#1e40af">
+                            <i class="fas fa-info-circle"></i> 视频点播VOD提供媒资管理、自动转码、截图、水印、CDN分发播放能力，适合成品视频托管
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group"><label>VOD服务区域</label><select><option>华东2（上海）</option><option>华北2（北京）</option><option>华南1（深圳）</option></select></div>
+                            <div class="form-group"><label>接入方式</label><select><option>OSS托管 + VOD转码</option><option>VOD全托管</option></select></div>
+                        </div>
+                        <div class="form-group"><label>播放域名</label><input type="text" value="play.yujianguangying.com"></div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>默认转码模板</label>
+                                <select>
+                                    <option>流畅360P + 标清480P + 高清720P</option>
+                                    <option>标清480P + 高清720P + 超清1080P</option>
+                                    <option>仅原画转封装</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label>视频加密</label>
+                                <select>
+                                    <option>关闭</option>
+                                    <option>阿里云私有加密</option>
+                                    <option>HLS标准加密</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group"><label>自动截图</label><select><option>开启 - 封面+10张截图</option><option>开启 - 仅封面图</option><option>关闭</option></select></div>
+                            <div class="form-group"><label>自动水印</label><select><option>开启 - 文字水印</option><option>开启 - 图片水印</option><option>关闭</option></select></div>
+                        </div>
+                        <button class="btn btn-primary" style="margin-top:16px">保存VOD配置</button>
+                    </div>
+                </div>
+
+                <!-- MPS媒体处理 -->
+                <div class="card">
+                    <div class="card-header">
+                        <h3>🎞️ MPS 媒体处理配置</h3>
+                        <span class="status-badge status-pending">转码/截图/水印/拼接</span>
+                    </div>
+                    <div class="card-body">
+                        <div class="form-row">
+                            <div class="form-group"><label>MPS管道ID</label><input type="text" value="pipleine-xxxxxx"></div>
+                            <div class="form-group"><label>服务区域</label><select><option>华东2（上海）</option><option>华北2（北京）</option></select></div>
+                        </div>
+                        <div style="font-size:13px;font-weight:600;margin:12px 0 8px">📐 转码模板组</div>
+                        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:12px">
+                            <div style="padding:10px;border:1px solid var(--border);border-radius:8px;font-size:12px">
+                                <div style="font-weight:600;margin-bottom:4px">360P 流畅</div>
+                                <div style="color:var(--text-sub)">MPS-LD-H264</div>
+                            </div>
+                            <div style="padding:10px;border:1px solid var(--border);border-radius:8px;font-size:12px">
+                                <div style="font-weight:600;margin-bottom:4px">720P 高清</div>
+                                <div style="color:var(--text-sub)">MPS-HD-H264</div>
+                            </div>
+                            <div style="padding:10px;border:1px solid var(--border);border-radius:8px;font-size:12px">
+                                <div style="font-weight:600;margin-bottom:4px">1080P 超清</div>
+                                <div style="color:var(--text-sub)">MPS-FHD-H264</div>
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group"><label>输入Bucket</label><input type="text" value="yujian-guangying-prod"></div>
+                            <div class="form-group"><label>输出Bucket</label><input type="text" value="yujian-guangying-prod"></div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group"><label>水印模板ID</label><input type="text" value="watermark-xxxxxx"></div>
+                            <div class="form-group"><label>截图模板ID</label><input type="text" value="snapshot-xxxxxx"></div>
+                        </div>
+                        <button class="btn btn-primary" style="margin-top:16px">保存MPS配置</button>
+                    </div>
+                </div>
+
+                <!-- 统一回调通知中心 -->
+                <div class="card">
+                    <div class="card-header">
+                        <h3>🔔 统一回调通知中心</h3>
+                        <span class="status-badge status-pending">任务状态回调</span>
+                    </div>
+                    <div class="card-body">
+                        <div class="form-group">
+                            <label>回调基础域名</label>
+                            <input type="text" value="https://api.yujianguangying.com" placeholder="你的服务端API域名">
+                        </div>
+                        <div style="font-size:13px;font-weight:600;margin:12px 0 8px">📋 各业务回调地址</div>
+                        <table style="width:100%;font-size:13px">
+                            <thead>
+                                <tr style="background:#f9fafb">
+                                    <th style="padding:10px;text-align:left">业务类型</th>
+                                    <th style="padding:10px;text-align:left">回调路径</th>
+                                    <th style="padding:10px;text-align:center">状态</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td>视频生成任务</td>
+                                    <td style="font-family:monospace;font-size:11px">/api/callback/video-gen</td>
+                                    <td style="text-align:center"><span class="status-badge status-active">已配置</span></td>
+                                </tr>
+                                <tr>
+                                    <td>数字人生成任务</td>
+                                    <td style="font-family:monospace;font-size:11px">/api/callback/digital-human</td>
+                                    <td style="text-align:center"><span class="status-badge status-active">已配置</span></td>
+                                </tr>
+                                <tr>
+                                    <td>内容安全审核</td>
+                                    <td style="font-family:monospace;font-size:11px">/api/callback/audit</td>
+                                    <td style="text-align:center"><span class="status-badge status-active">已配置</span></td>
+                                </tr>
+                                <tr>
+                                    <td>MPS媒体处理完成</td>
+                                    <td style="font-family:monospace;font-size:11px">/api/callback/mps</td>
+                                    <td style="text-align:center"><span class="status-badge status-inactive">待配置</span></td>
+                                </tr>
+                                <tr>
+                                    <td>VOD上传完成</td>
+                                    <td style="font-family:monospace;font-size:11px">/api/callback/vod-upload</td>
+                                    <td style="text-align:center"><span class="status-badge status-inactive">待配置</span></td>
+                                </tr>
+                                <tr>
+                                    <td>视频剪辑合成完成</td>
+                                    <td style="font-family:monospace;font-size:11px">/api/callback/editor</td>
+                                    <td style="text-align:center"><span class="status-badge status-inactive">待配置</span></td>
+                                </tr>
+                            </tbody>
+                        </table>
+                        <div class="form-row" style="margin-top:16px">
+                            <div class="form-group"><label>回调签名密钥</label><input type="password" value="****************"></div>
+                            <div class="form-group"><label>失败重试次数</label><input type="number" value="3"></div>
+                        </div>
+                        <button class="btn btn-primary" style="margin-top:8px">保存回调配置</button>
+                    </div>
+                </div>
+
+                <!-- 异步任务管理 -->
+                <div class="card">
+                    <div class="card-header">
+                        <h3>⏳ 异步任务管理配置</h3>
+                        <span class="status-badge status-pending">队列/超时/重试</span>
+                    </div>
+                    <div class="card-body">
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>视频生成任务超时</label>
+                                <select>
+                                    <option>10分钟</option>
+                                    <option selected>30分钟</option>
+                                    <option>60分钟</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label>任务失败自动重试</label>
+                                <select>
+                                    <option>不重试</option>
+                                    <option selected>重试1次</option>
+                                    <option>重试2次</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group"><label>单用户并发任务数</label><input type="number" value="3"></div>
+                            <div class="form-group"><label>全局并发任务上限</label><input type="number" value="50"></div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>任务队列类型</label>
+                                <select>
+                                    <option>FIFO 先进先出</option>
+                                    <option>优先级队列（VIP优先）</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label>任务结果保留时长</label>
+                                <select>
+                                    <option>7天</option>
+                                    <option selected>30天</option>
+                                    <option>90天</option>
+                                </select>
+                            </div>
+                        </div>
+                        <button class="btn btn-primary" style="margin-top:16px">保存任务配置</button>
+                    </div>
+                </div>
+
+                <!-- RAM子账号 -->
+                <div class="card">
+                    <div class="card-header">
+                        <h3>🔐 RAM 子账号访问配置</h3>
+                        <span class="status-badge status-pending">最小权限原则</span>
+                    </div>
+                    <div class="card-body">
+                        <div style="background:#dcfce7;padding:12px 16px;border-radius:8px;margin-bottom:16px;font-size:13px;color:#166534">
+                            <i class="fas fa-shield-alt"></i> 推荐使用RAM子账号AccessKey，遵循最小权限原则，仅授予必要的服务权限
+                        </div>
+                        <div class="form-group"><label>RAM子账号用户名</label><input type="text" value="yujian-saas-prod"></div>
+                        <div style="font-size:13px;font-weight:600;margin:12px 0 8px">📋 已授权服务</div>
+                        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:12px">
+                            <div style="padding:8px 12px;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:6px;font-size:12px">
+                                <i class="fas fa-check-circle" style="color:#22c55e"></i> 百炼DashScope
+                            </div>
+                            <div style="padding:8px 12px;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:6px;font-size:12px">
+                                <i class="fas fa-check-circle" style="color:#22c55e"></i> OSS对象存储
+                            </div>
+                            <div style="padding:8px 12px;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:6px;font-size:12px">
+                                <i class="fas fa-check-circle" style="color:#22c55e"></i> 内容安全Green
+                            </div>
+                            <div style="padding:8px 12px;background:#fef3c7;border:1px solid #fde68a;border-radius:6px;font-size:12px">
+                                <i class="fas fa-minus-circle" style="color:#f59e0b"></i> VOD视频点播
+                            </div>
+                            <div style="padding:8px 12px;background:#fef3c7;border:1px solid #fde68a;border-radius:6px;font-size:12px">
+                                <i class="fas fa-minus-circle" style="color:#f59e0b"></i> MPS媒体处理
+                            </div>
+                            <div style="padding:8px 12px;background:#fef3c7;border:1px solid #fde68a;border-radius:6px;font-size:12px">
+                                <i class="fas fa-minus-circle" style="color:#f59e0b"></i> 智能语音NLS
+                            </div>
+                        </div>
+                        <button class="btn btn-outline">查看权限策略文档</button>
+                    </div>
+                </div>
+
+                <!-- 在线剪辑引擎 -->
+                <div class="card">
+                    <div class="card-header">
+                        <h3>✂️ 在线剪辑引擎配置</h3>
+                        <span class="status-badge status-pending">云端合成/轨道编辑</span>
+                    </div>
+                    <div class="card-body">
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>剪辑引擎</label>
+                                <select>
+                                    <option>阿里云云剪辑</option>
+                                    <option>自研FFmpeg合成</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label>最大轨道数</label>
+                                <select>
+                                    <option>3轨</option>
+                                    <option selected>5轨</option>
+                                    <option>9轨</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group"><label>默认输出分辨率</label><select><option>720P</option><option selected>1080P</option><option>4K</option></select></div>
+                            <div class="form-group"><label>默认输出帧率</label><select><option>24fps</option><option selected>30fps</option><option>60fps</option></select></div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group"><label>单视频最大时长</label><input type="text" value="30分钟"></div>
+                            <div class="form-group"><label>合成任务队列</label><input type="text" value="editor-pipeline"></div>
+                        </div>
+                        <button class="btn btn-primary" style="margin-top:16px">保存剪辑配置</button>
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderRoles() {
+            return `
+                <div class="toolbar">
+                    <div></div>
+                    <button class="btn btn-primary"><i class="fas fa-plus"></i> 新增角色</button>
+                </div>
+                <div class="card">
+                    <div class="table-wrap">
+                        <table>
+                            <thead><tr><th>角色名称</th><th>角色描述</th><th>权限节点数</th><th>用户数</th><th>操作</th></tr></thead>
+                            <tbody>
+                                ${[
+                                    {name:'超级管理员', desc:'拥有系统全部权限', nodes:'全部', users:1},
+                                    {name:'运营管理员', desc:'用户、代理商、订单管理权限', nodes:28, users:2},
+                                    {name:'财务管理员', desc:'订单、账单、财务相关权限', nodes:12, users:1},
+                                    {name:'客服管理员', desc:'查看用户、处理工单权限', nodes:8, users:0}
+                                ].map(r => `
+                                    <tr>
+                                        <td><strong>${r.name}</strong></td><td>${r.desc}</td>
+                                        <td>${r.nodes}</td><td>${r.users}</td>
+                                        <td><button class="btn btn-sm btn-outline">编辑权限</button><button class="btn btn-sm btn-outline">编辑</button></td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderLogs() {
+            return `
+                <div class="toolbar">
+                    <div class="search-box"><i class="fas fa-search"></i><input type="text" placeholder="搜索操作人/内容..."></div>
+                    <div class="filter-group">
+                        <select class="btn btn-outline" style="padding:8px 12px"><option>全部类型</option><option>登录日志</option><option>操作日志</option></select>
+                        <button class="btn btn-outline">导出</button>
+                    </div>
+                </div>
+                <div class="card">
+                    <div class="table-wrap">
+                        <table>
+                            <thead><tr><th>ID</th><th>操作人</th><th>操作内容</th><th>IP地址</th><th>操作时间</th></tr></thead>
+                            <tbody>
+                                ${APP.logs.map(l => `
+                                    <tr>
+                                        <td>${l.id}</td><td>${l.admin}</td><td>${l.action}</td>
+                                        <td style="font-family:monospace;font-size:12px">${l.ip}</td>
+                                        <td style="color:var(--text-sub)">${l.time}</td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderAudit() {
+            return `
+                <div class="stats-row" style="grid-template-columns:repeat(4,1fr)">
+                    <div class="stat-card">
+                        <div class="stat-label"><span>今日待复审</span><div class="stat-icon icon-orange"><i class="fas fa-hourglass-half"></i></div></div>
+                        <div class="stat-value">12</div>
+                        <div class="stat-sub">AI疑似违规，需人工确认</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label"><span>今日AI自动通过</span><div class="stat-icon icon-green"><i class="fas fa-check-circle"></i></div></div>
+                        <div class="stat-value">286</div>
+                        <div class="stat-sub">无需人工干预</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label"><span>今日已驳回</span><div class="stat-icon" style="background:#fee2e2;color:var(--danger)"><i class="fas fa-times-circle"></i></div></div>
+                        <div class="stat-value">8</div>
+                        <div class="stat-sub danger">确认违规内容</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label"><span>审核成功率</span><div class="stat-icon icon-blue"><i class="fas fa-shield-alt"></i></div></div>
+                        <div class="stat-value">97.2%</div>
+                        <div class="stat-sub">阿里云内容安全</div>
+                    </div>
+                </div>
+                <div class="toolbar">
+                    <div class="filter-group">
+                        <button class="btn btn-primary">待人工复审 <span class="status-badge status-pending" style="margin-left:6px">12</span></button>
+                        <button class="btn btn-outline">AI自动通过</button>
+                        <button class="btn btn-outline">人工已驳回</button>
+                        <button class="btn btn-outline">全部记录</button>
+                    </div>
+                    <div style="display:flex;gap:8px">
+                        <select class="btn btn-outline" style="padding:8px 12px"><option>全部类型</option><option>视频</option><option>图片</option><option>数字人</option><option>文本</option></select>
+                        <div class="search-box"><i class="fas fa-search"></i><input type="text" placeholder="搜索内容ID/企业..."></div>
+                    </div>
+                </div>
+                <div class="card">
+                    <div class="card-header">
+                        <h3>🔍 审核队列（阿里云内容安全对接）</h3>
+                        <span style="font-size:12px;color:var(--text-sub)">数据来源：阿里云Green内容安全服务</span>
+                    </div>
+                    <div class="table-wrap">
+                        <table>
+                            <thead><tr><th>内容ID</th><th>类型</th><th>所属企业</th><th>提交时间</th><th>AI风险等级</th><th>违规标签</th><th>状态</th><th>操作</th></tr></thead>
+                            <tbody>
+                                ${[
+                                    {id:'VID20260715001', type:'视频', enterprise:'某某品牌有限公司', time:'2026-07-15 10:30', risk:'低风险', label:'正常', status:'ai_pass', score:12},
+                                    {id:'VID20260715002', type:'视频', enterprise:'ABC电商集团', time:'2026-07-15 10:25', risk:'中风险', label:'疑似不良场景', status:'pending', score:68},
+                                    {id:'IMG20260715008', type:'图片', enterprise:'新媒体工作室', time:'2026-07-15 10:15', risk:'低风险', label:'正常', status:'ai_pass', score:8},
+                                    {id:'VID20260714099', type:'数字人', enterprise:'某某品牌有限公司', time:'2026-07-14 18:40', risk:'低风险', label:'正常', status:'ai_pass', score:15},
+                                    {id:'VID20260714087', type:'视频', enterprise:'XX教育机构', time:'2026-07-14 16:20', risk:'高风险', label:'图文违规·敏感词', status:'pending', score:92},
+                                    {id:'TXT20260714055', type:'文本', enterprise:'新锐电商', time:'2026-07-14 14:05', risk:'中风险', label:'疑似违规宣传', status:'reviewing', score:55}
+                                ].map(c => `
+                                    <tr>
+                                        <td style="font-family:monospace;font-size:12px">${c.id}</td>
+                                        <td><span class="status-badge status-active">${c.type}</span></td>
+                                        <td>${c.enterprise}</td>
+                                        <td style="color:var(--text-sub)">${c.time}</td>
+                                        <td>
+                                            <span class="status-badge status-${c.risk === '低风险' ? 'active' : c.risk === '中风险' ? 'pending' : 'danger'}">
+                                                ${c.risk} · ${c.score}分
+                                            </span>
+                                        </td>
+                                        <td style="font-size:13px">${c.label}</td>
+                                        <td>
+                                            <span class="status-badge status-${c.status === 'ai_pass' ? 'active' : c.status === 'pending' ? 'pending' : 'processing'}">
+                                                ${c.status === 'ai_pass' ? 'AI通过' : c.status === 'pending' ? '待复审' : '审核中'}
+                                            </span>
+                                        </td>
+                                        <td>
+                                            <button class="btn btn-sm btn-outline">预览</button>
+                                            ${c.status === 'pending' ? '<button class="btn btn-sm btn-primary">通过</button><button class="btn btn-sm btn-outline btn-danger">驳回</button>' : '<button class="btn btn-sm btn-outline">详情</button>'}
+                                        </td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            `;
+        }
+
+        // 工具函数
+        function navigateTo(page) {
+            APP.currentPage = page;
+            render(page);
+            if (window.innerWidth < 1024) {
+                document.getElementById('sidebar').style.width = '72px';
+            }
+        }
+
+        function openModal(title, contentEncoded) {
+            document.getElementById('modalTitle').innerText = title;
+            document.getElementById('modalContent').innerHTML = decodeURIComponent(contentEncoded);
+            document.getElementById('modalOverlay').classList.add('show');
+        }
+
+        function closeModal() {
+            document.getElementById('modalOverlay').classList.remove('show');
+        }
+        document.getElementById('modalOverlay').addEventListener('click', function(e) {
+            if (e.target === this) closeModal();
+        });
+
+        function initCharts() {
+            const revenueCtx = document.getElementById('revenueChart');
+            if (revenueCtx) {
+                new Chart(revenueCtx, {
+                    type: 'line',
+                    data: {
+                        labels: ['2月', '3月', '4月', '5月', '6月', '7月'],
+                        datasets: [{
+                            label: '收入（元）',
+                            data: APP.monthlyRevenue,
+                            borderColor: '#0a58ca',
+                            backgroundColor: 'rgba(10,88,202,0.1)',
+                            fill: true,
+                            tension: 0.4
+                        }]
+                    },
+                    options: {
+                        responsive: true, maintainAspectRatio: false,
+                        plugins: { legend: { display: false } },
+                        scales: { y: { beginAtZero: true } }
+                    }
+                });
+            }
+            const growthCtx = document.getElementById('growthChart');
+            if (growthCtx) {
+                new Chart(growthCtx, {
+                    type: 'bar',
+                    data: {
+                        labels: ['2月', '3月', '4月', '5月', '6月', '7月'],
+                        datasets: [{
+                            label: '新增用户',
+                            data: APP.monthlyGrowth.map(v => v * 100),
+                            backgroundColor: '#10b981',
+                            borderRadius: 6
+                        }]
+                    },
+                    options: {
+                        responsive: true, maintainAspectRatio: false,
+                        plugins: { legend: { display: false } },
+                        scales: { y: { beginAtZero: true } }
+                    }
+                });
+            }
+        }
+
+        // 初始化
+        render('dashboard');
+
+        // 响应式侧边栏
+        window.addEventListener('resize', () => {
+            const sidebar = document.getElementById('sidebar');
+            if (window.innerWidth < 1024) {
+                sidebar.style.width = '72px';
+            } else {
+                sidebar.style.width = 'var(--sidebar-width)';
+            }
+        });
+    </script>
+</body>
+</html>

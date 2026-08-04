@@ -1,0 +1,724 @@
+const { Op } = require('sequelize');
+const { GenerationTask, Asset } = require('../../models');
+const dashscopeService = require('../../services/dashscopeService');
+const generationService = require('../../services/generationService');
+const videoStorageService = require('../../services/videoStorageService');
+const ossService = require('../../services/ossService');
+const { CREATIVE_TEMPLATES, getTemplateById, getTemplatesByOutput } = require('../../config/creativeTemplates');
+
+/**
+ * 视频生成任务控制器
+ *
+ * Sprint 2.5 Step 3.2 + 3.3: 图生视频任务的创建、查询和结果 OSS 永久存储
+ * Sprint 3.3: 任务列表、详情、软删除
+ *
+ * 安全策略：
+ *   - enterprise_id 隔离：所有查询均限定 enterprise_id
+ *   - Asset 归属校验：仅允许访问本企业素材
+ *   - 错误信息脱敏：DashScope 错误经 sanitizeError 处理后仅暴露安全消息
+ *   - 不泄露 OSS_SECRET、DashScope_KEY
+ *   - 列表/详情数据分离：列表返回轻量字段，详情返回完整信息
+ */
+
+// ─── 辅助函数 ────────────────────────────────────────────────────
+
+/**
+ * 将 error_code 和 message 合并存入 error_msg 字段
+ * 格式：[CODE] message
+ */
+function formatErrorMsg(code, message) {
+  if (code) {
+    return `[${code}] ${message || ''}`;
+  }
+  return message || '未知错误';
+}
+
+/**
+ * 从视频文件名生成友好名称
+ */
+function generateVideoName(task) {
+  const date = new Date().toISOString().slice(0, 10);
+  const promptSnippet = (task.prompt || 'video').substring(0, 30).replace(/[^a-zA-Z0-9一-鿿]/g, '_');
+  return `AI视频_${promptSnippet}_${date}`;
+}
+
+/**
+ * 构建轻量列表项
+ * 用于 GET /api/enterprise/video-generation/tasks
+ *
+ * 只暴露前端列表需要的最小字段集，不返回 params、完整 Asset、error 详情等内部字段
+ */
+function toListItem(task) {
+  return {
+    id: task.id,
+    status: task.status,
+    prompt: task.prompt ? (task.prompt.length > 80 ? task.prompt.substring(0, 80) + '...' : task.prompt) : '',
+    taskType: task.task_type || null,
+    model: task.model,
+    thumbnailUrl: computeThumbnailUrl(task),
+    coverUrl: task.cover_url || (task.outputAsset ? task.outputAsset.url : null) || null,
+    videoUrl: task.output_url || null,
+    duration: task.duration || null,
+    progress: task.progress || 0,
+    createdAt: task.created_at
+  };
+}
+
+/**
+ * 计算列表缩略图 URL
+ *
+ * 优先级：coverUrl > sourceAsset.thumbnail > sourceAsset.url > null
+ * 不修改数据库结构，纯计算字段
+ */
+function computeThumbnailUrl(task) {
+  // 1. cover_url 存在时直接使用
+  if (task.cover_url) {
+    return task.cover_url;
+  }
+  // 2. sourceAsset.thumbnail
+  if (task.sourceAsset && task.sourceAsset.thumbnail) {
+    return task.sourceAsset.thumbnail;
+  }
+  // 3. sourceAsset.url
+  if (task.sourceAsset && task.sourceAsset.url) {
+    return task.sourceAsset.url;
+  }
+  // 4. 无缩略图
+  return null;
+}
+
+/**
+ * 构建详情
+ * 用于 GET /api/enterprise/video-generation/tasks/:id
+ *
+ * 返回完整信息，含 params、sourceAsset、outputAsset、errorMsg 等
+ */
+function toDetail(task) {
+  const result = {
+    id: task.id,
+    status: task.status,
+    taskType: task.task_type || null,
+    model: task.model,
+    prompt: task.prompt || '',
+    negative_prompt: task.negative_prompt || null,
+    params: task.params ? (typeof task.params === 'string' ? JSON.parse(task.params) : task.params) : null,
+    videoUrl: task.output_url || null,
+    coverUrl: task.cover_url || null,
+    duration: task.duration || null,
+    width: task.width || null,
+    height: task.height || null,
+    progress: task.progress || 0,
+    errorMsg: task.error_msg || null,
+    provider: task.provider,
+    createdAt: task.created_at,
+    completedAt: task.completed_at || null
+  };
+
+  // 关联 sourceAsset（仅暴露安全字段）
+  if (task.sourceAsset) {
+    result.sourceAsset = {
+      id: task.sourceAsset.id,
+      name: task.sourceAsset.name,
+      url: task.sourceAsset.url,
+      thumbnail: task.sourceAsset.thumbnail,
+      type: task.sourceAsset.type,
+      width: task.sourceAsset.width,
+      height: task.sourceAsset.height
+    };
+  } else {
+    result.sourceAsset = null;
+  }
+
+  // 关联 outputAsset（仅暴露安全字段）
+  if (task.outputAsset) {
+    result.outputAsset = {
+      id: task.outputAsset.id,
+      name: task.outputAsset.name,
+      url: task.outputAsset.url,
+      thumbnail: task.outputAsset.thumbnail,
+      type: task.outputAsset.type,
+      duration: task.outputAsset.duration,
+      width: task.outputAsset.width,
+      height: task.outputAsset.height,
+      size: task.outputAsset.size,
+      mime_type: task.outputAsset.mime_type
+    };
+  } else {
+    result.outputAsset = null;
+  }
+
+  return result;
+}
+
+/**
+ * 软删除条件：所有列表查询默认增加 deleted_at IS NULL
+ */
+function notDeleted() {
+  return { deleted_at: { [Op.eq]: null } };
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  内部函数：视频 OSS 存储 + Asset 闭环
+// ═══════════════════════════════════════════════════════════════════
+
+/**
+ * 将 DashScope 视频转存到自有 OSS，创建 Asset 并关联 GenerationTask
+ *
+ * 幂等：若 task 已有 output_asset_id 则跳过
+ *
+ * @param {Object} task - GenerationTask 实例（含 update/reload 方法）
+ * @param {number} enterpriseId
+ * @param {number} userId
+ * @param {string} videoUrl - DashScope 返回的视频 URL
+ * @param {string} coverUrl - 视频封面 URL（可选）
+ * @param {number} duration - 视频时长（可选）
+ * @returns {Promise<Object>} 更新后的 task
+ */
+async function storeVideoAndCreateAsset(task, enterpriseId, userId, videoUrl, coverUrl, duration) {
+  // ── 幂等检查：已有关联 Asset 则直接返回 ──────────────────────
+  if (task.output_asset_id) {
+    return task;
+  }
+
+  // ── 1. 下载视频 + 上传 OSS ──────────────────────────────────
+  let storageResult;
+  try {
+    storageResult = await videoStorageService.downloadAndStore({
+      videoUrl,
+      enterpriseId
+    });
+  } catch (storageError) {
+    // 存储失败时标记任务为 failed
+    console.error(`[VideoGeneration] Storage failed for task ${task.id}: ${storageError.message}`);
+    await task.update({
+      status: 'failed',
+      error_msg: formatErrorMsg(storageError.code || 'STORAGE_FAILED', storageError.message),
+      completed_at: new Date()
+    });
+    await task.reload();
+    return task;
+  }
+
+  // ── 2. 创建视频 Asset ───────────────────────────────────────
+  let asset;
+  try {
+    asset = await Asset.create({
+      enterprise_id: enterpriseId,
+      user_id: userId,
+      type: 'video',
+      name: generateVideoName(task),
+      url: storageResult.video.url,
+      size: storageResult.size,
+      mime_type: storageResult.mimeType,
+      duration: duration || null,
+      width: task.width || null,
+      height: task.height || null,
+      category: 'ai_generated',
+      audit_status: 'pass'
+    });
+  } catch (assetError) {
+    console.error(`[VideoGeneration] Asset creation failed for task ${task.id}: ${assetError.message}`);
+    await task.update({
+      status: 'failed',
+      error_msg: formatErrorMsg('ASSET_CREATE_FAILED', 'Failed to create video asset'),
+      completed_at: new Date()
+    });
+    await task.reload();
+    return task;
+  }
+
+  // ── 3. 更新 GenerationTask 关联 ─────────────────────────────
+  // cover_url 保持 DashScope 原始值，不做修改
+  // 未来 Sprint: cover_url → OSS 永久存储 → Asset 关联 → generation_tasks.cover_asset_id
+  await task.update({
+    output_asset_id: asset.id,
+    output_url: storageResult.video.url,
+    cover_url: coverUrl || null,
+    duration: duration || null,
+    status: 'success',
+    completed_at: new Date()
+  });
+  await task.reload();
+
+  return task;
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  公开接口
+// ═══════════════════════════════════════════════════════════════════
+
+/**
+ * POST /api/enterprise/video-generation/tasks
+ *
+ * Sprint 4.7: 切换到 GenerationService → Provider Router → Aliyun Provider 架构
+ *
+ * Controller 只负责：参数校验、权限检查、返回结果
+ * 禁止：Controller 直接调用 dashscopeService 或具体 Provider
+ *
+ * 请求体：
+ *   sourceAssetId  - 图片素材ID（必填）
+ *   prompt         - 正向提示词（必填）
+ *   negativePrompt - 负向提示词（可选）
+ *   templateId     - 创作模板ID（可选，默认 image_to_video）
+ *   duration       - 视频时长（可选）
+ *   params         - 扩展参数（可选）
+ *
+ * 流程：
+ *   Controller
+ *     ↓ (参数校验 + 权限检查)
+ *   GenerationService.createGenerationTask()
+ *     ↓ (模板解析 + 任务创建)
+ *   Provider Router
+ *     ↓ (provider 路由)
+ *   Aliyun Provider
+ *     ↓ (模型匹配 + API 调用)
+ *   DashScope Client (dashscope-client.js)
+ *     ↓ (HTTP 通信)
+ *   DashScope API
+ */
+exports.createTask = async (req, res) => {
+  try {
+    const enterpriseId = req.user.enterpriseId;
+    const userId = req.user.userId;
+    const { sourceAssetId, prompt, negativePrompt, templateId, duration, params } = req.body;
+
+    // ── 1. 参数校验（Controller 层）─────────────────────────────
+    if (!sourceAssetId) {
+      return res.fail('素材ID不能为空');
+    }
+
+    if (!prompt || typeof prompt !== 'string' || !prompt.trim()) {
+      return res.fail('提示词不能为空');
+    }
+    if (prompt.trim().length > 2000) {
+      return res.fail('提示词不能超过2000字');
+    }
+
+    // ── 2. 权限检查：Asset 归属校验 ─────────────────────────────
+    const asset = await Asset.findByPk(sourceAssetId);
+    if (!asset) {
+      return res.fail('素材不存在');
+    }
+    if (asset.enterprise_id !== enterpriseId) {
+      return res.fail('无权访问该素材');
+    }
+
+    // ── 3. 获取图片可访问 URL（私有Bucket需签名URL）─────────────
+    const imageUrl = await ossService.getSignedUrl(asset.url) || asset.url;
+    if (!imageUrl || typeof imageUrl !== 'string' || !imageUrl.trim()) {
+      return res.fail('素材URL无效');
+    }
+
+    // ── 4. 调用 GenerationService 创建任务 ──────────────────────
+    //     业务逻辑（模板解析、Provider 调用、任务持久化）由 Service 层处理
+    const result = await generationService.createGenerationTask({
+      enterpriseId,
+      userId,
+      templateId: templateId || 'image_to_video',
+      prompt: prompt.trim(),
+      negativePrompt,
+      imageUrl: imageUrl.trim(),
+      sourceAssetId,
+      duration,
+      options: params
+    });
+
+    // ── 5. 返回结果 ────────────────────────────────────────────
+    return res.success({
+      id: result.id,
+      task_id: result.taskId,
+      status: result.status,
+      provider: result.provider,
+      model: result.model,
+      created_at: result.createdAt
+    });
+  } catch (error) {
+    console.error('[VideoGeneration] createTask error:', error.message);
+
+    // ProviderError 返回脱敏后的错误信息
+    if (error.name === 'ProviderError') {
+      return res.fail(error.message, error.statusCode || 500);
+    }
+
+    return res.fail('服务器内部错误', 500);
+  }
+};
+
+/**
+ * GET /api/enterprise/video-generation/tasks
+ *
+ * Sprint 3.3: 作品列表接口
+ * Sprint 4.7 Patch1: 强化错误处理，确保不调用 Provider/GenerationService
+ *
+ * 查询参数：
+ *   page     - 页码，默认 1
+ *   pageSize - 每页条数，默认 20
+ *   status   - 按状态筛选（可选）：pending | processing | success | failed
+ *   task_type- 按任务类型筛选（可选）
+ *
+ * 排序：created_at DESC（最新任务排最前）
+ *
+ * 返回轻量结构：
+ *   { total, page, pageSize, items: [{ id, status, prompt, task_type, coverUrl, videoUrl, duration, progress, createdAt }] }
+ *
+ * 自动过滤软删除记录（deleted_at IS NULL）
+ *
+ * 设计约束：
+ *   - 仅查询 GenerationTask 表 + Asset 关联
+ *   - 不调用 GenerationService / Provider Router / Aliyun API
+ *   - 不写入数据库
+ *   - 只读操作，幂等
+ */
+exports.listTasks = async (req, res) => {
+  try {
+    // ── 1. 身份校验 ────────────────────────────────────────────
+    const enterpriseId = req.user?.enterpriseId;
+    if (!enterpriseId) {
+      return res.fail('用户身份信息缺失', 401);
+    }
+
+    // ── 2. 参数解析与校验 ──────────────────────────────────────
+    const page = Math.max(1, parseInt(req.query.page) || 1);
+    const pageSize = Math.min(100, Math.max(1, parseInt(req.query.pageSize) || 20));
+    const status = req.query.status || null;
+    const taskType = req.query.task_type || null;
+
+    // 校验 status 合法值
+    if (status && !['pending', 'processing', 'success', 'failed'].includes(status)) {
+      return res.fail('无效的状态筛选参数', 400);
+    }
+
+    // ── 3. 构建查询条件 ────────────────────────────────────────
+    const where = {
+      enterprise_id: enterpriseId,
+      ...notDeleted()
+    };
+
+    if (status) {
+      where.status = status;
+    }
+
+    if (taskType) {
+      where.task_type = taskType;
+    }
+
+    // ── 4. 数据库查询（只读，不调用任何 Provider/外部 API）────
+    const { count, rows } = await GenerationTask.findAndCountAll({
+      where,
+      include: [
+        {
+          model: Asset,
+          as: 'sourceAsset',
+          attributes: ['id', 'url', 'thumbnail', 'type'],
+          required: false
+        },
+        {
+          model: Asset,
+          as: 'outputAsset',
+          attributes: ['id', 'url', 'thumbnail', 'type', 'duration'],
+          required: false
+        }
+      ],
+      order: [['created_at', 'DESC']],
+      offset: (page - 1) * pageSize,
+      limit: pageSize
+    });
+
+    // ── 5. 转换为轻量列表结构 ──────────────────────────────────
+    const items = rows.map(toListItem);
+
+    res.success({
+      total: count,
+      page,
+      pageSize,
+      items
+    });
+  } catch (error) {
+    // ── 错误日志（脱敏，不记录用户数据）────────────────────────
+    console.error(
+      `[VideoGeneration] listTasks error | ` +
+      `type=${error.name || 'Unknown'} | ` +
+      `message=${error.message || '(no message)'} | ` +
+      `time=${new Date().toISOString()}`
+    );
+
+    // 区分数据库错误和其他错误
+    if (error.name === 'SequelizeDatabaseError') {
+      return res.fail('数据库查询异常，请联系管理员', 500);
+    }
+    if (error.name === 'SequelizeConnectionError' || error.name === 'SequelizeConnectionRefusedError') {
+      return res.fail('数据库连接失败，请稍后重试', 500);
+    }
+
+    return res.fail('服务器内部错误', 500);
+  }
+};
+
+/**
+ * GET /api/enterprise/video-generation/tasks/:id
+ *
+ * Sprint 2.5 + Sprint 3.3: 作品详情接口
+ *
+ * 流程：
+ *   1. 根据 GenerationTask.id + enterprise_id 查询任务
+ *   2. 若 deleted_at 不为空 → 返回 404
+ *   3. 若 success 且有 output_asset_id → 返回格式化详情
+ *   4. 若 success 但无 output_asset_id → 补做视频转存 + Asset 创建
+ *   5. 若 failed → 返回格式化详情
+ *   6. 若 pending / processing → 调用 DashScope 同步状态
+ *      - 同步为 success → 下载视频 → 上传 OSS → 创建 Asset → 关联 → 返回
+ *      - 同步为 failed → 更新错误信息 → 返回
+ *      - 同步仍 pending/processing → 更新进度 → 返回
+ *
+ * 返回完整详情（toDetail 格式化）
+ *
+ * 幂等：
+ *   - 同一个任务不会重复上传视频或创建 Asset
+ *
+ * 安全：
+ *   - enterprise_id 隔离，不能查询其他企业任务
+ *   - 已删除任务返回 404
+ */
+exports.getTask = async (req, res) => {
+  try {
+    const enterpriseId = req.user.enterpriseId;
+    const userId = req.user.userId;
+    const taskId = req.params.id;
+
+    // ── 1. 查询任务（企业隔离）──────────────────────────────────
+    const task = await GenerationTask.findOne({
+      where: {
+        id: taskId,
+        enterprise_id: enterpriseId
+      },
+      include: [
+        { model: Asset, as: 'sourceAsset', attributes: ['id', 'name', 'url', 'thumbnail', 'type', 'width', 'height'], required: false },
+        { model: Asset, as: 'outputAsset', attributes: ['id', 'name', 'url', 'thumbnail', 'type', 'duration', 'width', 'height', 'size', 'mime_type'], required: false }
+      ]
+    });
+
+    if (!task) {
+      return res.fail('任务不存在', 404);
+    }
+
+    // ── Sprint 3.3: 已删除任务返回 404 ─────────────────────────
+    if (task.deleted_at) {
+      return res.fail('任务不存在', 404);
+    }
+
+    // ── 2. success 且有 output_asset_id → 返回格式化详情（终态）─
+    if (task.status === 'success' && task.output_asset_id) {
+      return res.success(toDetail(task));
+    }
+
+    // ── 3. success 但无 output_asset_id → 补做存储闭环 ─────────
+    if (task.status === 'success' && !task.output_asset_id) {
+      if (task.output_url) {
+        const storedTask = await storeVideoAndCreateAsset(
+          task, enterpriseId, userId,
+          task.output_url, task.cover_url, task.duration
+        );
+        // 重新加载关联
+        const reloaded = await GenerationTask.findByPk(storedTask.id, {
+          include: [
+            { model: Asset, as: 'sourceAsset', attributes: ['id', 'name', 'url', 'thumbnail', 'type', 'width', 'height'], required: false },
+            { model: Asset, as: 'outputAsset', attributes: ['id', 'name', 'url', 'thumbnail', 'type', 'duration', 'width', 'height', 'size', 'mime_type'], required: false }
+          ]
+        });
+        return res.success(toDetail(reloaded || storedTask));
+      }
+      // 无 output_url 则无法转存，直接返回
+      return res.success(toDetail(task));
+    }
+
+    // ── 4. failed → 返回格式化详情 ──────────────────────────────
+    if (task.status === 'failed') {
+      return res.success(toDetail(task));
+    }
+
+    // ── 5. pending / processing → 同步 DashScope 状态 ───────────
+    if (task.status === 'pending' || task.status === 'processing') {
+      // 无 task_id 时无法同步，直接返回 DB 状态
+      if (!task.task_id) {
+        return res.success(toDetail(task));
+      }
+
+      try {
+        // Sprint 4.7: 通过 GenerationService → Provider Router → Aliyun Provider 查询状态
+        const statusResult = await generationService.getTaskStatus(task.provider, task.task_id);
+
+        const updateData = {};
+
+        // 状态更新
+        if (statusResult.status && statusResult.status !== task.status) {
+          updateData.status = statusResult.status;
+        }
+
+        // 进度更新
+        if (statusResult.progress !== null && statusResult.progress !== undefined) {
+          updateData.progress = statusResult.progress;
+        }
+
+        // 输出 URL（DashScope 返回的临时 URL）
+        if (statusResult.outputUrl) {
+          updateData.output_url = statusResult.outputUrl;
+        }
+
+        // 封面 URL
+        if (statusResult.coverUrl) {
+          updateData.cover_url = statusResult.coverUrl;
+        }
+
+        // 时长
+        if (statusResult.duration) {
+          updateData.duration = statusResult.duration;
+        }
+
+        // 失败信息
+        if (statusResult.status === 'failed') {
+          updateData.error_msg = formatErrorMsg(
+            statusResult.errorCode,
+            statusResult.errorMessage
+          );
+          updateData.completed_at = new Date();
+        }
+
+        // 先写 DB
+        if (Object.keys(updateData).length > 0) {
+          await task.update(updateData);
+          await task.reload();
+        }
+
+        // ── 同步结果为 success → 转存视频到自有 OSS ──────────────
+        if (task.status === 'success' && !task.output_asset_id) {
+          const videoUrl = task.output_url || statusResult.outputUrl;
+          if (videoUrl) {
+            const storedTask = await storeVideoAndCreateAsset(
+              task, enterpriseId, userId,
+              videoUrl,
+              task.cover_url || statusResult.coverUrl,
+              task.duration || statusResult.duration
+            );
+            // 重新加载关联
+            const reloaded = await GenerationTask.findByPk(storedTask.id, {
+              include: [
+                { model: Asset, as: 'sourceAsset', attributes: ['id', 'name', 'url', 'thumbnail', 'type', 'width', 'height'], required: false },
+                { model: Asset, as: 'outputAsset', attributes: ['id', 'name', 'url', 'thumbnail', 'type', 'duration', 'width', 'height', 'size', 'mime_type'], required: false }
+              ]
+            });
+            return res.success(toDetail(reloaded || storedTask));
+          }
+        }
+
+        // 重新加载带关联
+        const reloaded = await GenerationTask.findByPk(task.id, {
+          include: [
+            { model: Asset, as: 'sourceAsset', attributes: ['id', 'name', 'url', 'thumbnail', 'type', 'width', 'height'], required: false },
+            { model: Asset, as: 'outputAsset', attributes: ['id', 'name', 'url', 'thumbnail', 'type', 'duration', 'width', 'height', 'size', 'mime_type'], required: false }
+          ]
+        });
+        return res.success(toDetail(reloaded || task));
+      } catch (syncError) {
+        // 同步失败不阻塞，返回当前 DB 状态
+        console.error('[VideoGeneration] getTask sync error:', syncError.message);
+        return res.success(toDetail(task));
+      }
+    }
+
+    // ── 兜底返回 ────────────────────────────────────────────────
+    return res.success(toDetail(task));
+  } catch (error) {
+    console.error('[VideoGeneration] getTask error:', error.message);
+    return res.fail('服务器内部错误', 500);
+  }
+};
+
+/**
+ * DELETE /api/enterprise/video-generation/tasks/:id
+ *
+ * Sprint 3.3: 软删除作品
+ *
+ * 删除逻辑：
+ *   1. JWT 鉴权 → 验证 enterprise_id
+ *   2. 查询任务，验证归属
+ *   3. 若已删除 → 返回 404
+ *   4. 更新 deleted_at = NOW()
+ *
+ * 不执行物理删除。
+ * 不删除关联的 GenerationTask 记录。
+ * 不删除关联的 Asset 记录。
+ * 不删除 OSS 上的视频文件。
+ *
+ * 设计理由（注释保留以供未来参考）：
+ *   当前采用软删除。未来增加 OSS 生命周期清理任务。
+ *   避免：误删除、数据恢复困难、审计困难。
+ *   待未来 Sprint 实现：定时任务扫描 expired_at 超过保留期的记录，逐条清理 OSS 文件后再物理删除。
+ */
+exports.deleteTask = async (req, res) => {
+  try {
+    const enterpriseId = req.user.enterpriseId;
+    const taskId = req.params.id;
+
+    // ── 1. 查询任务（企业隔离）──────────────────────────────────
+    const task = await GenerationTask.findOne({
+      where: {
+        id: taskId,
+        enterprise_id: enterpriseId
+      }
+    });
+
+    if (!task) {
+      return res.fail('任务不存在', 404);
+    }
+
+    // ── 2. 已删除的任务返回 404 ─────────────────────────────────
+    if (task.deleted_at) {
+      return res.fail('任务不存在', 404);
+    }
+
+    // ── 3. 软删除：设置 deleted_at ──────────────────────────────
+    await task.update({ deleted_at: new Date() });
+
+    return res.success({ id: task.id, deleted_at: task.deleted_at }, '删除成功');
+  } catch (error) {
+    console.error('[VideoGeneration] deleteTask error:', error.message);
+    return res.fail('服务器内部错误', 500);
+  }
+};
+
+/**
+ * GET /api/enterprise/video-generation/templates
+ *
+ * Sprint 4.4 Patch3: 获取可用创作模板列表
+ *
+ * 查询参数：
+ *   outputType - 按输出类型筛选（可选）：'image' | 'video'
+ *
+ * 返回全部阿里云百炼创作模板，不包含第三方模型。
+ * 前端不直接展示模型名称，仅展示创作类型。
+ */
+exports.getTemplates = async (req, res) => {
+  try {
+    const outputType = req.query.outputType || null;
+    const templates = getTemplatesByOutput(outputType);
+
+    // 返回安全字段（不暴露内部实现细节）
+    const safeTemplates = templates.map(t => ({
+      id: t.id,
+      name: t.name,
+      description: t.description,
+      capability: t.capability,
+      category: t.category,
+      categoryLabel: t.categoryLabel,
+      icon: t.icon,
+      outputType: t.outputType,
+      sort: t.sort,
+      providerLabel: '阿里云百炼'
+    }));
+
+    return res.success(safeTemplates);
+  } catch (error) {
+    console.error('[VideoGeneration] getTemplates error:', error.message);
+    return res.fail('服务器内部错误', 500);
+  }
+};

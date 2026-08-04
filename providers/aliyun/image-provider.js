@@ -1,0 +1,136 @@
+/**
+ * Aliyun Image Provider
+ *
+ * Sprint 4.6: AI Provider 架构准备
+ *
+ * 职责：
+ *   实现 AIProvider 接口的图片生成部分
+ *   - createTask()    — 创建图片生成任务
+ *   - getTaskStatus() — 查询任务状态
+ *   - cancelTask()    — 取消任务
+ *
+ * 当前支持的 capability：
+ *   - image_generation — 文生图
+ *   - image_edit       — 图片编辑（预留）
+ */
+
+const dashscopeClient = require('./dashscope-client');
+const { resolveModel, ALIYUN_CONFIG } = require('./config');
+const ProviderError = require('../../utils/ProviderError');
+
+class AliyunImageProvider {
+  constructor() {
+    this.provider = 'aliyun';
+    this.client = dashscopeClient;
+  }
+
+  /**
+   * 创建图片生成任务
+   *
+   * @param {Object} params
+   * @param {string} params.templateId — 创作模板 ID
+   * @param {string} params.prompt    — 提示词
+   * @param {string} [params.imageUrl] — 输入图片 URL（图片编辑时使用）
+   * @param {Object} [params.options]  — 额外选项 { size, n, ... }
+   * @returns {Promise<{ taskId: string, provider: string, model: string, status: string }>}
+   */
+  async createTask(params) {
+    const { templateId, prompt, imageUrl, options = {} } = params;
+
+    // ── 1. 解析模型 ────────────────────────────────────────────
+    const modelConfig = resolveModel(templateId);
+    if (!modelConfig) {
+      throw new ProviderError(
+        this.provider, 'UNSUPPORTED_TEMPLATE',
+        `Unsupported template: ${templateId}`, false
+      );
+    }
+
+    if (modelConfig.outputType !== 'image') {
+      throw new ProviderError(
+        this.provider, 'TEMPLATE_TYPE_MISMATCH',
+        `Template ${templateId} is not an image generation template`, false
+      );
+    }
+
+    // ── 2. 参数校验 ────────────────────────────────────────────
+    if (!prompt || typeof prompt !== 'string' || !prompt.trim()) {
+      throw new ProviderError(
+        this.provider, 'INVALID_PROMPT',
+        'Prompt is required for image generation', false
+      );
+    }
+
+    // ── 3. 按 capability 分发 ──────────────────────────────────
+    switch (modelConfig.capability) {
+      case 'image_generation':
+        return this._createImageGeneration(prompt, modelConfig.model, options);
+
+      case 'image_edit':
+        return this._createImageEdit(prompt, imageUrl, modelConfig.model, options);
+
+      default:
+        throw new ProviderError(
+          this.provider, 'UNSUPPORTED_CAPABILITY',
+          `Unsupported capability: ${modelConfig.capability}`, false
+        );
+    }
+  }
+
+  /**
+   * 查询任务状态
+   *
+   * @param {string} taskId — Provider 任务 ID
+   * @returns {Promise<Object>}
+   */
+  async getTaskStatus(taskId) {
+    return this.client.getTaskStatus(taskId);
+  }
+
+  /**
+   * 取消任务
+   *
+   * @param {string} taskId — Provider 任务 ID
+   * @returns {Promise<Object>}
+   */
+  async cancelTask(taskId) {
+    return this.client.cancelTask(taskId);
+  }
+
+  // ─── 私有方法 ──────────────────────────────────────────────────
+
+  /**
+   * 文生图
+   */
+  async _createImageGeneration(prompt, model, options) {
+    const result = await this.client.createTextToImageTask({
+      prompt: prompt.trim(),
+      model,
+      size: options.size,
+      n: options.n
+    });
+
+    return {
+      taskId: result.taskId,
+      provider: this.provider,
+      model,
+      status: result.status
+    };
+  }
+
+  /**
+   * 图片编辑（预留）
+   *
+   * 当前 DashScope 图片编辑 API 待确认，先返回友好错误。
+   */
+  async _createImageEdit(prompt, imageUrl, model, options) {
+    // 图片编辑 API 待阿里云百炼开放后实现
+    // 当前使用文生图作为临时方案
+    throw new ProviderError(
+      this.provider, 'NOT_IMPLEMENTED',
+      'Image edit API is not yet available. Please use image_generation template instead.', false
+    );
+  }
+}
+
+module.exports = new AliyunImageProvider();

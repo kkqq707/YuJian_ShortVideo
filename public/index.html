@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>煜见光影 - 短视频创作SaaS平台</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .container {
+            text-align: center;
+            color: white;
+            padding: 40px;
+        }
+        .logo {
+            font-size: 48px;
+            font-weight: bold;
+            margin-bottom: 16px;
+            letter-spacing: 4px;
+        }
+        .subtitle {
+            font-size: 18px;
+            opacity: 0.9;
+            margin-bottom: 60px;
+        }
+        .cards {
+            display: flex;
+            gap: 24px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+        .card {
+            background: rgba(255, 255, 255, 0.15);
+            backdrop-filter: blur(10px);
+            border-radius: 16px;
+            padding: 32px 40px;
+            width: 240px;
+            text-decoration: none;
+            color: white;
+            transition: all 0.3s;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        .card:hover {
+            transform: translateY(-4px);
+            background: rgba(255, 255, 255, 0.25);
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
+        }
+        .card-icon {
+            font-size: 40px;
+            margin-bottom: 16px;
+        }
+        .card-title {
+            font-size: 20px;
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+        .card-desc {
+            font-size: 14px;
+            opacity: 0.8;
+        }
+        .footer {
+            margin-top: 60px;
+            font-size: 14px;
+            opacity: 0.6;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="logo">煜见光影</div>
+        <div class="subtitle">AI 驱动的短视频创作 SaaS 平台</div>
+        
+        <div class="cards">
+            <a href="admin.html" class="card">
+                <div class="card-icon">⚙️</div>
+                <div class="card-title">总后台</div>
+                <div class="card-desc">超级管理员入口</div>
+            </a>
+            <a href="agent.html" class="card">
+                <div class="card-icon">🏢</div>
+                <div class="card-title">代理商后台</div>
+                <div class="card-desc">代理商管理入口</div>
+            </a>
+            <a href="enterprise.html" class="card">
+                <div class="card-icon">🎬</div>
+                <div class="card-title">企业创作后台</div>
+                <div class="card-desc">AI视频创作入口</div>
+            </a>
+        </div>
+        
+        <div class="footer">
+            © 2026 煜见光影 · 技术支持
+        </div>
+    </div>
+</body>
+</html>
