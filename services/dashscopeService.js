@@ -325,12 +325,13 @@ class DashScopeService {
       );
     }
 
-    // ── 组装请求体 ────────────────────────────────────────────
+    // ── 组装请求体（DashScope wan2.1-i2v 标准格式）───────────
+    // 参考: https://help.aliyun.com/en/model-studio/legacy-image-to-video-api-reference/
     const requestBody = {
       model: resolvedModel,
       input: {
         prompt: prompt.trim(),
-        image_url: imageUrl.trim()
+        img_url: imageUrl.trim()
       },
       parameters: {}
     };
@@ -339,12 +340,14 @@ class DashScopeService {
       requestBody.input.negative_prompt = negativePrompt.trim();
     }
 
+    // wan2.1-i2v 使用 resolution 而非 duration
+    // 默认 720P，支持 480P / 720P
     if (duration) {
       requestBody.parameters.duration = parseInt(duration) || 5;
     }
 
     // params 中的额外参数合并到 parameters
-    const knownParamKeys = ['resolution', 'ratio', 'seed', 'fps', 'camera', 'motion', 'size'];
+    const knownParamKeys = ['resolution', 'ratio', 'seed', 'fps', 'camera', 'motion', 'size', 'duration'];
     for (const key of knownParamKeys) {
       if (params[key] !== undefined && params[key] !== null) {
         requestBody.parameters[key] = params[key];
@@ -363,25 +366,51 @@ class DashScopeService {
       delete requestBody.parameters;
     }
 
-    // ── 日志（脱敏）───────────────────────────────────────────
-    if (process.env.NODE_ENV === 'development') {
-      console.log(
-        `[DashScope] createImageToVideoTask | model=${resolvedModel} | ` +
-        `image=${safeUrlSummary(imageUrl)} | prompt_len=${prompt.length}`
-      );
-    }
+    // ── 日志（始终输出，不限于 development）────────────────────
+    //    记录请求摘要，不记录完整 prompt 和 imageUrl（隐私保护）
+    const apiPath = '/api/v1/services/aigc/video-generation/video-synthesis';
+    console.log(
+      `[DashScope] createImageToVideoTask REQUEST | ` +
+      `model=${resolvedModel} | ` +
+      `endpoint=${apiPath} | ` +
+      `image=${safeUrlSummary(imageUrl)} | ` +
+      `prompt_len=${prompt.length} | ` +
+      `has_negative=${!!negativePrompt} | ` +
+      `duration=${duration || 'N/A'} | ` +
+      `params_keys=${Object.keys(params).join(',') || '(none)'} | ` +
+      `time=${new Date().toISOString()}`
+    );
 
     // ── 调用 API ──────────────────────────────────────────────
     const result = await this.requestWithRetry(
-      '/api/v1/services/aigc/video-generation/generation',
+      apiPath,
       requestBody,
       'POST'
     );
 
     const body = result.body;
 
+    // ── Sprint 5.3: 记录响应摘要 ──────────────────────────────
+    console.log(
+      `[DashScope] createImageToVideoTask RESPONSE | ` +
+      `httpStatus=${result.statusCode} | ` +
+      `hasBody=${!!body} | ` +
+      `bodyType=${body ? typeof body : 'null'} | ` +
+      `hasCode=${!!(body && body.code)} | ` +
+      `hasOutput=${!!(body && body.output)} | ` +
+      `hasTaskId=${!!(body && body.output && body.output.task_id)} | ` +
+      `taskStatus=${body && body.output ? body.output.task_status || 'N/A' : 'N/A'} | ` +
+      `time=${new Date().toISOString()}`
+    );
+
     // ── 解析响应 ──────────────────────────────────────────────
     if (!body || typeof body !== 'object') {
+      // Sprint 5.3: 记录原始响应内容
+      console.error(
+        `[DashScope] Non-JSON response | ` +
+        `httpStatus=${result.statusCode} | ` +
+        `rawBody=${typeof result.rawBody === 'string' ? result.rawBody.substring(0, 1000) : String(result.rawBody).substring(0, 1000)}`
+      );
       throw this.sanitizeError({
         statusCode: result.statusCode,
         body: body,
@@ -391,6 +420,15 @@ class DashScopeService {
 
     // DashScope 业务错误（code 不为空表示失败）
     if (body.code) {
+      // Sprint 5.3: 记录 DashScope 返回的完整错误信息
+      console.error(
+        `[DashScope] API business error | ` +
+        `httpStatus=${result.statusCode} | ` +
+        `code=${body.code} | ` +
+        `message=${body.message || '(no message)'} | ` +
+        `request_id=${body.request_id || 'N/A'} | ` +
+        `rawResponse=${JSON.stringify(body).substring(0, 2000)}`
+      );
       const err = new Error(body.message || 'DashScope API error');
       err.statusCode = result.statusCode;
       err.body = body;
@@ -400,6 +438,12 @@ class DashScopeService {
     // 提取 task_id
     const taskId = body.output?.task_id;
     if (!taskId) {
+      // Sprint 5.3: 记录缺失 task_id 的完整响应
+      console.error(
+        `[DashScope] Missing task_id in response | ` +
+        `httpStatus=${result.statusCode} | ` +
+        `rawResponse=${JSON.stringify(body).substring(0, 2000)}`
+      );
       const err = new Error('DashScope response missing output.task_id');
       err.statusCode = result.statusCode;
       err.body = body;
@@ -534,7 +578,7 @@ class DashScopeService {
     }
 
     const result = await this.requestWithRetry(
-      '/api/v1/services/aigc/video-generation/generation',
+      '/api/v1/services/aigc/video-generation/video-synthesis',
       body,
       'POST'
     );
@@ -568,7 +612,7 @@ class DashScopeService {
    * @deprecated Sprint 3.2 将迁移
    */
   async submitRef2Video({ images, prompt, model, duration } = {}) {
-    const resolvedModel = model || 'happyhorse-i2v';
+    const resolvedModel = model || 'wanx2.1-i2v-turbo';
     const body = {
       model: resolvedModel,
       input: { prompt: prompt || '', images },
@@ -580,7 +624,7 @@ class DashScopeService {
     }
 
     const result = await this.requestWithRetry(
-      '/api/v1/services/aigc/video-generation/generation',
+      '/api/v1/services/aigc/video-generation/video-synthesis',
       body,
       'POST'
     );

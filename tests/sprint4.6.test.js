@@ -116,7 +116,7 @@ test('resolveModel — image_to_video → happyhorse-i2v', () => {
   const config = aliyunConfig.resolveModel('image_to_video');
   assert.ok(config, 'Should resolve image_to_video');
   assert.strictEqual(config.provider, 'aliyun');
-  assert.strictEqual(config.model, 'happyhorse-i2v');
+  assert.strictEqual(config.model, 'wanx2.1-i2v-turbo');
   assert.strictEqual(config.capability, 'image_to_video');
   assert.strictEqual(config.outputType, 'video');
 });
@@ -160,7 +160,7 @@ test('resolveModel — null 返回 null', () => {
 test('resolveModelByCapability — image_to_video', () => {
   const config = aliyunConfig.resolveModelByCapability('image_to_video');
   assert.ok(config);
-  assert.strictEqual(config.model, 'happyhorse-i2v');
+  assert.strictEqual(config.model, 'wanx2.1-i2v-turbo');
 });
 
 test('isSupportedTemplate — 支持的模板', () => {
@@ -250,7 +250,7 @@ test('resolveTemplateToModel — image_to_video', () => {
   const result = providerRouter.resolveTemplateToModel('image_to_video');
   assert.ok(result);
   assert.strictEqual(result.provider, 'aliyun');
-  assert.strictEqual(result.model, 'happyhorse-i2v');
+  assert.strictEqual(result.model, 'wanx2.1-i2v-turbo');
 });
 
 test('resolveTemplateToModel — 不存在模板返回 null', () => {
@@ -288,7 +288,7 @@ test('Aliyun Provider supportsTemplate 正确判断', () => {
 
 test('Aliyun Provider getModelForTemplate 正确', () => {
   const aliyunProvider = require('../providers/aliyun');
-  assert.strictEqual(aliyunProvider.getModelForTemplate('image_to_video'), 'happyhorse-i2v');
+  assert.strictEqual(aliyunProvider.getModelForTemplate('image_to_video'), 'wanx2.1-i2v-turbo');
   assert.strictEqual(aliyunProvider.getModelForTemplate('text_to_video'), 'happyhorse-t2v');
   assert.strictEqual(aliyunProvider.getModelForTemplate('nonexistent'), null);
 });
@@ -408,7 +408,7 @@ test('GenerationService 正确加载', () => {
 test('GenerationService._resolveTemplate — image_to_video', () => {
   const result = generationService._resolveTemplate('image_to_video');
   assert.strictEqual(result.provider, 'aliyun');
-  assert.strictEqual(result.model, 'happyhorse-i2v');
+  assert.strictEqual(result.model, 'wanx2.1-i2v-turbo');
   assert.strictEqual(result.capability, 'image_to_video');
 });
 

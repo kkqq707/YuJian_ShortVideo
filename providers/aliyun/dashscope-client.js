@@ -222,6 +222,15 @@ class DashScopeClient {
   /**
    * 将 dashscopeService 的 sanitizeError 结果包装为 ProviderError
    *
+   * Sprint 5.3: 修复双重脱敏导致错误信息丢失
+   *
+   * 问题：dashscopeService.createImageToVideoTask() 在错误时 throw sanitizeError()
+   *       返回的 plain object { statusCode, errorCode, safeMessage, retryable }。
+   *       原 _wrapError 对这个 plain object 再次调用 sanitizeError()，
+   *       由于 plain object 没有 .body 属性，safeMessage 变为空字符串。
+   *
+   * 修复：检测已脱敏的 plain object，直接使用，不再二次脱敏。
+   *
    * @param {Error|Object} error — 原始错误
    * @returns {ProviderError}
    */
@@ -230,6 +239,30 @@ class DashScopeClient {
     if (error instanceof ProviderError) {
       return error;
     }
+
+    // Sprint 5.3: 检测是否已经是 sanitizeError 返回的 plain object
+    // 特征：有 safeMessage 和 errorCode 属性，但没有 stack（不是 Error 实例）
+    if (error && typeof error === 'object' && !(error instanceof Error) && 'safeMessage' in error) {
+      console.error(
+        `[DashScopeClient] DashScope API error | ` +
+        `statusCode=${error.statusCode || 'N/A'} | ` +
+        `code=${error.errorCode || 'N/A'} | ` +
+        `message=${error.safeMessage || '(empty)'} | ` +
+        `retryable=${error.retryable} | ` +
+        `time=${new Date().toISOString()}`
+      );
+      return ProviderError.fromSafeError(this.provider, error);
+    }
+
+    // 原始错误（Error 实例或未知形状），先脱敏再包装
+    console.error(
+      `[DashScopeClient] Raw error (sanitizing) | ` +
+      `type=${error?.constructor?.name || typeof error} | ` +
+      `message=${error?.message || '(no message)'} | ` +
+      `code=${error?.code || 'N/A'} | ` +
+      `statusCode=${error?.statusCode || 'N/A'} | ` +
+      `time=${new Date().toISOString()}`
+    );
 
     const safe = this.service.sanitizeError(error);
     return ProviderError.fromSafeError(this.provider, safe);

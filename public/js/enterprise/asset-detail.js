@@ -31,7 +31,7 @@
   }
 
   // ─── Render Asset Detail Content ──────────────────────────
-  function renderAssetDetailContent(asset, assetId) {
+  async function renderAssetDetailContent(asset, assetId) {
     var previewEl = document.getElementById('assetDetailPreview');
     var bodyEl = document.getElementById('assetDetailBody');
     var actionsEl = document.getElementById('assetDetailActions');
@@ -47,7 +47,23 @@
 
     titleEl.innerText = (asset && asset.name) || '素材详情';
 
-    var previewUrl = getAssetPreviewUrl(asset);
+    // Sprint 5.8: 通过 resolveAssetPlayableUrl 获取签名 URL
+    var resolveAssetPlayableUrl = (utils && utils.resolveAssetPlayableUrl) || window.resolveAssetPlayableUrl;
+    var previewUrl = '';
+
+    if (resolveAssetPlayableUrl && asset && asset.id) {
+      try {
+        previewUrl = await resolveAssetPlayableUrl(asset);
+      } catch (e) {
+        console.warn('[AssetDetail] 签名URL解析失败，降级:', e.message);
+      }
+    }
+
+    // 降级：使用 getAssetPreviewUrl
+    if (!previewUrl) {
+      previewUrl = getAssetPreviewUrl(asset);
+    }
+
     var assetType = (asset && asset.type) || 'other';
 
     // Preview area
@@ -173,7 +189,7 @@
 
     // Cache hit — render directly
     if (asset) {
-      renderAssetDetailContent(asset, assetId || asset.id);
+      await renderAssetDetailContent(asset, assetId || asset.id);
       return;
     }
 
@@ -201,7 +217,7 @@
       // Update cache
       if (state.cacheAsset) state.cacheAsset(assetId, normalized);
       if (window.ASSET_CACHE) window.ASSET_CACHE[assetId] = normalized;
-      renderAssetDetailContent(normalized, assetId);
+      await renderAssetDetailContent(normalized, assetId);
     } catch (err) {
       console.error('[AssetDetail] 加载失败:', err);
       if (err.status === 404) {

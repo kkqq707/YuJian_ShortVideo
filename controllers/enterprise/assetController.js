@@ -1,6 +1,90 @@
 const { Op } = require('sequelize');
 const { Asset } = require('../../models');
 const ossService = require('../../services/ossService');
+const videoStorageService = require('../../services/videoStorageService');
+
+/**
+ * GET /api/assets/:id/play-url
+ *
+ * Sprint 5.7: 为视频资产生成带签名的临时播放 URL
+ * Sprint 5.8: 扩展支持图片类型资产签名
+ *
+ * 私有 OSS Bucket 需要签名 URL 才能直接访问资源。
+ * 签名 URL 有效期 1 小时（3600 秒），浏览器可直接使用。
+ *
+ * 返回格式：
+ *   { url: string, expires: number, type: string }
+ *
+ * 安全：
+ *   - enterprise_id 隔离
+ *   - 视频/图片均可获取签名 URL
+ */
+exports.playUrl = async (req, res) => {
+  try {
+    const asset = await Asset.findOne({
+      where: {
+        id: req.params.id,
+        enterprise_id: req.user.enterpriseId,
+        deleted_at: { [Op.eq]: null }
+      }
+    });
+
+    if (!asset) return res.fail('素材不存在', 404);
+
+    // Sprint 5.8: 支持 video 和 image 类型
+    if (!['video', 'image'].includes(asset.type)) {
+      return res.fail('该素材类型不支持播放URL', 400);
+    }
+
+    // 确定要签名的 URL：图片优先用 thumbnail，视频用 url
+    const targetUrl = asset.type === 'image'
+      ? (asset.thumbnail || asset.url)
+      : asset.url;
+
+    if (!targetUrl) {
+      return res.fail('资源 URL 不存在', 404);
+    }
+
+    // Sprint 5.7: 历史数据兼容 — 旧格式 URL（非 OSS）直接返回，不签名
+    const ossBucket = process.env.OSS_BUCKET;
+    const isOssUrl = ossBucket && targetUrl.includes(ossBucket);
+
+    if (!isOssUrl && !ossService.extractKeyFromUrl(targetUrl)) {
+      // 非 OSS URL 且无法提取 key，可能是旧格式外部 URL，直接返回
+      return res.success({
+        url: targetUrl,
+        expires: 0,
+        type: asset.type
+      });
+    }
+
+    // 生成签名 URL（1 小时有效）
+    // 视频：强制 video/mp4 Content-Type 确保浏览器正确播放
+    // 图片：不加 Content-Type 覆盖，让 OSS 自动检测
+    const signOptions = asset.type === 'video'
+      ? { contentType: 'video/mp4' }
+      : {};
+    const signedUrl = await ossService.generateSignedUrl(targetUrl, 3600, signOptions);
+
+    if (!signedUrl) {
+      // 降级：返回原始 URL
+      return res.success({
+        url: targetUrl,
+        expires: 0,
+        type: asset.type
+      });
+    }
+
+    return res.success({
+      url: signedUrl,
+      expires: 3600,
+      type: asset.type
+    });
+  } catch (error) {
+    console.error('[AssetController] playUrl error:', error.message);
+    return res.fail('服务器内部错误', 500);
+  }
+};
 
 exports.list = async (req, res) => {
   const page = parseInt(req.query.page) || 1;

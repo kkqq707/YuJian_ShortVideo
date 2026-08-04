@@ -21,7 +21,7 @@
   const api = window.YuJianAPI;
 
   // ─── 常量 ────────────────────────────────────────────────
-  const POLL_INTERVAL = 3000;           // 轮询间隔 3 秒
+  const POLL_INTERVAL = 2000;           // Sprint 5.7: 轮询间隔 2 秒（实时进度显示）
   const BACKGROUND_POLL_INTERVAL = 8000; // 后台轮询间隔 8 秒
   const MAX_POLL_COUNT = 60;            // 最大轮询次数（3秒×60=3分钟）
   const MAX_POLL_DURATION = 3 * 60 * 1000; // 最大轮询时长 3 分钟（与 MAX_POLL_COUNT 一致）

@@ -1,34 +1,38 @@
 /**
  * Generation Service — AI 生成编排层
  *
- * Sprint 4.6: AI Provider 架构准备
+ * Sprint 5.1: 接入阿里云百炼，使用 aliyunProvider 统一接口
  *
  * 职责：
- *   1. 接收生成请求
- *   2. 读取 Creative Template → 匹配 AI Model
- *   3. 调用 Provider Router → 创建 AI 任务
+ *   1. 接收生成请求（来自 Controller）
+ *   2. 读取 AI Models 配置 → 匹配 AI Model
+ *   3. 调用 aliyunProvider（generateImage / generateVideo）→ 创建 AI 任务
  *   4. 保存 GenerationTask 记录
  *
- * 流程：
- *   createGenerationTask(params)
+ * ─── Sprint 5.1 新流程 ──────────────────────────
+ *   frontend
  *     ↓
- *   resolveTemplate(templateId)        — 解析模板 → provider + model
+ *   controller (videoGenerationController)
  *     ↓
- *   resolveProvider(providerName)      — 获取 Provider 实例
+ *   generationService.generateImage() / generateVideo()
  *     ↓
- *   provider.createTask(params)        — 调用 AI Provider
+ *   aliyunProvider.generateImage() / generateVideo()
  *     ↓
- *   saveTask(taskData)                 — 持久化 GenerationTask
+ *   GenerationTask (DB record)
+ *
+ * ─── 兼容流程（Sprint 4.6 / 旧 Controller）────────
+ *   createGenerationTask(params) — 保持向后兼容
  *
  * 设计原则：
  *   - 业务代码不直接调用 dashscopeService
  *   - 前端只传 templateId，不传具体模型名
  *   - 统一错误处理
- *   - AI 调用日志记录
+ *   - AI 调用日志记录（不含 apiKey / prompt / imageUrl）
  */
 
 const { GenerationTask } = require('../models');
-const { providerRouter, ProviderError } = require('../providers');
+const { providerRouter, aliyunProvider, ProviderError } = require('../providers');
+const { resolveModelForTemplate } = require('../config/ai-models');
 const {
   getTemplateById
 } = require('../config/creativeTemplates');
@@ -68,8 +72,8 @@ class GenerationService {
     this._validateInput({ enterpriseId, userId, templateId, prompt });
 
     // ── 2. 解析模板 → provider + model ─────────────────────────
-    const resolved = this._resolveTemplate(templateId);
-    const { provider, model, capability } = resolved;
+    const modelConfig = this._resolveTemplate(templateId);
+    const { provider, model, modelId, capability, outputType } = modelConfig;
 
     // ── 3. 判断 task_type ──────────────────────────────────────
     const taskType = this._capabilityToTaskType(capability);
@@ -93,16 +97,38 @@ class GenerationService {
     });
 
     // ── 5. 调用 AI Provider 创建远程任务 ───────────────────────
+    //     Sprint 5.1: 使用 aliyunProvider 统一接口
     try {
-      const aiResult = await providerRouter.createTask({
-        templateId,
-        prompt,
-        imageUrl,
-        images,
-        negativePrompt,
-        duration,
-        options
-      });
+      let aiResult;
+      if (outputType === 'video') {
+        aiResult = await aliyunProvider.generateVideo({
+          templateId,
+          prompt,
+          imageUrl,
+          images,
+          negativePrompt,
+          duration,
+          options
+        });
+      } else if (outputType === 'image') {
+        aiResult = await aliyunProvider.generateImage({
+          templateId,
+          prompt,
+          imageUrl,
+          options
+        });
+      } else {
+        // 兜底：使用 providerRouter（兼容未知 outputType）
+        aiResult = await providerRouter.createTask({
+          templateId,
+          prompt,
+          imageUrl,
+          images,
+          negativePrompt,
+          duration,
+          options
+        });
+      }
 
       // ── 6. 更新本地任务（关联 provider task ID）──────────────
       await localTask.update({
@@ -128,6 +154,21 @@ class GenerationService {
     } catch (error) {
       // ── 失败处理：标记本地任务为 failed ──────────────────────
       const errorInfo = this._extractErrorInfo(error);
+
+      // Sprint 5.3: 记录完整错误上下文
+      console.error(
+        `[GenerationService] createGenerationTask FAILED | ` +
+        `localTaskId=${localTask.id} | ` +
+        `templateId=${templateId} | ` +
+        `provider=${provider} | ` +
+        `model=${model} | ` +
+        `errorName=${error.name || 'Unknown'} | ` +
+        `errorCode=${errorInfo.code} | ` +
+        `errorMessage=${errorInfo.message} | ` +
+        `statusCode=${error.statusCode || 'N/A'} | ` +
+        `retryable=${errorInfo.retryable} | ` +
+        `time=${new Date().toISOString()}`
+      );
 
       await localTask.update({
         status: 'failed',
@@ -174,7 +215,215 @@ class GenerationService {
     return this._resolveTemplate(templateId);
   }
 
-  // ─── 私有方法 ──────────────────────────────────────────────────
+  // ─── Sprint 5.1 新增便捷方法 ────────────────────────────────────
+
+  /**
+   * generateImage — 图片生成（Sprint 5.1 统一接口）
+   *
+   * Controller 可直接调用此方法，无需关心底层 Provider 细节。
+   *
+   * @param {Object} params
+   * @param {number} params.enterpriseId   — 企业 ID
+   * @param {number} params.userId         — 用户 ID
+   * @param {string} params.templateId     — 创作模板 ID
+   * @param {string} params.prompt         — 提示词
+   * @param {string} [params.imageUrl]     — 输入图片 URL
+   * @param {number} [params.sourceAssetId] — 输入素材 Asset ID
+   * @param {Object} [params.options]      — 额外参数
+   * @returns {Promise<{ id: number, taskId: string, provider: string, model: string, modelId: string, status: string, createdAt: Date }>}
+   */
+  async generateImage(params) {
+    const {
+      enterpriseId, userId, templateId, prompt,
+      imageUrl, sourceAssetId, options
+    } = params;
+
+    // ── 1. 参数校验 ────────────────────────────────────────────
+    this._validateInput({ enterpriseId, userId, templateId, prompt });
+
+    // ── 2. 解析模型配置 ─────────────────────────────────────────
+    const modelConfig = this._resolveTemplate(templateId);
+    if (modelConfig.outputType !== 'image') {
+      throw new ProviderError(
+        'system', 'TEMPLATE_TYPE_MISMATCH',
+        `Template "${templateId}" is not an image generation template`, false
+      );
+    }
+
+    const { provider, model, modelId, capability } = modelConfig;
+    const taskType = this._capabilityToTaskType(capability);
+
+    // ── 3. 创建本地 GenerationTask 记录（pending）──────────────
+    const localTask = await GenerationTask.create({
+      enterprise_id: enterpriseId,
+      user_id: userId,
+      task_type: taskType,
+      model,
+      prompt: prompt.trim(),
+      input_url: imageUrl || null,
+      source_asset_id: sourceAssetId || null,
+      status: 'pending',
+      provider,
+      params: options ? JSON.stringify(options) : null,
+      progress: 0
+    });
+
+    // ── 4. 调用 aliyunProvider 创建远程任务 ────────────────────
+    try {
+      const aiResult = await aliyunProvider.generateImage({
+        templateId,
+        prompt,
+        imageUrl,
+        options
+      });
+
+      await localTask.update({
+        task_id: aiResult.taskId,
+        provider: aiResult.provider,
+        model: aiResult.model || model,
+        status: aiResult.status,
+        started_at: new Date()
+      });
+
+      this._logTaskCreated(localTask, aiResult);
+
+      return {
+        id: localTask.id,
+        taskId: aiResult.taskId,
+        provider: aiResult.provider,
+        model: aiResult.model || model,
+        modelId: aiResult.modelId || modelId,
+        status: aiResult.status,
+        createdAt: localTask.created_at
+      };
+
+    } catch (error) {
+      const errorInfo = this._extractErrorInfo(error);
+      // Sprint 5.3: 增强日志
+      console.error(
+        `[GenerationService] generateImage FAILED | ` +
+        `localTaskId=${localTask.id} | templateId=${templateId} | ` +
+        `errorCode=${errorInfo.code} | statusCode=${error.statusCode || 'N/A'} | ` +
+        `time=${new Date().toISOString()}`
+      );
+      await localTask.update({
+        status: 'failed',
+        error_msg: errorInfo.message,
+        completed_at: new Date()
+      });
+      this._logTaskFailed(localTask, errorInfo);
+      throw error;
+    }
+  }
+
+  /**
+   * generateVideo — 视频生成（Sprint 5.1 统一接口）
+   *
+   * Controller 可直接调用此方法，无需关心底层 Provider 细节。
+   *
+   * @param {Object} params
+   * @param {number} params.enterpriseId    — 企业 ID
+   * @param {number} params.userId          — 用户 ID
+   * @param {string} params.templateId      — 创作模板 ID
+   * @param {string} params.prompt          — 提示词
+   * @param {string} [params.imageUrl]      — 输入图片 URL
+   * @param {Array}  [params.images]        — 多参考图
+   * @param {string} [params.negativePrompt] — 负向提示词
+   * @param {number} [params.sourceAssetId] — 输入素材 Asset ID
+   * @param {number} [params.duration]      — 视频时长（秒）
+   * @param {Object} [params.options]       — 额外参数
+   * @returns {Promise<{ id: number, taskId: string, provider: string, model: string, modelId: string, status: string, createdAt: Date }>}
+   */
+  async generateVideo(params) {
+    const {
+      enterpriseId, userId, templateId, prompt,
+      imageUrl, images, negativePrompt,
+      sourceAssetId, duration, options
+    } = params;
+
+    // ── 1. 参数校验 ────────────────────────────────────────────
+    this._validateInput({ enterpriseId, userId, templateId, prompt });
+
+    // ── 2. 解析模型配置 ─────────────────────────────────────────
+    const modelConfig = this._resolveTemplate(templateId);
+    if (modelConfig.outputType !== 'video') {
+      throw new ProviderError(
+        'system', 'TEMPLATE_TYPE_MISMATCH',
+        `Template "${templateId}" is not a video generation template`, false
+      );
+    }
+
+    const { provider, model, modelId, capability } = modelConfig;
+    const taskType = this._capabilityToTaskType(capability);
+
+    // ── 3. 创建本地 GenerationTask 记录（pending）──────────────
+    const localTask = await GenerationTask.create({
+      enterprise_id: enterpriseId,
+      user_id: userId,
+      task_type: taskType,
+      model,
+      prompt: prompt.trim(),
+      negative_prompt: negativePrompt ? negativePrompt.trim() : null,
+      input_url: imageUrl || null,
+      input_images: images ? JSON.stringify(images) : null,
+      source_asset_id: sourceAssetId || null,
+      status: 'pending',
+      provider,
+      duration: duration || null,
+      params: options ? JSON.stringify(options) : null,
+      progress: 0
+    });
+
+    // ── 4. 调用 aliyunProvider 创建远程任务 ────────────────────
+    try {
+      const aiResult = await aliyunProvider.generateVideo({
+        templateId,
+        prompt,
+        imageUrl,
+        images,
+        negativePrompt,
+        duration,
+        options
+      });
+
+      await localTask.update({
+        task_id: aiResult.taskId,
+        provider: aiResult.provider,
+        model: aiResult.model || model,
+        status: aiResult.status,
+        started_at: new Date()
+      });
+
+      this._logTaskCreated(localTask, aiResult);
+
+      return {
+        id: localTask.id,
+        taskId: aiResult.taskId,
+        provider: aiResult.provider,
+        model: aiResult.model || model,
+        modelId: aiResult.modelId || modelId,
+        status: aiResult.status,
+        createdAt: localTask.created_at
+      };
+
+    } catch (error) {
+      const errorInfo = this._extractErrorInfo(error);
+      // Sprint 5.3: 增强日志
+      console.error(
+        `[GenerationService] generateVideo FAILED | ` +
+        `localTaskId=${localTask.id} | templateId=${templateId} | ` +
+        `errorCode=${errorInfo.code} | statusCode=${error.statusCode || 'N/A'} | ` +
+        `time=${new Date().toISOString()}`
+      );
+      await localTask.update({
+        status: 'failed',
+        error_msg: errorInfo.message,
+        completed_at: new Date()
+      });
+      this._logTaskFailed(localTask, errorInfo);
+      throw error;
+    }
+  }
 
   /**
    * 输入参数校验
@@ -200,33 +449,51 @@ class GenerationService {
   /**
    * 解析创作模板
    *
-   * 优先级：
-   *   1. provider-router 的 resolveTemplateToModel（基于 aliyun/config.js）
-   *   2. creativeTemplates 配置（兜底）
+   * Sprint 5.1: 使用 ai-models 配置中心解析
    *
-   * @returns {{ provider: string, model: string, capability: string }}
+   * 优先级：
+   *   1. config/ai-models.js（Sprint 5.1 新配置中心）
+   *   2. provider-router 的 resolveTemplateToModel（基于 aliyun/config.js）
+   *   3. creativeTemplates 配置（兜底）
+   *
+   * @returns {{ provider: string, model: string, modelId: string, capability: string, outputType: string }}
    */
   _resolveTemplate(templateId) {
-    // 优先使用 provider-router 的映射
+    // ── 优先使用 ai-models 配置中心（Sprint 5.1）──────────────
+    const modelConfig = resolveModelForTemplate(templateId);
+    if (modelConfig) {
+      return {
+        provider: modelConfig.provider,
+        model: modelConfig.apiModelName,
+        modelId: modelConfig.id,
+        capability: modelConfig.capability,
+        outputType: modelConfig.outputType
+      };
+    }
+
+    // ── 回退到 provider-router 映射 ──────────────────────────
     const modelInfo = providerRouter.resolveTemplateToModel(templateId);
     if (modelInfo) {
-      // 获取 capability
       const template = getTemplateById(templateId);
       const capability = template ? template.capability : templateId;
       return {
         provider: modelInfo.provider,
         model: modelInfo.model,
-        capability
+        modelId: templateId,
+        capability,
+        outputType: template ? template.outputType : 'video'
       };
     }
 
-    // 回退到 creativeTemplates
+    // ── 最后回退到 creativeTemplates ─────────────────────────
     const template = getTemplateById(templateId);
     if (template) {
       return {
         provider: template.provider,
         model: template.model,
-        capability: template.capability
+        modelId: templateId,
+        capability: template.capability,
+        outputType: template.outputType
       };
     }
 

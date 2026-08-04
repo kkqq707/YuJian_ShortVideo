@@ -49,18 +49,33 @@ function generateVideoName(task) {
  * 只暴露前端列表需要的最小字段集，不返回 params、完整 Asset、error 详情等内部字段
  */
 function toListItem(task) {
+  // Sprint 5.6: 视频资产使用签名 play_url
+  const outputAsset = task.outputAsset || null;
+  const playUrl = (outputAsset && outputAsset.dataValues && outputAsset.dataValues.play_url)
+    || (outputAsset && outputAsset.play_url)
+    || null;
+
   return {
     id: task.id,
     status: task.status,
     prompt: task.prompt ? (task.prompt.length > 80 ? task.prompt.substring(0, 80) + '...' : task.prompt) : '',
     taskType: task.task_type || null,
     model: task.model,
-    thumbnailUrl: computeThumbnailUrl(task),
-    coverUrl: task.cover_url || (task.outputAsset ? task.outputAsset.url : null) || null,
-    videoUrl: task.output_url || null,
+    thumbnailUrl: task._signedThumbnail || computeThumbnailUrl(task),
+    coverUrl: task._signedThumbnail || task.cover_url || (outputAsset ? outputAsset.url : null) || null,
+    videoUrl: playUrl || task.output_url || null,
+    playUrl: playUrl || task.output_url || null,
     duration: task.duration || null,
     progress: task.progress || 0,
-    createdAt: task.created_at
+    createdAt: task.created_at,
+    outputAsset: outputAsset ? {
+      id: outputAsset.id,
+      url: outputAsset.url,
+      play_url: playUrl || outputAsset.url,
+      thumbnail: outputAsset.thumbnail,
+      type: outputAsset.type,
+      duration: outputAsset.duration
+    } : null
   };
 }
 
@@ -71,20 +86,65 @@ function toListItem(task) {
  * 不修改数据库结构，纯计算字段
  */
 function computeThumbnailUrl(task) {
-  // 1. cover_url 存在时直接使用
+  // 1. outputAsset.thumbnail（Sprint 5.7: ffmpeg 生成的封面）
+  if (task.outputAsset && task.outputAsset.thumbnail) {
+    return task.outputAsset.thumbnail;
+  }
+  // 2. cover_url 存在时直接使用
   if (task.cover_url) {
     return task.cover_url;
   }
-  // 2. sourceAsset.thumbnail
+  // 3. sourceAsset.thumbnail
   if (task.sourceAsset && task.sourceAsset.thumbnail) {
     return task.sourceAsset.thumbnail;
   }
-  // 3. sourceAsset.url
+  // 4. sourceAsset.url
   if (task.sourceAsset && task.sourceAsset.url) {
     return task.sourceAsset.url;
   }
-  // 4. 无缩略图
+  // 5. 无缩略图
   return null;
+}
+
+/**
+ * Sprint 5.6: 为 task 注入视频签名 play_url 后调用 toDetail
+ *
+ * @param {Object} task - GenerationTask 实例（含 outputAsset 关联）
+ * @returns {Object} toDetail 格式化结果
+ */
+async function toDetailWithPlayUrl(task) {
+  // Sprint 5.6: 签名视频播放 URL
+  if (task.outputAsset && task.outputAsset.type === 'video' && task.outputAsset.url) {
+    try {
+      const playUrl = await ossService.generateSignedUrl(
+        task.outputAsset.url, 3600, { contentType: 'video/mp4' }
+      );
+      if (playUrl && task.outputAsset.dataValues) {
+        task.outputAsset.dataValues.play_url = playUrl;
+      }
+    } catch (err) {
+      console.error(
+        `[VideoGeneration] toDetailWithPlayUrl failed for asset ${task.outputAsset.id}: ${err.message}`
+      );
+    }
+  }
+
+  // Sprint 5.9: 签名缩略图 URL（与 computeThumbnailUrl 逻辑一致）
+  const thumbUrl = computeThumbnailUrl(task);
+  if (thumbUrl) {
+    try {
+      const signedThumb = await ossService.getSignedUrl(thumbUrl);
+      if (signedThumb) {
+        task._signedThumbnail = signedThumb;
+      }
+    } catch (err) {
+      console.warn(
+        `[VideoGeneration] toDetailWithPlayUrl thumbnail sign failed for task ${task.id}: ${err.message}`
+      );
+    }
+  }
+
+  return toDetail(task);
 }
 
 /**
@@ -94,6 +154,12 @@ function computeThumbnailUrl(task) {
  * 返回完整信息，含 params、sourceAsset、outputAsset、errorMsg 等
  */
 function toDetail(task) {
+  const outputAsset = task.outputAsset || null;
+  // Sprint 5.6: 视频资产使用签名 play_url
+  const outputPlayUrl = (outputAsset && outputAsset.dataValues && outputAsset.dataValues.play_url)
+    || (outputAsset && outputAsset.play_url)
+    || (outputAsset ? outputAsset.url : null);
+
   const result = {
     id: task.id,
     status: task.status,
@@ -102,8 +168,9 @@ function toDetail(task) {
     prompt: task.prompt || '',
     negative_prompt: task.negative_prompt || null,
     params: task.params ? (typeof task.params === 'string' ? JSON.parse(task.params) : task.params) : null,
-    videoUrl: task.output_url || null,
-    coverUrl: task.cover_url || null,
+    videoUrl: outputPlayUrl || task.output_url || null,
+    playUrl: outputPlayUrl || task.output_url || null,
+    coverUrl: task.cover_url || (outputAsset ? outputAsset.thumbnail : null) || null,
     duration: task.duration || null,
     width: task.width || null,
     height: task.height || null,
@@ -129,12 +196,13 @@ function toDetail(task) {
     result.sourceAsset = null;
   }
 
-  // 关联 outputAsset（仅暴露安全字段）
+  // 关联 outputAsset（仅暴露安全字段，Sprint 5.6: 含 play_url）
   if (task.outputAsset) {
     result.outputAsset = {
       id: task.outputAsset.id,
       name: task.outputAsset.name,
       url: task.outputAsset.url,
+      play_url: outputPlayUrl,
       thumbnail: task.outputAsset.thumbnail,
       type: task.outputAsset.type,
       duration: task.outputAsset.duration,
@@ -148,6 +216,25 @@ function toDetail(task) {
   }
 
   return result;
+}
+
+/**
+ * Sprint 5.6: 为视频 Asset 生成带签名的临时播放 URL
+ *
+ * 私有 OSS Bucket 需要签名 URL 才能直接播放视频。
+ * 签名 URL 有效期 1 小时，浏览器可直接使用。
+ *
+ * @param {Object} asset - Asset 实例（需有 url 和 type 字段）
+ * @returns {Promise<string|null>} 签名播放 URL，非视频或生成失败返回 null
+ */
+async function generateVideoPlayUrl(asset) {
+  if (!asset || asset.type !== 'video' || !asset.url) return null;
+  try {
+    return await ossService.generateSignedUrl(asset.url, 3600, { contentType: 'video/mp4' });
+  } catch (err) {
+    console.error(`[VideoGeneration] generateVideoPlayUrl failed for asset ${asset.id}: ${err.message}`);
+    return null;
+  }
 }
 
 /**
@@ -208,6 +295,7 @@ async function storeVideoAndCreateAsset(task, enterpriseId, userId, videoUrl, co
       type: 'video',
       name: generateVideoName(task),
       url: storageResult.video.url,
+      thumbnail: storageResult.cover.ossKey || storageResult.cover.url || null,
       size: storageResult.size,
       mime_type: storageResult.mimeType,
       duration: duration || null,
@@ -228,14 +316,16 @@ async function storeVideoAndCreateAsset(task, enterpriseId, userId, videoUrl, co
   }
 
   // ── 3. 更新 GenerationTask 关联 ─────────────────────────────
-  // cover_url 保持 DashScope 原始值，不做修改
-  // 未来 Sprint: cover_url → OSS 永久存储 → Asset 关联 → generation_tasks.cover_asset_id
+  // Sprint 5.7: cover_url 优先使用 videoStorageService 生成的封面
+  const finalCoverUrl = storageResult.cover.ossKey || storageResult.cover.url || coverUrl || null;
+
   await task.update({
     output_asset_id: asset.id,
     output_url: storageResult.video.url,
-    cover_url: coverUrl || null,
+    cover_url: finalCoverUrl,
     duration: duration || null,
     status: 'success',
+    progress: 100,
     completed_at: new Date()
   });
   await task.reload();
@@ -311,6 +401,21 @@ exports.createTask = async (req, res) => {
 
     // ── 4. 调用 GenerationService 创建任务 ──────────────────────
     //     业务逻辑（模板解析、Provider 调用、任务持久化）由 Service 层处理
+
+    // Sprint 5.3: 增强日志 - 记录请求摘要
+    console.log(
+      `[VideoGeneration] createTask REQUEST | ` +
+      `enterpriseId=${enterpriseId} | ` +
+      `sourceAssetId=${sourceAssetId} | ` +
+      `templateId=${templateId || 'image_to_video'} | ` +
+      `prompt_len=${prompt.trim().length} | ` +
+      `has_negative=${!!negativePrompt} | ` +
+      `imageUrl=${imageUrl ? imageUrl.substring(0, 80) + '...' : '(missing)'} | ` +
+      `duration=${duration || 'N/A'} | ` +
+      `has_params=${!!params} | ` +
+      `time=${new Date().toISOString()}`
+    );
+
     const result = await generationService.createGenerationTask({
       enterpriseId,
       userId,
@@ -333,7 +438,18 @@ exports.createTask = async (req, res) => {
       created_at: result.createdAt
     });
   } catch (error) {
-    console.error('[VideoGeneration] createTask error:', error.message);
+    // Sprint 5.3: 增强错误日志 - 记录完整错误上下文
+    console.error(
+      `[VideoGeneration] createTask ERROR | ` +
+      `name=${error.name || 'Unknown'} | ` +
+      `message=${error.message || '(no message)'} | ` +
+      `code=${error.code || 'N/A'} | ` +
+      `statusCode=${error.statusCode || 'N/A'} | ` +
+      `provider=${error.provider || 'N/A'} | ` +
+      `retryable=${error.retryable !== undefined ? error.retryable : 'N/A'} | ` +
+      `stack=${(error.stack || '').split('\n').slice(0, 3).join(' | ')} | ` +
+      `time=${new Date().toISOString()}`
+    );
 
     // ProviderError 返回脱敏后的错误信息
     if (error.name === 'ProviderError') {
@@ -424,7 +540,44 @@ exports.listTasks = async (req, res) => {
       limit: pageSize
     });
 
-    // ── 5. 转换为轻量列表结构 ──────────────────────────────────
+    // ── 5. Sprint 5.6: 为视频输出资产动态生成签名播放 URL ────
+    //     私有 OSS Bucket 需要签名 URL，前端直接用签名 URL 播放视频
+    //     Sprint 5.9: 同时为缩略图 URL 生成签名，确保私有 Bucket 下图片可加载
+    for (const row of rows) {
+      // 5a. 签名视频播放 URL
+      if (row.outputAsset && row.outputAsset.type === 'video' && row.outputAsset.url) {
+        try {
+          const playUrl = await ossService.generateSignedUrl(
+            row.outputAsset.url, 3600, { contentType: 'video/mp4' }
+          );
+          if (playUrl) {
+            row.outputAsset.dataValues.play_url = playUrl;
+          }
+        } catch (err) {
+          console.error(
+            `[VideoGeneration] listTasks signed URL failed for asset ${row.outputAsset.id}: ${err.message}`
+          );
+        }
+      }
+
+      // 5b. Sprint 5.9: 签名缩略图 URL（与 computeThumbnailUrl 逻辑一致）
+      const thumbUrl = computeThumbnailUrl(row);
+      if (thumbUrl) {
+        try {
+          const signedThumb = await ossService.getSignedUrl(thumbUrl);
+          if (signedThumb) {
+            row._signedThumbnail = signedThumb;
+          }
+        } catch (err) {
+          // 降级：签名失败时使用原始 URL（不影响列表渲染）
+          console.warn(
+            `[VideoGeneration] listTasks thumbnail sign failed for task ${row.id}: ${err.message}`
+          );
+        }
+      }
+    }
+
+    // ── 6. 转换为轻量列表结构 ──────────────────────────────────
     const items = rows.map(toListItem);
 
     res.success({
@@ -508,7 +661,7 @@ exports.getTask = async (req, res) => {
 
     // ── 2. success 且有 output_asset_id → 返回格式化详情（终态）─
     if (task.status === 'success' && task.output_asset_id) {
-      return res.success(toDetail(task));
+      return res.success(await toDetailWithPlayUrl(task));
     }
 
     // ── 3. success 但无 output_asset_id → 补做存储闭环 ─────────
@@ -525,22 +678,22 @@ exports.getTask = async (req, res) => {
             { model: Asset, as: 'outputAsset', attributes: ['id', 'name', 'url', 'thumbnail', 'type', 'duration', 'width', 'height', 'size', 'mime_type'], required: false }
           ]
         });
-        return res.success(toDetail(reloaded || storedTask));
+        return res.success(await toDetailWithPlayUrl(reloaded || storedTask));
       }
       // 无 output_url 则无法转存，直接返回
-      return res.success(toDetail(task));
+      return res.success(await toDetailWithPlayUrl(task));
     }
 
     // ── 4. failed → 返回格式化详情 ──────────────────────────────
     if (task.status === 'failed') {
-      return res.success(toDetail(task));
+      return res.success(await toDetailWithPlayUrl(task));
     }
 
     // ── 5. pending / processing → 同步 DashScope 状态 ───────────
     if (task.status === 'pending' || task.status === 'processing') {
       // 无 task_id 时无法同步，直接返回 DB 状态
       if (!task.task_id) {
-        return res.success(toDetail(task));
+        return res.success(await toDetailWithPlayUrl(task));
       }
 
       try {
@@ -554,8 +707,25 @@ exports.getTask = async (req, res) => {
           updateData.status = statusResult.status;
         }
 
-        // 进度更新
-        if (statusResult.progress !== null && statusResult.progress !== undefined) {
+        // Sprint 5.7: 真实进度估算
+        // DashScope 不提供百分比进度，使用时间估算：
+        //   pending → 0%，processing → 10-90%（基于已用时间），success → 100%
+        if (statusResult.status === 'pending') {
+          updateData.progress = 0;
+        } else if (statusResult.status === 'processing') {
+          const elapsed = task.started_at
+            ? Math.floor((Date.now() - new Date(task.started_at).getTime()) / 1000)
+            : 0;
+          // 预估总时间：60-180 秒（取决于视频时长和复杂度）
+          const estTotal = Math.max(60, Math.min(180, (task.duration || 5) * 15));
+          // 保留 10% 给排队阶段，80% 给实际生成
+          const genProgress = elapsed > 0 ? Math.min(80, Math.floor((elapsed / estTotal) * 80)) : 0;
+          updateData.progress = Math.max(10, Math.min(90, 10 + genProgress));
+        } else if (statusResult.status === 'success') {
+          updateData.progress = 100;
+        }
+        // 如果 Provider 已经返回了有效进度，则优先使用 Provider 的进度
+        if (statusResult.progress !== null && statusResult.progress !== undefined && statusResult.progress > 0) {
           updateData.progress = statusResult.progress;
         }
 
@@ -606,7 +776,7 @@ exports.getTask = async (req, res) => {
                 { model: Asset, as: 'outputAsset', attributes: ['id', 'name', 'url', 'thumbnail', 'type', 'duration', 'width', 'height', 'size', 'mime_type'], required: false }
               ]
             });
-            return res.success(toDetail(reloaded || storedTask));
+            return res.success(await toDetailWithPlayUrl(reloaded || storedTask));
           }
         }
 
@@ -617,16 +787,16 @@ exports.getTask = async (req, res) => {
             { model: Asset, as: 'outputAsset', attributes: ['id', 'name', 'url', 'thumbnail', 'type', 'duration', 'width', 'height', 'size', 'mime_type'], required: false }
           ]
         });
-        return res.success(toDetail(reloaded || task));
+        return res.success(await toDetailWithPlayUrl(reloaded || task));
       } catch (syncError) {
         // 同步失败不阻塞，返回当前 DB 状态
         console.error('[VideoGeneration] getTask sync error:', syncError.message);
-        return res.success(toDetail(task));
+        return res.success(await toDetailWithPlayUrl(task));
       }
     }
 
     // ── 兜底返回 ────────────────────────────────────────────────
-    return res.success(toDetail(task));
+    return res.success(await toDetailWithPlayUrl(task));
   } catch (error) {
     console.error('[VideoGeneration] getTask error:', error.message);
     return res.fail('服务器内部错误', 500);

@@ -24,7 +24,8 @@ class OssService {
       accessKeyId,
       accessKeySecret,
       region,
-      bucket
+      bucket,
+      secure: true
     });
 
     return this.client;
@@ -65,6 +66,10 @@ class OssService {
   getFileUrl(key) {
     const domain = process.env.OSS_DOMAIN;
     if (domain) {
+      // Sprint 5.4 Fix: 如果 domain 已包含协议前缀，不再重复添加
+      if (/^https?:\/\//i.test(domain)) {
+        return `${domain}/${key}`;
+      }
       return `https://${domain}/${key}`;
     }
     const bucket = process.env.OSS_BUCKET;
@@ -95,6 +100,35 @@ class OssService {
     const key = this.extractKeyFromUrl(keyOrUrl);
     if (!key) return null;
     return this.client.signatureUrl(key, { expires });
+  }
+
+  /**
+   * 生成带签名的临时访问URL（Sprint 5.6: Private OSS Video Playback）
+   *
+   * 与 getSignedUrl 的区别：支持 response 参数设置强制响应头，
+   * 确保浏览器能正确识别视频 MIME 类型进行播放。
+   *
+   * @param {string} keyOrUrl  - OSS object key 或完整OSS URL
+   * @param {number} [expires=3600] - 签名有效期（秒），默认1小时
+   * @param {Object} [options] - 额外选项
+   * @param {string} [options.contentType] - 强制响应 Content-Type（如 'video/mp4'）
+   * @returns {Promise<string|null>} 签名后的临时访问URL
+   */
+  async generateSignedUrl(keyOrUrl, expires = 3600, options = {}) {
+    await this.init();
+    const key = this.extractKeyFromUrl(keyOrUrl);
+    if (!key) return null;
+
+    const signOptions = { expires };
+
+    // 支持强制设置响应 Content-Type（解决浏览器视频播放 MIME 识别问题）
+    if (options.contentType) {
+      signOptions.response = {
+        'content-type': options.contentType
+      };
+    }
+
+    return this.client.signatureUrl(key, signOptions);
   }
 
   // 服务端上传文件（视频存储等场景）

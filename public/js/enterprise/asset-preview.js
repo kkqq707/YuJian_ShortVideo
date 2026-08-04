@@ -16,7 +16,7 @@
   var getAssetPreviewUrl = utils.getAssetPreviewUrl || window.getAssetPreviewUrl;
 
   // ─── Open Image Preview ───────────────────────────────────
-  function openImagePreview(assetOrId) {
+  async function openImagePreview(assetOrId) {
     var overlay = document.getElementById('imagePreviewOverlay');
     var bodyEl = document.getElementById('imagePreviewBody');
     if (!overlay || !bodyEl) return;
@@ -48,8 +48,23 @@
     // Set unified state
     state.setCurrentPreviewAsset(asset);
 
-    var previewUrl = getAssetPreviewUrl(asset);
+    // Sprint 5.8: 通过 resolveAssetPlayableUrl 获取签名 URL
+    var resolveAssetPlayableUrl = (utils && utils.resolveAssetPlayableUrl) || window.resolveAssetPlayableUrl;
+    var previewUrl = '';
     var backupUrl = asset.url || asset.fileUrl || asset.path || '';
+
+    if (resolveAssetPlayableUrl) {
+      try {
+        previewUrl = await resolveAssetPlayableUrl(asset);
+      } catch (e) {
+        console.warn('[AssetPreview] 签名URL解析失败，降级:', e.message);
+      }
+    }
+
+    // 降级：使用 getAssetPreviewUrl
+    if (!previewUrl) {
+      previewUrl = getAssetPreviewUrl(asset);
+    }
 
     if (!previewUrl) {
       bodyEl.innerHTML = '<div class="image-preview-error">' +

@@ -81,6 +81,10 @@
   }
 
   // ─── Render Single Asset Card ─────────────────────────────
+  /**
+   * Sprint 5.8: 卡片缩略图使用后端已签名的 URL（list/detail API 返回时已签名）
+   * 视频播放通过 openAssetDetail → resolveAssetPlayableUrl 获取实时签名 URL
+   */
   function renderAssetCard(item) {
     var assetType = (item && item.type) || 'other';
     var typeLabel = TYPE_MAP[assetType] || '其他';

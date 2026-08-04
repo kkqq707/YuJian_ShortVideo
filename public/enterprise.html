@@ -4384,7 +4384,9 @@
             var promptText = item.prompt || '';
             var escapedPrompt = escapeHtml(promptText);
             var durationStr = formatDuration(item.duration);
-            var hasVideo = item.videoUrl && item.status === 'success';
+            // Sprint 5.6: 优先使用签名 playUrl，私有Bucket播放需要签名URL
+            var videoPlayUrl = item.playUrl || item.videoUrl || '';
+            var hasVideo = videoPlayUrl && item.status === 'success';
             var hasThumb = item.thumbnailUrl || item.coverUrl;
             var thumbUrl = hasThumb || '';
 
@@ -4398,8 +4400,9 @@
 
             var actionsHtml = '';
             if (hasVideo) {
-                actionsHtml += '<button class="btn btn-outline btn-sm-icon" onclick="event.stopPropagation();playVideo(\'' +
-                    escapeHtml(item.videoUrl) + '\', \'' + escapeHtml(promptText || 'AI视频') + '\')" title="播放">' +
+                // Sprint 5.8: 延迟解析播放URL，点击时才调用 getPlayUrl
+                actionsHtml += '<button class="btn btn-outline btn-sm-icon" onclick="event.stopPropagation();playWorkVideo(\'' +
+                    item.id + '\', \'' + escapeHtml(promptText || 'AI视频') + '\')" title="播放">' +
                     '<i class="fas fa-play"></i></button>';
             }
             actionsHtml += '<button class="btn btn-outline btn-sm-icon" onclick="event.stopPropagation();showWorkDetail(\'' +
@@ -4409,7 +4412,7 @@
                 '<i class="fas fa-trash"></i></button>';
 
             var thumbClickAttr = hasVideo
-                ? ' onclick="playVideo(\'' + escapeHtml(item.videoUrl) + '\', \'' + escapeHtml(promptText || 'AI视频') + '\')"'
+                ? ' onclick="playWorkVideo(\'' + item.id + '\', \'' + escapeHtml(promptText || 'AI视频') + '\')"'
                 : '';
 
             return '<div class="work-card">' +
@@ -4495,6 +4498,8 @@
                 var dateStr = formatWorkDate(task.createdAt);
                 var durationStr = formatDuration(task.duration);
                 var promptText = task.prompt || '无';
+                // Sprint 5.6: 优先使用签名 playUrl
+                var videoPlayUrl = task.playUrl || task.videoUrl || '';
 
                 var content = '<div style="display:flex;flex-direction:column;gap:12px;font-size:13px">' +
                     '<div><strong style="color:var(--text-sub)">创作类型：</strong>' + escapeHtml(typeLabel) + '</div>' +
@@ -4504,8 +4509,8 @@
                     '<div><strong style="color:var(--text-sub)">提示词：</strong></div>' +
                     '<div style="background:rgba(255,255,255,0.04);padding:10px;border-radius:6px;line-height:1.6;max-height:120px;overflow-y:auto">' +
                     escapeHtml(promptText) + '</div>' +
-                    (task.videoUrl ? '<div style="margin-top:4px"><button class="btn btn-primary btn-sm" onclick="closeModal();playVideo(\'' +
-                        escapeHtml(task.videoUrl) + '\', \'' + escapeHtml(promptText) + '\')"><i class="fas fa-play"></i> 播放视频</button></div>' : '') +
+                    (videoPlayUrl ? '<div style="margin-top:4px"><button class="btn btn-primary btn-sm" onclick="closeModal();playWorkVideo(\'' +
+                        taskId + '\', \'' + escapeHtml(promptText) + '\')"><i class="fas fa-play"></i> 播放视频</button></div>' : '') +
                     '</div>';
 
                 openModal('作品详情', encodeURIComponent(content));
@@ -4585,6 +4590,44 @@
                     video.src = '';
                 }
                 overlay.parentNode.removeChild(overlay);
+            }
+        }
+
+        // ─── Sprint 5.8: 延迟解析视频播放URL ──────────────────
+        /**
+         * 通过任务ID获取签名播放URL后播放视频
+         * 替代直接使用 task.playUrl（可能已过期）的模式
+         *
+         * @param {string|number} taskId - 生成任务ID
+         * @param {string} title - 视频标题
+         */
+        async function playWorkVideo(taskId, title) {
+            var decodedTitle = decodeURIComponent(title || '视频播放');
+            try {
+                // 获取任务详情以拿到 outputAsset
+                var task = await YuJianAPI.get('/enterprise/video-generation/tasks/' + taskId);
+                var outputAsset = task.outputAsset;
+                if (outputAsset && outputAsset.id) {
+                    var playUrl = await resolveAssetPlayableUrl({
+                        id: outputAsset.id,
+                        type: 'video',
+                        url: outputAsset.url || task.output_url
+                    });
+                    if (playUrl) {
+                        playVideo(playUrl, decodedTitle);
+                        return;
+                    }
+                }
+                // 降级：使用任务中的 playUrl
+                var fallbackUrl = task.playUrl || task.videoUrl || task.output_url || '';
+                if (fallbackUrl) {
+                    playVideo(fallbackUrl, decodedTitle);
+                } else {
+                    showToast('视频资源不可用', 'error');
+                }
+            } catch (err) {
+                console.error('[playWorkVideo] 获取播放URL失败:', err);
+                showToast('获取播放链接失败，请稍后重试', 'error');
             }
         }
 
@@ -5338,7 +5381,7 @@
         }
 
         // ─── 任务结果处理 ──────────────────────────────────
-        function handleTaskSuccess(task) {
+        async function handleTaskSuccess(task) {
             setPageState('success');
             resetGenerateButton();
             hideStatus();
@@ -5348,12 +5391,25 @@
             var errorDiv = document.getElementById('i2vResultError');
             var actions = document.getElementById('i2vResultActions');
 
-            // Sprint 3.2: 优先使用 outputAsset.url，兼容 output_url
+            // Sprint 5.8: 通过 playUrl 接口获取签名播放 URL
             var videoUrl = null;
-            if (task.outputAsset && task.outputAsset.url) {
-                videoUrl = task.outputAsset.url;
-                console.log('[Image2Video] 使用 outputAsset.url:', videoUrl);
-            } else if (task.output_url) {
+            var outputAssetId = task.outputAsset && task.outputAsset.id;
+
+            if (outputAssetId) {
+                try {
+                    videoUrl = await resolveAssetPlayableUrl({
+                        id: outputAssetId,
+                        type: 'video',
+                        url: task.outputAsset && task.outputAsset.url
+                    });
+                    console.log('[Image2Video] 使用签名 playUrl:', videoUrl);
+                } catch (e) {
+                    console.warn('[Image2Video] playUrl 解析失败，降级:', e.message);
+                }
+            }
+
+            // 降级：使用 output_url
+            if (!videoUrl && task.output_url) {
                 videoUrl = task.output_url;
                 console.log('[Image2Video] 使用 output_url（兼容模式）:', videoUrl);
             }
@@ -5826,7 +5882,7 @@
         }
 
         // ─── 在Panel内显示生成结果 ──────────────────────────
-        function showGenResult(task) {
+        async function showGenResult(task) {
             // 在时间线下方插入结果提示
             var timeline = document.getElementById('genTimelineContainer');
             if (!timeline) return;
@@ -5834,11 +5890,25 @@
             var existing = document.getElementById('genResultInline');
             if (existing) existing.remove();
 
+            // Sprint 5.8: 通过 playUrl 接口获取签名播放 URL
             var videoUrl = null;
-            if (task.outputAsset && task.outputAsset.url) {
-                videoUrl = task.outputAsset.url;
-            } else if (task.output_url) {
-                videoUrl = task.output_url;
+            var outputAssetId = task.outputAsset && task.outputAsset.id;
+
+            if (outputAssetId) {
+                try {
+                    videoUrl = await resolveAssetPlayableUrl({
+                        id: outputAssetId,
+                        type: 'video',
+                        url: task.outputAsset && task.outputAsset.url
+                    });
+                } catch (e) {
+                    console.warn('[GenPanel] playUrl 解析失败，降级:', e.message);
+                }
+            }
+
+            // 降级：使用 task 中的 playUrl 或 output_url
+            if (!videoUrl) {
+                videoUrl = task.playUrl || task.output_url || '';
             }
 
             var resultHtml = '<div id="genResultInline" style="text-align:center;margin-top:16px;padding:16px;background:rgba(16,185,129,0.06);border:1px solid rgba(16,185,129,0.2);border-radius:12px">';
@@ -6319,9 +6389,28 @@
 
             CURRENT_IMAGE_PREVIEW = asset;
 
-            // Sprint 4.4 Patch6: 使用统一URL解析
-            var previewUrl = getAssetPreviewUrl(asset);
+            // Sprint 5.8: 异步获取签名 URL 后渲染
+            renderImagePreviewContent(asset);
+        }
+
+        async function renderImagePreviewContent(asset) {
+            var bodyEl = document.getElementById('imagePreviewBody');
+            if (!bodyEl) return;
+
+            // Sprint 5.8: 通过 resolveAssetPlayableUrl 获取签名 URL
+            var previewUrl = '';
             var backupUrl = asset.url || asset.fileUrl || asset.path || '';
+
+            try {
+                previewUrl = await resolveAssetPlayableUrl(asset);
+            } catch (e) {
+                console.warn('[ImagePreview] 签名URL解析失败，降级:', e.message);
+            }
+
+            // 降级：使用 getAssetPreviewUrl
+            if (!previewUrl) {
+                previewUrl = getAssetPreviewUrl(asset);
+            }
 
             if (!previewUrl) {
                 bodyEl.innerHTML = '<div class="image-preview-error">' +
@@ -6348,11 +6437,60 @@
         // ─── Sprint 4.2: 资产详情 Modal ────────────────────
         var CURRENT_ASSET_DETAIL = null; // { id, url, name, ... }
 
+        // ─── Sprint 5.8: 播放URL缓存 ──────────────────────────
+        var PLAY_URL_CACHE = {};
+
         // ─── 预览资产（Sprint 4.2: 改为打开详情模态框）──────
         // Sprint 4.4 Patch5: 统一图片URL解析
         function getAssetPreviewUrl(asset) {
             if (!asset) return '';
             return asset.thumbnailUrl || asset.url || asset.fileUrl || asset.path || '';
+        }
+
+        // ─── Sprint 5.8: 统一资源播放URL解析 ──────────────────
+        /**
+         * 获取资产的可播放 URL（带签名）
+         *
+         * 规则：
+         *   - video: 调用 AssetAPI.getPlayUrl(asset.id) 获取签名 URL
+         *   - image: 调用 AssetAPI.getPlayUrl(asset.id) 获取签名 URL
+         *   - 禁止直接使用 asset.url 进行视频播放
+         *
+         * @param {Object} asset - 资产对象（必须有 id、type 字段）
+         * @returns {Promise<string>} 签名后的可播放 URL
+         */
+        async function resolveAssetPlayableUrl(asset) {
+            if (!asset || !asset.id) return '';
+
+            // 检查缓存（55分钟内有效，API返回1小时签名）
+            var cached = PLAY_URL_CACHE[asset.id];
+            if (cached && cached.expiresAt > Date.now()) {
+                return cached.url;
+            }
+
+            try {
+                var api = (window.EnterpriseAPI && window.EnterpriseAPI.Asset) ||
+                          (window.YJ && window.YJ.api && window.YJ.api.Asset);
+                if (!api || !api.getPlayUrl) {
+                    console.warn('[resolveAssetPlayableUrl] AssetAPI.getPlayUrl 不可用，使用降级URL');
+                    return asset.url || '';
+                }
+
+                var result = await api.getPlayUrl(asset.id);
+                var url = (result && result.url) || asset.url || '';
+
+                // 缓存结果（55分钟，给5分钟缓冲避免刚好过期）
+                PLAY_URL_CACHE[asset.id] = {
+                    url: url,
+                    expiresAt: Date.now() + 55 * 60 * 1000
+                };
+
+                return url;
+            } catch (err) {
+                console.error('[resolveAssetPlayableUrl] 获取播放URL失败:', err.message || err);
+                // 降级：返回资产原始 URL
+                return asset.url || '';
+            }
         }
 
         // Sprint 4.4 Patch5: 统一 API 响应格式转换
@@ -6374,7 +6512,7 @@
         }
 
         // Sprint 4.4 Patch5: 渲染素材详情内容（提取为独立函数，支持缓存命中直接调用）
-        function renderAssetDetailContent(asset, assetId) {
+        async function renderAssetDetailContent(asset, assetId) {
             var previewEl = document.getElementById('assetDetailPreview');
             var bodyEl = document.getElementById('assetDetailBody');
             var actionsEl = document.getElementById('assetDetailActions');
@@ -6384,8 +6522,19 @@
             CURRENT_ASSET_DETAIL = asset;
             titleEl.innerText = (asset && asset.name) || '素材详情';
 
-            // Sprint 4.4 Patch5: 使用统一URL解析获取预览图
-            var previewUrl = getAssetPreviewUrl(asset);
+            // Sprint 5.8: 通过 resolveAssetPlayableUrl 获取签名 URL
+            var previewUrl = '';
+            try {
+                previewUrl = await resolveAssetPlayableUrl(asset);
+            } catch (e) {
+                console.warn('[AssetDetail] 签名URL解析失败，降级:', e.message);
+            }
+
+            // 降级：使用 getAssetPreviewUrl
+            if (!previewUrl) {
+                previewUrl = getAssetPreviewUrl(asset);
+            }
+
             var assetType = (asset && asset.type) || 'other';
 
             // 预览区（Sprint 4.4 Patch5: 增加备用URL容错，失败不显示"不存在"）
@@ -6509,7 +6658,7 @@
 
             // Sprint 4.4 Patch5: 缓存命中 — 直接渲染，不发起 API 请求
             if (asset) {
-                renderAssetDetailContent(asset, assetId || asset.id);
+                await renderAssetDetailContent(asset, assetId || asset.id);
                 return;
             }
 
@@ -6531,7 +6680,7 @@
                 }
                 // 存入缓存
                 ASSET_CACHE[assetId] = normalized;
-                renderAssetDetailContent(normalized, assetId);
+                await renderAssetDetailContent(normalized, assetId);
             } catch (err) {
                 console.error('[AssetDetail] 加载失败:', err);
                 // Sprint 4.4 Patch5: 只有 API 明确返回 404 才显示"不存在"

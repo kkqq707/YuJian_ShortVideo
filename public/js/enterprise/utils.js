@@ -127,10 +127,71 @@
     return data;
   }
 
+  // ─── Sprint 5.8: 播放URL缓存 ──────────────────────────────
+  var PLAY_URL_CACHE = {};
+
   // ─── 素材预览 URL 解析 ───────────────────────────────────
   function getAssetPreviewUrl(asset) {
     if (!asset) return '';
     return asset.thumbnailUrl || asset.url || asset.fileUrl || asset.path || '';
+  }
+
+  // ─── Sprint 5.8: 统一资源播放URL解析 ──────────────────────
+  /**
+   * 获取资产的可播放 URL（带签名）
+   *
+   * 规则：
+   *   - video: 调用 AssetAPI.getPlayUrl(asset.id) 获取签名 URL
+   *   - image: 调用 AssetAPI.getPlayUrl(asset.id) 获取签名 URL
+   *   - 禁止直接使用 asset.url 进行视频播放
+   *
+   * @param {Object} asset - 资产对象（必须有 id、type 字段）
+   * @returns {Promise<string>} 签名后的可播放 URL
+   */
+  async function resolveAssetPlayableUrl(asset) {
+    if (!asset || !asset.id) return '';
+
+    // 检查缓存（55分钟内有效，API返回1小时签名）
+    var cached = PLAY_URL_CACHE[asset.id];
+    if (cached && cached.expiresAt > Date.now()) {
+      return cached.url;
+    }
+
+    try {
+      var api = (window.EnterpriseAPI && window.EnterpriseAPI.Asset) ||
+                (window.YJ && window.YJ.api && window.YJ.api.Asset);
+      if (!api || !api.getPlayUrl) {
+        console.warn('[resolveAssetPlayableUrl] AssetAPI.getPlayUrl 不可用，使用降级URL');
+        return asset.url || '';
+      }
+
+      var result = await api.getPlayUrl(asset.id);
+      var url = (result && result.url) || asset.url || '';
+
+      // 缓存结果（55分钟，给5分钟缓冲避免刚好过期）
+      PLAY_URL_CACHE[asset.id] = {
+        url: url,
+        expiresAt: Date.now() + 55 * 60 * 1000
+      };
+
+      return url;
+    } catch (err) {
+      console.error('[resolveAssetPlayableUrl] 获取播放URL失败:', err.message || err);
+      // 降级：返回资产原始 URL
+      return asset.url || '';
+    }
+  }
+
+  /**
+   * Sprint 5.8: 清除播放 URL 缓存
+   * @param {string|number} [assetId] - 可选，指定资产ID；不传则清空全部
+   */
+  function clearPlayUrlCache(assetId) {
+    if (assetId) {
+      delete PLAY_URL_CACHE[assetId];
+    } else {
+      PLAY_URL_CACHE = {};
+    }
   }
 
   // ─── 安全 API 请求封装 ───────────────────────────────────
@@ -172,6 +233,8 @@
     fallbackCopyText: fallbackCopyText,
     normalizeAssetResponse: normalizeAssetResponse,
     getAssetPreviewUrl: getAssetPreviewUrl,
+    resolveAssetPlayableUrl: resolveAssetPlayableUrl,
+    clearPlayUrlCache: clearPlayUrlCache,
     safeFetch: safeFetch
   };
   window.YJ = YJ;
@@ -207,6 +270,12 @@
   }
   if (typeof window.getAssetPreviewUrl === 'undefined') {
     window.getAssetPreviewUrl = getAssetPreviewUrl;
+  }
+  if (typeof window.resolveAssetPlayableUrl === 'undefined') {
+    window.resolveAssetPlayableUrl = resolveAssetPlayableUrl;
+  }
+  if (typeof window.clearPlayUrlCache === 'undefined') {
+    window.clearPlayUrlCache = clearPlayUrlCache;
   }
   if (typeof window.safeFetch === 'undefined') {
     window.safeFetch = safeFetch;

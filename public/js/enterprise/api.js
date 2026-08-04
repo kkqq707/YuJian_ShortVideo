@@ -44,6 +44,15 @@
     },
 
     /**
+     * Sprint 5.7: 获取视频播放签名 URL
+     * @param {string|number} assetId
+     * @returns {Promise<{url: string, expires: number}>}
+     */
+    getPlayUrl: function (assetId) {
+      return safeFetch('/enterprise/assets/' + assetId + '/play-url');
+    },
+
+    /**
      * 删除资产
      * @param {string|number} assetId
      * @returns {Promise<Object>}

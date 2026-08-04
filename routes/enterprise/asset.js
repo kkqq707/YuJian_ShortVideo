@@ -4,6 +4,7 @@ const controller = require('../../controllers/enterprise/assetController');
 
 router.get('/', controller.list);
 router.get('/upload-signature', controller.uploadSignature);
+router.get('/:id/play-url', controller.playUrl);
 router.get('/:id/history', controller.history);
 router.get('/:id', controller.detail);
 router.post('/', controller.addRecord);

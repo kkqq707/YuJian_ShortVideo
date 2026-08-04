@@ -284,13 +284,17 @@
       YuJianVideoTask.pollTaskStatus(state.generation.currentTaskId, {
         onUpdate: function (t) {
           updateGenTimeline('process');
-          var progressHint = t.progress !== null && t.progress !== undefined
-            ? '进度 ' + t.progress + '%'
-            : '正在处理中...';
+          var pct = (t.progress !== null && t.progress !== undefined && t.progress > 0)
+            ? t.progress
+            : 0;
+          var progressHint = (t.status === 'pending' || pct === 0)
+            ? '排队中...'
+            : '生成中 ' + pct + '%';
           submitText.textContent = progressHint;
         },
         onSuccess: function (t) {
           updateGenTimeline('complete');
+          submitText.textContent = '完成 100%';
           setTimeout(function () {
             updateGenTimeline('view');
             submitText.textContent = '生成完成';
@@ -340,18 +344,33 @@
   }
 
   // ─── Show Generation Result in Panel ──────────────────────
-  function showGenResult(task) {
+  async function showGenResult(task) {
     var timeline = document.getElementById('genTimelineContainer');
     if (!timeline) return;
 
     var existing = document.getElementById('genResultInline');
     if (existing) existing.remove();
 
+    // Sprint 5.8: 通过 playUrl 接口获取签名播放 URL
+    var resolveAssetPlayableUrl = (utils && utils.resolveAssetPlayableUrl) || window.resolveAssetPlayableUrl;
     var videoUrl = null;
-    if (task.outputAsset && task.outputAsset.url) {
-      videoUrl = task.outputAsset.url;
-    } else if (task.output_url) {
-      videoUrl = task.output_url;
+    var outputAssetId = task.outputAsset && task.outputAsset.id;
+
+    if (outputAssetId && resolveAssetPlayableUrl) {
+      try {
+        videoUrl = await resolveAssetPlayableUrl({
+          id: outputAssetId,
+          type: 'video',
+          url: task.outputAsset && task.outputAsset.url
+        });
+      } catch (e) {
+        console.warn('[GenPanel] playUrl 解析失败，降级:', e.message);
+      }
+    }
+
+    // 降级：使用 task 中的 playUrl 或 output_url
+    if (!videoUrl) {
+      videoUrl = task.playUrl || task.output_url || '';
     }
 
     var resultHtml = '<div id="genResultInline" style="text-align:center;margin-top:16px;padding:16px;background:rgba(16,185,129,0.06);border:1px solid rgba(16,185,129,0.2);border-radius:12px">';

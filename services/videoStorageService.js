@@ -2,6 +2,10 @@ const https = require('https');
 const http = require('http');
 const { URL } = require('url');
 const crypto = require('crypto');
+const { execFile } = require('child_process');
+const path = require('path');
+const fs = require('fs');
+const os = require('os');
 const ossService = require('./ossService');
 
 /**
@@ -105,6 +109,100 @@ function generateOssKey(enterpriseId, mimeType) {
   }
 
   return `enterprises/${enterpriseId}/videos/${dateStr}/${uuid}${ext}`;
+}
+
+/**
+ * 生成封面 OSS Key
+ */
+function generateCoverOssKey(enterpriseId) {
+  const date = new Date();
+  const dateStr = date.getFullYear()
+    + String(date.getMonth() + 1).padStart(2, '0')
+    + String(date.getDate()).padStart(2, '0');
+  const uuid = crypto.randomUUID
+    ? crypto.randomUUID()
+    : Date.now().toString(36) + Math.random().toString(36).substring(2, 10);
+
+  return `enterprises/${enterpriseId}/covers/${dateStr}/${uuid}-cover.jpg`;
+}
+
+/**
+ * 使用 ffmpeg 从视频 buffer 中提取第一帧作为封面
+ *
+ * 流程：
+ *   1. 将 buffer 写入临时文件
+ *   2. 调用 ffmpeg 提取第一帧
+ *   3. 读取输出的 jpg
+ *   4. 清理临时文件
+ *
+ * @param {Buffer} videoBuffer - 视频数据
+ * @returns {Promise<Buffer>} 封面图片 buffer (jpg)
+ */
+function extractCoverFrame(videoBuffer) {
+  return new Promise((resolve, reject) => {
+    const tmpDir = os.tmpdir();
+    const inputFile = path.join(tmpDir, `vsc_input_${Date.now()}_${Math.random().toString(36).substring(2, 6)}.mp4`);
+    const outputFile = path.join(tmpDir, `vsc_cover_${Date.now()}_${Math.random().toString(36).substring(2, 6)}.jpg`);
+
+    // ── 1. 写入临时文件 ──────────────────────────────────────
+    try {
+      fs.writeFileSync(inputFile, videoBuffer);
+    } catch (writeErr) {
+      return reject(Object.assign(new Error(`Failed to write temp video file: ${writeErr.message}`), {
+        code: 'COVER_TEMP_WRITE_FAILED'
+      }));
+    }
+
+    // ── 2. 调用 ffmpeg 提取第一帧 ─────────────────────────────
+    // -ss 0: 从第 0 秒开始
+    // -vframes 1: 只提取 1 帧
+    // -q:v 2: 高质量 jpg（1-31，越小质量越高）
+    execFile('ffmpeg', [
+      '-ss', '0',
+      '-i', inputFile,
+      '-vframes', '1',
+      '-q:v', '2',
+      '-y',
+      outputFile
+    ], { timeout: 30000 }, (err, stdout, stderr) => {
+      // ── 清理输入文件 ──────────────────────────────────────
+      try { fs.unlinkSync(inputFile); } catch (_) { /* ignore */ }
+
+      if (err) {
+        // 清理可能的输出文件
+        try { fs.unlinkSync(outputFile); } catch (_) { /* ignore */ }
+        return reject(Object.assign(
+          new Error(`ffmpeg cover extraction failed: ${err.message}`),
+          { code: 'COVER_EXTRACTION_FAILED' }
+        ));
+      }
+
+      // ── 3. 读取输出封面 ────────────────────────────────────
+      let coverBuffer;
+      try {
+        coverBuffer = fs.readFileSync(outputFile);
+      } catch (readErr) {
+        try { fs.unlinkSync(outputFile); } catch (_) { /* ignore */ }
+        return reject(Object.assign(
+          new Error(`Failed to read cover image: ${readErr.message}`),
+          { code: 'COVER_READ_FAILED' }
+        ));
+      }
+
+      // ── 4. 清理输出文件 ────────────────────────────────────
+      try { fs.unlinkSync(outputFile); } catch (_) { /* ignore */ }
+
+      // ── 5. 校验 ────────────────────────────────────────────
+      if (coverBuffer.length < 100) {
+        return reject(Object.assign(
+          new Error(`Cover image too small: ${coverBuffer.length} bytes`),
+          { code: 'COVER_TOO_SMALL' }
+        ));
+      }
+
+      resolve(coverBuffer);
+    });
+  });
 }
 
 /**
@@ -377,32 +475,49 @@ async function downloadAndStore({ videoUrl, enterpriseId, mimeType }) {
     });
   }
 
-  // ── 7. 生成访问 URL ──────────────────────────────────────────
+  // ── 7. 生成封面（Sprint 5.7: ffmpeg 提取第一帧）─────────────
+  let coverOssKey = null;
+  let coverUrl = null;
+
+  try {
+    const coverBuffer = await extractCoverFrame(downloadResult.buffer);
+    coverOssKey = generateCoverOssKey(enterpriseId);
+    await ossService.putFile(coverOssKey, coverBuffer, 'image/jpeg');
+    coverUrl = ossService.getFileUrl(coverOssKey);
+
+    if (process.env.NODE_ENV === 'development') {
+      console.log(`[VideoStorage] Cover generated: ${coverOssKey} (${(coverBuffer.length / 1024).toFixed(1)}KB)`);
+    }
+  } catch (coverErr) {
+    // 封面生成失败不阻塞视频存储，记录警告
+    console.warn(
+      `[VideoStorage] Cover generation failed (non-blocking): ${coverErr.message} | ` +
+      `code=${coverErr.code || 'N/A'}`
+    );
+    // coverOssKey / coverUrl 保持 null
+  }
+
+  // ── 8. 生成访问 URL ──────────────────────────────────────────
   const accessUrl = ossService.getFileUrl(ossKey);
 
-  // ── 8. 日志 ──────────────────────────────────────────────────
+  // ── 9. 日志 ──────────────────────────────────────────────────
   if (process.env.NODE_ENV === 'development') {
     console.log(`[VideoStorage] Stored: ${ossKey} (${(downloadResult.size / 1024 / 1024).toFixed(1)}MB)`);
   }
 
-  // ── 9. 返回结果 ──────────────────────────────────────────────
-  // Sprint 2.5 Patch: 支持 cover 字段，为 Sprint 3.x cover OSS 转存做准备
-  //
-  // 未来 Sprint 流程：
-  //   cover_url (DashScope) → cover OSS 永久存储 → Asset 关联 → generation_tasks.cover_asset_id
-  // 当前阶段 cover.ossKey 为 null，cover.url 由 Controller 从 DashScope cover_url 回填
+  // ── 10. 返回结果 ──────────────────────────────────────────────
   return {
     video: {
       url: accessUrl,
       ossKey
     },
     cover: {
-      url: null,    // 由 Controller 从 GenerationTask.cover_url 回填
-      ossKey: null  // 未来 Sprint: cover OSS 转存后填充
+      url: coverUrl,
+      ossKey: coverOssKey
     },
     size: downloadResult.size,
     mimeType: resolvedMimeType
   };
 }
 
-module.exports = { downloadAndStore };
+module.exports = { downloadAndStore, extractCoverFrame, generateCoverOssKey };
