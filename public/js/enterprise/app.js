@@ -142,6 +142,10 @@
   // ─── Navigation ───────────────────────────────────────────
   function navigateTo(page) {
     APP.currentPage = page;
+    // Sprint Stable: 页面状态持久化 — 刷新后保持当前页面
+    if (typeof PageState !== 'undefined' && PageState.save) {
+      PageState.save(page);
+    }
     render(page);
     if (window.innerWidth < 1024) {
       var sidebar = document.getElementById('sidebar');

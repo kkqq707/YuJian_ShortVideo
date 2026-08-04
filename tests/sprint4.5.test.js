@@ -221,8 +221,8 @@ test('generation-panel.js — AI创作面板模块完整性', () => {
   assert.ok(c.includes('function selectGenOutput'), 'must have selectGenOutput');
   assert.ok(c.includes('function updateGenTimeline'), 'must have updateGenTimeline');
   assert.ok(c.includes('function showGenResult'), 'must have showGenResult');
-  assert.ok(c.includes('TEMPLATE_MAP'), 'must keep template mapping (aliyun provider)');
-  assert.ok(c.includes('happyhorse-i2v'), 'must keep aliyun model config');
+  assert.ok(!c.includes('TEMPLATE_MAP'), 'Sprint 4.7: TEMPLATE_MAP removed from frontend — backend handles model resolution');
+  assert.ok(c.includes('templateId'), 'must use templateId for backend model resolution');
   assert.ok(c.includes('window.openGenPanel'), 'must export openGenPanel globally');
   assert.ok(c.includes('window.closeGenPanel'), 'must export closeGenPanel globally');
   assert.ok(c.includes('window.handleGenPanelSubmit'), 'must export handleGenPanelSubmit globally');
@@ -399,19 +399,19 @@ console.log('\n══ Part F: Creative Template System ══\n');
 
 test('模板映射保持完整', () => {
   const c = modules['generation-panel.js'];
-  assert.ok(c.includes('image_to_video'), 'must keep image_to_video template');
-  assert.ok(c.includes('text_to_video'), 'must keep text_to_video template');
-  assert.ok(c.includes('image_generation'), 'must keep image_generation template');
-  assert.ok(c.includes('image_edit'), 'must keep image_edit template');
+  assert.ok(c.includes('image_to_video'), 'must keep image_to_video template reference');
+  // Sprint 4.7: 前端不再硬编码所有模板ID，模板由后端 creativeTemplates.js 统一管理
+  assert.ok(!c.includes("provider: 'aliyun'"), 'Sprint 4.7: provider config moved to backend GenerationService');
 });
 
-test('阿里云 provider 配置保持不变', () => {
+test('阿里云 provider 配置 — 后端统一管理', () => {
+  // Sprint 4.7: 模型映射不再写死在前端 TEMPLATE_MAP 中
+  // 而是由后端 GenerationService → Provider Router → Aliyun Config 统一解析
   const c = modules['generation-panel.js'];
-  assert.ok(c.includes("provider: 'aliyun'"), 'must keep aliyun provider');
-  assert.ok(c.includes("'happyhorse-i2v'"), 'must keep happyhorse-i2v model');
-  assert.ok(c.includes("'happyhorse-t2v'"), 'must keep happyhorse-t2v model');
-  assert.ok(c.includes("'qwen-image-3.0-pro'"), 'must keep qwen-image-3.0-pro model');
-  assert.ok(c.includes("'qwen-image-edit'"), 'must keep qwen-image-edit model');
+  assert.ok(!c.includes("'happyhorse-i2v'"), 'Sprint 4.7: model mapping moved from frontend to backend config');
+  assert.ok(!c.includes("'happyhorse-t2v'"), 'Sprint 4.7: model mapping moved from frontend to backend config');
+  assert.ok(!c.includes("'qwen-image-3.0-pro'"), 'Sprint 4.7: model mapping moved from frontend to backend config');
+  assert.ok(!c.includes("'qwen-image-edit'"), 'Sprint 4.7: model mapping moved from frontend to backend config');
 });
 
 // ─── 测试结果汇总 ──────────────────────────────────────────────

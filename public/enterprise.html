@@ -2790,7 +2790,7 @@
 <body>
     <!-- 全屏视频背景 -->
     <div class="fullscreen-bg">
-        <video class="fullscreen-video" autoplay muted loop playsinline>
+        <video class="fullscreen-video" autoplay muted loop playsinline onerror="this.style.display='none'">
             <source src="full-bg.mp4" type="video/mp4">
         </video>
         <div class="fullscreen-overlay"></div>
@@ -3137,6 +3137,7 @@
     </div>
 
     <!-- 前端 JS 模块（依赖顺序） -->
+    <script src="js/page-state.js"></script>
     <script src="js/api.js"></script>
     <script src="js/auth.js"></script>
     <script src="js/upload.js"></script>
@@ -4207,6 +4208,10 @@
         // =====================
         function navigateTo(page) {
             APP.currentPage = page;
+            // Sprint Stable: 页面状态持久化 — 刷新后保持当前页面
+            if (typeof PageState !== 'undefined' && PageState.save) {
+                PageState.save(page);
+            }
             render(page);
             if (window.innerWidth < 1024) {
                 document.getElementById('sidebar').style.width = '72px';
@@ -4591,7 +4596,9 @@
             });
         });
 
-        render('dashboard');
+        // Sprint Stable: 页面状态持久化 — 恢复上次访问的页面，而非总是返回首页
+        var restoredPage = (typeof PageState !== 'undefined' && PageState.restore) ? PageState.restore() : 'dashboard';
+        render(restoredPage);
 
         // 响应式侧栏
         window.addEventListener('resize', () => {
