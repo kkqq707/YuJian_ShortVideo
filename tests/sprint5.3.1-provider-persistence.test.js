@@ -92,7 +92,7 @@ const { GenerationTask, sequelize } = require('../models');
       enterprise_id: 1,
       user_id: 1,
       task_type: 'image2video',
-      model: 'wanx2.1-i2v-turbo',
+      model: 'happyhorse-1.1-i2v',
       prompt: 'Test: image to video generation',
       input_url: 'https://example.com/test-image.jpg',
       status: 'pending',
@@ -108,7 +108,7 @@ const { GenerationTask, sequelize } = require('../models');
       `provider should be aliyun, got: ${task.provider}`);
     assert.strictEqual(task.status, 'pending');
     assert.strictEqual(task.task_type, 'image2video');
-    assert.strictEqual(task.model, 'wanx2.1-i2v-turbo');
+    assert.strictEqual(task.model, 'happyhorse-1.1-i2v');
   });
 
   await testAsync('数据库重新读取 — provider 值保持一致', async () => {

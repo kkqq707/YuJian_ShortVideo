@@ -66,7 +66,7 @@ const AI_MODELS = {
     provider: 'aliyun',
     capability: 'image_to_video',
     outputType: 'video',
-    apiModelName: 'wanx2.1-i2v-turbo',    // DashScope API 实际模型名 (Sprint 5.3 修复: wan2.1 → wanx2.1)
+    apiModelName: 'happyhorse-1.1-i2v',    // DashScope API 实际模型名 (图生视频)
     description: '将静态图片转换为动态视频，赋予画面生命力',
     category: 'video',
     categoryLabel: '视频生成',

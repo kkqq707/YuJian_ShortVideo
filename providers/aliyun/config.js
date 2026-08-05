@@ -40,7 +40,7 @@ const ALIYUN_MODELS = {
   },
   image_to_video: {
     provider: 'aliyun',
-    model: 'wanx2.1-i2v-turbo',   // Sprint 5.3 修复: wan2.1 → wanx2.1 (2.1系列需wanx前缀)
+    model: 'happyhorse-1.1-i2v',   // 图生视频模型
     capability: 'image_to_video',
     outputType: 'video'
   },
@@ -69,7 +69,7 @@ const ALIYUN_CONFIG = {
 
   // 默认视频模型
   get defaultVideoModel() {
-    return process.env.DASHSCOPE_VIDEO_MODEL || 'wanx2.1-i2v-turbo';
+    return process.env.DASHSCOPE_VIDEO_MODEL || 'happyhorse-1.1-i2v';
   },
 
   // 请求超时（毫秒）

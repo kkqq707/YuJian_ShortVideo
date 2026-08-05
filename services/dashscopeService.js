@@ -325,16 +325,25 @@ class DashScopeService {
       );
     }
 
-    // ── 组装请求体（DashScope wan2.1-i2v 标准格式）───────────
-    // 参考: https://help.aliyun.com/en/model-studio/legacy-image-to-video-api-reference/
+    // ── 组装请求体 ───────────────────────────────────────────
+    // happyhorse-1.1-i2v 使用 input.media 格式，其他模型使用 input.img_url
+    const isHappyhorse = resolvedModel === 'happyhorse-1.1-i2v';
+
     const requestBody = {
       model: resolvedModel,
       input: {
-        prompt: prompt.trim(),
-        img_url: imageUrl.trim()
+        prompt: prompt.trim()
       },
       parameters: {}
     };
+
+    if (isHappyhorse) {
+      requestBody.input.media = [
+        { type: 'first_frame', url: imageUrl.trim() }
+      ];
+    } else {
+      requestBody.input.img_url = imageUrl.trim();
+    }
 
     if (negativePrompt) {
       requestBody.input.negative_prompt = negativePrompt.trim();
@@ -379,6 +388,11 @@ class DashScopeService {
       `duration=${duration || 'N/A'} | ` +
       `params_keys=${Object.keys(params).join(',') || '(none)'} | ` +
       `time=${new Date().toISOString()}`
+    );
+
+    // ── 打印最终请求体（验证用）────────────────────────────────
+    console.log(
+      `[DashScope] Final request body:\n${JSON.stringify(requestBody, null, 2)}`
     );
 
     // ── 调用 API ──────────────────────────────────────────────
@@ -612,7 +626,7 @@ class DashScopeService {
    * @deprecated Sprint 3.2 将迁移
    */
   async submitRef2Video({ images, prompt, model, duration } = {}) {
-    const resolvedModel = model || 'wanx2.1-i2v-turbo';
+    const resolvedModel = model || 'happyhorse-1.1-i2v';
     const body = {
       model: resolvedModel,
       input: { prompt: prompt || '', images },
