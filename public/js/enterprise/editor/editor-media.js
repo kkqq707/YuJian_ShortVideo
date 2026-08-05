@@ -1,6 +1,6 @@
 /**
  * YuJian Editor — Media Panel Component
- * Phase 2-D-2: 素材面板
+ * Phase 2-D-4: 素材面板 — 素材库增强 & 时间轴集成
  *
  * 读取：YJ.state.editor.mediaBin
  * 显示：视频、图片、音频、字幕分类

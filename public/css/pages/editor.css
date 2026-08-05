@@ -289,6 +289,153 @@
   opacity: 0.5;
 }
 
+/* ── Media Panel: Drag States ──────────────────────────────── */
+
+.yj-editor-media-item[draggable="true"] {
+  cursor: grab;
+}
+
+.yj-editor-media-item[draggable="true"]:active {
+  cursor: grabbing;
+  opacity: 0.7;
+}
+
+.yj-editor-media-drag-ghost {
+  position: absolute;
+  top: -9999px;
+  left: -9999px;
+  padding: 4px 12px;
+  background: rgba(99, 102, 241, 0.9);
+  color: #fff;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 500;
+  white-space: nowrap;
+  pointer-events: none;
+  z-index: 9999;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+}
+
+.yj-editor-media--drop-target {
+  outline: 2px dashed rgba(99, 102, 241, 0.5);
+  outline-offset: -4px;
+  background: rgba(99, 102, 241, 0.05);
+}
+
+/* ── Media Panel: Preview (Phase 2-D-4) ────────────────────── */
+
+.yj-editor-media-preview {
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(15, 15, 35, 0.6);
+  flex-shrink: 0;
+  max-height: 220px;
+  overflow: hidden;
+}
+
+.yj-editor-media-preview-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 14px;
+  font-size: 11px;
+  font-weight: 600;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.yj-editor-media-preview-close {
+  background: none;
+  border: none;
+  color: #64748b;
+  font-size: 18px;
+  cursor: pointer;
+  padding: 0 4px;
+  line-height: 1;
+  transition: color 0.15s;
+  border-radius: 3px;
+}
+
+.yj-editor-media-preview-close:hover {
+  color: #f87171;
+  background: rgba(248, 113, 113, 0.1);
+}
+
+.yj-editor-media-preview-body {
+  padding: 8px 14px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.yj-editor-media-preview-thumb {
+  width: 100%;
+  height: 80px;
+  border-radius: 6px;
+  background: #0d0d1a;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.yj-editor-media-preview-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.yj-editor-media-preview-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.yj-editor-media-preview-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: #e2e8f0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.yj-editor-media-preview-detail {
+  font-size: 11px;
+  color: #64748b;
+}
+
+.yj-editor-media-preview-add {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 7px 12px;
+  border: none;
+  border-radius: 6px;
+  background: var(--primary, #6366f1);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 500;
+  font-family: inherit;
+  cursor: pointer;
+  transition: background 0.2s, transform 0.15s;
+}
+
+.yj-editor-media-preview-add:hover {
+  background: var(--primary-light, #818cf8);
+  transform: translateY(-1px);
+}
+
+.yj-editor-media-preview-add:active {
+  transform: translateY(0);
+}
+
+.yj-editor-media-preview-add:focus-visible {
+  outline: 2px solid var(--primary, #6366f1);
+  outline-offset: 2px;
+}
+
 /* ═══════════════════════════════════════════════════════════════
    Player (Center)
    ═══════════════════════════════════════════════════════════════ */
@@ -858,6 +1005,49 @@
 .yj-editor-timeline-clip--selected {
   box-shadow: 0 0 0 2px #f1f5f9, 0 0 8px rgba(241, 245, 249, 0.15);
   z-index: 3;
+}
+
+/* ── Timeline Drop Zone (Phase 2-D-4) ──────────────────────── */
+
+.yj-editor-timeline--drop-active {
+  outline: 2px dashed rgba(99, 102, 241, 0.5);
+  outline-offset: -2px;
+}
+
+.yj-editor-timeline--drop-active .yj-editor-timeline-tracks {
+  background: rgba(99, 102, 241, 0.04);
+}
+
+.yj-editor-timeline-drop-indicator {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: var(--primary, #6366f1);
+  z-index: 30;
+  pointer-events: none;
+  display: none;
+  box-shadow: 0 0 6px rgba(99, 102, 241, 0.6);
+  border-radius: 1px;
+}
+
+/* When dragging over timeline, show a subtle hint overlay */
+.yj-editor-timeline--drop-active::after {
+  content: '释放以添加素材';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 14px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.6);
+  background: rgba(0, 0, 0, 0.5);
+  padding: 10px 20px;
+  border-radius: 8px;
+  pointer-events: none;
+  z-index: 50;
+  backdrop-filter: blur(4px);
+  border: 1px solid rgba(99, 102, 241, 0.3);
 }
 
 /* ═══════════════════════════════════════════════════════════════

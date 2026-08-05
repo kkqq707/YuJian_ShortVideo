@@ -233,6 +233,10 @@
   // Event Binding
   // ═══════════════════════════════════════════════════════════════
 
+  /** Phase 2-D-4.5: Guard flags to prevent stacking global listeners */
+  var _deleteKeyBound = false;
+  var _cutButtonBound = false;
+
   /**
    * 绑定所有时间轴事件（在每次 re-render 后调用）
    */
@@ -244,6 +248,7 @@
     bindDeleteKey();
     bindCutButton();
     bindScrollSync();
+    bindTimelineDropZone(); // Phase 2-D-4: 素材拖放到时间轴
   }
 
   /**
@@ -278,7 +283,23 @@
     state.editor.timeline.selectedClipId = clipId;
     state.editor.ui.selectedClipId = clipId;
     state.editor.ui.selectedTrackId = trackId || null;
-    YJ.EditorApp.refresh();
+
+    // Phase 2-D-4.5: Update visual selection state on existing DOM
+    var allClips = document.querySelectorAll('.yj-editor-timeline-clip--selected');
+    for (var i = 0; i < allClips.length; i++) {
+      allClips[i].classList.remove('yj-editor-timeline-clip--selected');
+    }
+    if (clipId) {
+      var newSelected = document.querySelector('.yj-editor-timeline-clip[data-clip-id="' + escAttrForSelector(clipId) + '"]');
+      if (newSelected) {
+        newSelected.classList.add('yj-editor-timeline-clip--selected');
+      }
+    }
+
+    // Refresh inspector to show clip properties
+    if (YJ.EditorInspector && YJ.EditorInspector.refresh) {
+      YJ.EditorInspector.refresh();
+    }
   }
 
   /**
@@ -511,6 +532,10 @@
    * 绑定切割按钮
    */
   function bindCutButton() {
+    // Phase 2-D-4.5: Only bind once — #yjEditorContainer persists across re-renders
+    if (_cutButtonBound) return;
+    _cutButtonBound = true;
+
     // Listen for toolbar cut button (delegated)
     var container = document.getElementById('yjEditorContainer');
     if (!container) return;
@@ -526,6 +551,10 @@
    * 6. Delete 键 — 删除选中的 Clip
    */
   function bindDeleteKey() {
+    // Phase 2-D-4.5: Only bind once to prevent keydown listener stacking
+    if (_deleteKeyBound) return;
+    _deleteKeyBound = true;
+
     // Global keyboard handler (combined with existing shortcuts)
     document.addEventListener('keydown', function (e) {
       // Only when editor is visible
@@ -577,6 +606,264 @@
       ruler.scrollLeft = tracksWrapper.scrollLeft;
       syncing = false;
     });
+  }
+
+  /**
+   * Phase 2-D-4: 素材拖放到时间轴
+   *
+   * 监听时间轴区域的 dragover/drop 事件，
+   * 解析拖放数据中的素材信息并生成 Clip
+   */
+  function bindTimelineDropZone() {
+    var timeline = document.querySelector('.yj-editor-timeline');
+    if (!timeline) return;
+
+    // Track the drop position indicator
+    var _dropIndicator = null;
+
+    /**
+     * 获取或创建放置位置指示器
+     */
+    function getDropIndicator() {
+      if (!_dropIndicator) {
+        _dropIndicator = document.createElement('div');
+        _dropIndicator.className = 'yj-editor-timeline-drop-indicator';
+        _dropIndicator.style.cssText = 'position:absolute;top:0;bottom:0;width:2px;'
+          + 'background:#6366f1;z-index:30;pointer-events:none;display:none;'
+          + 'box-shadow:0 0 6px rgba(99,102,241,0.6);';
+        var tracksEl = document.getElementById('yjEditorTracks');
+        if (tracksEl) {
+          tracksEl.style.position = 'relative';
+          tracksEl.appendChild(_dropIndicator);
+        }
+      }
+      return _dropIndicator;
+    }
+
+    // ── dragover: show visual feedback + calculate drop position ──
+    timeline.addEventListener('dragover', function (e) {
+      // Check if this is an editor asset drag
+      var hasAsset = false;
+      try {
+        var types = e.dataTransfer.types || [];
+        for (var t = 0; t < types.length; t++) {
+          if (types[t] === 'application/yj-editor-asset') { hasAsset = true; break; }
+        }
+      } catch (ex) {
+        // Cross-origin drag — check for files
+        hasAsset = (e.dataTransfer.files && e.dataTransfer.files.length > 0);
+      }
+
+      if (!hasAsset) {
+        // Also accept files dropped from OS
+        if (!e.dataTransfer.files || e.dataTransfer.files.length === 0) return;
+      }
+
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'copy';
+
+      // Show drop indicator at calculated position
+      var tracksWrapper = document.querySelector('.yj-editor-timeline-tracks-wrapper');
+      if (tracksWrapper) {
+        var rect = tracksWrapper.getBoundingClientRect();
+        var x = e.clientX - rect.left + tracksWrapper.scrollLeft;
+        var pps = pxPerSec();
+        var dropTime = Math.max(0, x / pps);
+
+        var indicator = getDropIndicator();
+        if (indicator) {
+          indicator.style.left = x + 'px';
+          indicator.style.display = 'block';
+        }
+      }
+
+      // Add visual drop-active class
+      timeline.classList.add('yj-editor-timeline--drop-active');
+    });
+
+    // ── dragleave: remove visual feedback ──
+    timeline.addEventListener('dragleave', function (e) {
+      // Only remove when actually leaving the timeline
+      if (!timeline.contains(e.relatedTarget)) {
+        timeline.classList.remove('yj-editor-timeline--drop-active');
+        var indicator = getDropIndicator();
+        if (indicator) indicator.style.display = 'none';
+      }
+    });
+
+    // ── drop: create clip at drop position ──
+    timeline.addEventListener('drop', function (e) {
+      e.preventDefault();
+      timeline.classList.remove('yj-editor-timeline--drop-active');
+      var indicator = getDropIndicator();
+      if (indicator) indicator.style.display = 'none';
+
+      // Calculate drop time position
+      var tracksWrapper = document.querySelector('.yj-editor-timeline-tracks-wrapper');
+      var dropTime = 0;
+      if (tracksWrapper) {
+        var rect = tracksWrapper.getBoundingClientRect();
+        var pps = pxPerSec();
+        dropTime = Math.max(0, (e.clientX - rect.left + tracksWrapper.scrollLeft) / pps);
+        // Snap to grid
+        var zoom = state.editor.timeline.zoom || 1;
+        if (zoom >= 2) {
+          dropTime = Math.round(dropTime * 10) / 10;
+        } else {
+          dropTime = Math.round(dropTime * 5) / 5;
+        }
+      }
+
+      // ── Handle editor asset drag ──
+      var assetData = null;
+      try {
+        var raw = e.dataTransfer.getData('application/yj-editor-asset');
+        if (raw) assetData = JSON.parse(raw);
+      } catch (ex) {
+        // Not JSON data — try files below
+      }
+
+      if (assetData) {
+        // Add asset from editor media panel
+        if (YJ.EditorMedia && YJ.EditorMedia.addAssetToTimeline) {
+          // We need to set position override
+          addAssetWithPosition(assetData, dropTime);
+        }
+        return;
+      }
+
+      // ── Handle external file drop ──
+      var files = e.dataTransfer.files;
+      if (files && files.length > 0) {
+        handleExternalFileDropToTimeline(files, dropTime);
+      }
+    });
+  }
+
+  /**
+   * Phase 2-D-4: 以指定位置添加素材到时间轴
+   * @param {Object} assetData - 拖放的素材数据
+   * @param {number} position  - 放置位置（秒）
+   */
+  function addAssetWithPosition(assetData, position) {
+    var ed = state.editor;
+    var tracks = ed.timeline.tracks || [];
+
+    // Map asset type to track type
+    var trackTypeMap = {
+      video: 'video', image: 'video', audio: 'audio',
+      subtitle: 'subtitle', other: 'video'
+    };
+    var targetType = trackTypeMap[assetData.type] || 'video';
+
+    // Find matching unlocked track
+    var targetTrack = null;
+    for (var j = 0; j < tracks.length; j++) {
+      if (tracks[j].type === targetType && !tracks[j].locked) {
+        targetTrack = tracks[j];
+        break;
+      }
+    }
+
+    if (!targetTrack) {
+      // Auto-create track
+      var trackNames = { video: '视频轨道', audio: '音频轨道', subtitle: '字幕轨道' };
+      targetTrack = YJ.Editor.addTrack({
+        type: targetType,
+        name: (trackNames[targetType] || '轨道') + ' ' + (tracks.length + 1),
+        index: tracks.length
+      });
+    }
+
+    // Create clip with specified position
+    var clip = YJ.Editor.CLIP.fromAsset(assetData, {
+      trackId: targetTrack.id,
+      position: position,
+      duration: assetData.duration || 5
+    });
+
+    var result = YJ.Editor.addClipToTrack(targetTrack.id, clip);
+    if (result) {
+      YJ.EditorApp.refreshTimeline();
+      var showToast = (YJ.utils && YJ.utils.showToast) || window.showToast;
+      if (typeof showToast === 'function') {
+        showToast('已添加素材到 ' + formatTime(position), 'success');
+      }
+    }
+  }
+
+  /**
+   * Phase 2-D-4: 处理外部文件拖入时间轴
+   * @param {FileList} files
+   * @param {number} dropTime - 放置位置（秒）
+   */
+  function handleExternalFileDropToTimeline(files, dropTime) {
+    for (var i = 0; i < files.length; i++) {
+      var file = files[i];
+      var assetType = detectFileType(file);
+      var assetUrl = URL.createObjectURL(file);
+
+      var asset = {
+        id: 'ext_' + Date.now().toString(36) + '_' + i,
+        name: file.name,
+        type: assetType,
+        url: assetUrl,
+        thumbnailUrl: assetType === 'image' ? assetUrl : '',
+        duration: assetType === 'image' ? 5 : 0,
+        size: file.size
+      };
+
+      // Add to mediaBin
+      YJ.Editor.addToMediaBin(asset);
+
+      // For video/audio, get actual duration
+      if (assetType === 'video' || assetType === 'audio') {
+        getMediaDurationFromFile(assetUrl, assetType, function (duration) {
+          asset.duration = duration || 5;
+        });
+      }
+
+      // Add to timeline at drop position, spaced for multiple files
+      addAssetWithPosition(asset, dropTime + i * (asset.duration || 5));
+    }
+  }
+
+  /**
+   * Phase 2-D-4: 检测文件类型
+   * @param {File} file
+   * @returns {string}
+   */
+  function detectFileType(file) {
+    var ext = (file.name.split('.').pop() || '').toLowerCase();
+    var videoExts = ['mp4', 'mov', 'avi', 'webm', 'mkv', 'flv', 'wmv', 'm4v'];
+    var imageExts = ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp', 'svg', 'tiff'];
+    var audioExts = ['mp3', 'wav', 'aac', 'ogg', 'flac', 'wma', 'm4a', 'opus'];
+    var subtitleExts = ['srt', 'ass', 'vtt', 'sub', 'sbv'];
+
+    if (videoExts.indexOf(ext) !== -1) return 'video';
+    if (imageExts.indexOf(ext) !== -1) return 'image';
+    if (audioExts.indexOf(ext) !== -1) return 'audio';
+    if (subtitleExts.indexOf(ext) !== -1) return 'subtitle';
+    return 'other';
+  }
+
+  /**
+   * Phase 2-D-4: 获取音频/视频文件时长
+   * @param {string} url
+   * @param {string} type
+   * @param {Function} callback
+   */
+  function getMediaDurationFromFile(url, type, callback) {
+    var el = document.createElement(type);
+    el.preload = 'metadata';
+    el.onloadedmetadata = function () {
+      callback(el.duration || 0);
+      URL.revokeObjectURL(url);
+    };
+    el.onerror = function () {
+      callback(0);
+    };
+    el.src = url;
   }
 
   /**
@@ -647,7 +934,11 @@
     getZoom: getZoom,
     pxPerSec: pxPerSec,
     BASE_PX_PER_SECOND: BASE_PX_PER_SECOND,
-    ZOOM_LEVELS: ZOOM_LEVELS
+    ZOOM_LEVELS: ZOOM_LEVELS,
+    // Phase 2-D-4: 素材拖放到时间轴
+    addAssetWithPosition: addAssetWithPosition,
+    handleExternalFileDropToTimeline: handleExternalFileDropToTimeline,
+    detectFileType: detectFileType
   };
 
   window.YJ = YJ;

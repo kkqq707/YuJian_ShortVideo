@@ -788,7 +788,7 @@
                 case 'projects': container.innerHTML = renderProjects(); break;
                 case 'myworks': container.innerHTML = renderMyWorks(); setTimeout(() => loadMyWorks(1), 0); break;
                 case 'assets': container.innerHTML = renderAssets(); break;
-                case 'editor': container.innerHTML = renderEditor(); break;
+                case 'editor': container.innerHTML = renderEditor(); setTimeout(function() { if (window.YJ && window.YJ.EditorApp && window.YJ.EditorApp.initEditor) { window.YJ.EditorApp.initEditor(); } }, 0); break;
                 case 'team': container.innerHTML = renderTeam(); break;
                 case 'billing': container.innerHTML = renderBilling(); break;
                 case 'settings': container.innerHTML = renderSettings(); break;

@@ -133,7 +133,15 @@
       }
       case 'myworks': container.innerHTML = (typeof renderMyWorks === 'function' ? renderMyWorks() : '<div class="card"><div class="card-body">页面开发中</div></div>'); setTimeout(function () { if (typeof loadMyWorks === 'function') loadMyWorks(1); }, 0); break;
       case 'assets': container.innerHTML = (typeof renderAssets === 'function' ? renderAssets() : '<div class="card"><div class="card-body">页面开发中</div></div>'); break;
-      case 'editor': container.innerHTML = (typeof renderEditor === 'function' ? renderEditor() : '<div class="card"><div class="card-body">页面开发中</div></div>'); break;
+      case 'editor':
+        container.innerHTML = (typeof renderEditor === 'function' ? renderEditor() : '<div class="card"><div class="card-body">页面开发中</div></div>');
+        // Phase 2-D-4.5: Bind editor events AFTER DOM is rendered
+        setTimeout(function () {
+          if (window.YJ && window.YJ.EditorApp && window.YJ.EditorApp.initEditor) {
+            window.YJ.EditorApp.initEditor();
+          }
+        }, 0);
+        break;
       case 'team': container.innerHTML = (typeof renderTeam === 'function' ? renderTeam() : '<div class="card"><div class="card-body">页面开发中</div></div>'); break;
       case 'billing': container.innerHTML = (typeof renderBilling === 'function' ? renderBilling() : '<div class="card"><div class="card-body">页面开发中</div></div>'); break;
       case 'settings': container.innerHTML = (typeof renderSettings === 'function' ? renderSettings() : '<div class="card"><div class="card-body">页面开发中</div></div>'); break;

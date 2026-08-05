@@ -121,7 +121,8 @@
 
       mediaBin: {
         items: [],
-        selectedIds: []
+        selectedIds: [],
+        selectedAsset: null  // Phase 2-D-4: 当前选中的素材（用于预览）
       },
 
       timeline: {
@@ -247,7 +248,7 @@
       id: null, name: '未命名项目', createdAt: null, updatedAt: null,
       duration: 0, resolution: { width: 1920, height: 1080 }, fps: 30
     };
-    APP_STATE.editor.mediaBin = { items: [], selectedIds: [] };
+    APP_STATE.editor.mediaBin = { items: [], selectedIds: [], selectedAsset: null };
     APP_STATE.editor.timeline = {
       duration: 0, fps: 30, resolution: { width: 1920, height: 1080 },
       tracks: [], playheadPosition: 0, currentTime: 0, selectedClipId: null, zoom: 1, scrollLeft: 0
