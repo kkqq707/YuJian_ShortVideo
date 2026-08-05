@@ -66,6 +66,7 @@
     currentAsset: null,         // Currently viewed asset (detail modal)
     currentPreviewAsset: null,  // Currently previewed asset (image preview)
     currentGenerationAsset: null, // Currently selected asset for generation
+    selectedAsset: null,        // Phase 2-D-4.6: Asset selected for sending to editor
 
     // ── Generation Panel State ───────────────────────────
     generation: {
@@ -204,6 +205,21 @@
     APP_STATE.currentPreviewAsset = null;
   }
 
+  /** Phase 2-D-4.6: Set asset selected for editor bridge */
+  function setSelectedAsset(asset) {
+    APP_STATE.selectedAsset = asset;
+  }
+
+  /** Phase 2-D-4.6: Get asset selected for editor bridge */
+  function getSelectedAsset() {
+    return APP_STATE.selectedAsset;
+  }
+
+  /** Phase 2-D-4.6: Clear asset selected for editor bridge */
+  function clearSelectedAsset() {
+    APP_STATE.selectedAsset = null;
+  }
+
   /** Set the currently selected generation asset */
   function setCurrentGenerationAsset(asset) {
     APP_STATE.currentGenerationAsset = asset;
@@ -285,6 +301,9 @@
   YJ.state.clearCurrentPreviewAsset = clearCurrentPreviewAsset;
   YJ.state.setCurrentGenerationAsset = setCurrentGenerationAsset;
   YJ.state.getCurrentGenerationAsset = getCurrentGenerationAsset;
+  YJ.state.setSelectedAsset = setSelectedAsset;
+  YJ.state.getSelectedAsset = getSelectedAsset;
+  YJ.state.clearSelectedAsset = clearSelectedAsset;
   YJ.state.cacheAsset = cacheAsset;
   YJ.state.getCachedAsset = getCachedAsset;
   YJ.state.resetGenerationState = resetGenerationState;
@@ -312,6 +331,7 @@
   window.ASSET_ICONS = ICONS;
   window.CURRENT_ASSET_DETAIL = APP_STATE.currentAsset;
   window.CURRENT_IMAGE_PREVIEW = APP_STATE.currentPreviewAsset;
+  window.SELECTED_ASSET = APP_STATE.selectedAsset;
 
-  console.log('[Enterprise/State] Unified state management initialized');
+  console.log('[Enterprise/State] Unified state management initialized (Phase 2-D-4.6: selectedAsset bridge)');
 })();

@@ -2581,6 +2581,12 @@
                         </select>
                     </div>
                     <div style="display:flex;gap:8px">
+                        <!-- Phase 2-D-4.6: 发送到剪辑器按钮 -->
+                        <button class="btn btn-outline" id="assetSendToEditorBtn"
+                            style="padding:8px 16px;border-color:var(--primary);color:var(--primary);display:none"
+                            onclick="sendAssetToEditor()">
+                            <i class="fas fa-scissors"></i> 发送到剪辑器
+                        </button>
                         <button class="btn btn-primary" onclick="triggerAssetUpload()">
                             <i class="fas fa-cloud-upload-alt"></i> 上传素材
                         </button>

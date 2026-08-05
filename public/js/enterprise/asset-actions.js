@@ -135,6 +135,93 @@
     }
   }
 
+  // ─── Phase 2-D-4.6: Send Asset to Editor ──────────────────
+  /**
+   * 将选中的素材发送到视频剪辑器
+   *
+   * 流程：
+   *   1. 获取选中的素材
+   *   2. 验证素材有效性
+   *   3. 调用 Editor bridge (openEditorWithAsset)
+   *   4. 导航到编辑器页面
+   *
+   * @param {Object} [asset] - 素材对象（可选，默认使用 YJ.state.selectedAsset）
+   */
+  function sendAssetToEditor(asset) {
+    // Resolve asset
+    if (!asset) {
+      if (state.getSelectedAsset) {
+        asset = state.getSelectedAsset();
+      }
+    }
+    if (!asset) {
+      // Try legacy currentAsset
+      if (state.getCurrentAsset) {
+        asset = state.getCurrentAsset();
+      }
+    }
+
+    if (!asset || !asset.id) {
+      showToast('请在资产管理中选择素材后发送到编辑器', 'warning');
+      return;
+    }
+
+    // Build bridge asset object (normalize for editor consumption)
+    var bridgeAsset = {
+      id: asset.id,
+      name: asset.name || asset.filename || '素材',
+      type: asset.type || 'video',
+      url: asset.url || asset.fileUrl || asset.path || '',
+      thumbnailUrl: asset.thumbnailUrl || asset.coverUrl || '',
+      duration: asset.duration || (asset.type === 'image' ? 5 : 0),
+      size: asset.size || 0,
+      mime_type: asset.mime_type || asset.mimeType || ''
+    };
+
+    // Check if editor bridge is available
+    if (window.YJ && window.YJ.Editor && window.YJ.Editor.openEditorWithAsset) {
+      // Clear selection state
+      if (state.clearSelectedAsset) state.clearSelectedAsset();
+      if (state.clearCurrentAsset) state.clearCurrentAsset();
+
+      // Hide toolbar button
+      var sendBtn = document.getElementById('assetSendToEditorBtn');
+      if (sendBtn) sendBtn.style.display = 'none';
+
+      // Close detail modal if open
+      if (typeof closeAssetDetail === 'function') {
+        closeAssetDetail();
+      }
+
+      // Bridge to editor
+      YJ.Editor.openEditorWithAsset(bridgeAsset);
+    } else {
+      // Fallback: manually add to mediaBin and navigate
+      var ed = state.editor;
+      if (ed && ed.mediaBin) {
+        // Reset editor if needed
+        if (typeof state.resetEditorState === 'function') {
+          state.resetEditorState();
+        }
+        // Create simple project
+        if (window.YJ && window.YJ.Editor && window.YJ.Editor.createProject) {
+          YJ.Editor.createProject({ name: (bridgeAsset.name || '素材') + ' 剪辑项目' });
+        }
+        // Add to mediaBin
+        ed.mediaBin.items.push(bridgeAsset);
+
+        // Navigate to editor
+        var navigateTo = (window.YJ && window.YJ.app && window.YJ.app.navigateTo) || window.navigateTo;
+        if (typeof navigateTo === 'function') {
+          navigateTo('editor');
+        }
+        showToast('素材已加载到编辑器', 'success');
+      } else {
+        showToast('编辑器模块未加载，请刷新页面后重试', 'error');
+      }
+    }
+  }
+
   // ─── Trigger Upload ───────────────────────────────────────
   function triggerAssetUpload() {
     if (!YuJianAuth.isAuthenticated()) {
@@ -268,6 +355,7 @@
     deleteAssetFromDetail: deleteAssetFromDetail,
     confirmDeleteAsset: confirmDeleteAsset,
     deleteAsset: deleteAsset,
+    sendAssetToEditor: sendAssetToEditor,
     triggerAssetUpload: triggerAssetUpload,
     handleAssetFileSelect: handleAssetFileSelect,
     uploadAssetFile: uploadAssetFile,
@@ -279,6 +367,7 @@
   window.deleteAssetFromDetail = deleteAssetFromDetail;
   window.confirmDeleteAsset = confirmDeleteAsset;
   window.deleteAsset = deleteAsset;
+  window.sendAssetToEditor = sendAssetToEditor;
   window.triggerAssetUpload = triggerAssetUpload;
   window.handleAssetFileSelect = handleAssetFileSelect;
   window.uploadAssetFile = uploadAssetFile;

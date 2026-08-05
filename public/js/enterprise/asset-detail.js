@@ -40,9 +40,14 @@
 
     // Set unified state
     state.setCurrentAsset(asset);
-    // Backward compat
-    if (typeof window.CURRENT_ASSET_DETAIL !== 'undefined' || window.CURRENT_ASSET_DETAIL === undefined) {
-      // Already handled by state.js proxy
+    // Phase 2-D-4.6: Also set as selectedAsset for editor bridge
+    if (state.setSelectedAsset) {
+      state.setSelectedAsset(asset);
+    }
+    // Show the toolbar "发送到剪辑器" button
+    var sendBtn = document.getElementById('assetSendToEditorBtn');
+    if (sendBtn) {
+      sendBtn.style.display = 'inline-flex';
     }
 
     titleEl.innerText = (asset && asset.name) || '素材详情';
@@ -134,6 +139,22 @@
     // Add AI create button (clean old first)
     var oldGenBtn = actionsEl.querySelector('#asset-ai-create-btn');
     if (oldGenBtn) oldGenBtn.remove();
+    // Phase 2-D-4.6: Clean old "发送到编辑器" button
+    var oldSendBtn = actionsEl.querySelector('#asset-send-to-editor-btn');
+    if (oldSendBtn) oldSendBtn.remove();
+
+    // Phase 2-D-4.6: "发送到编辑器" button (primary action)
+    var sendToEditorBtn = document.createElement('button');
+    sendToEditorBtn.id = 'asset-send-to-editor-btn';
+    sendToEditorBtn.className = 'btn btn-outline';
+    sendToEditorBtn.style.cssText = 'flex:0.6;border-color:var(--primary);color:var(--primary)';
+    sendToEditorBtn.innerHTML = '<i class="fas fa-scissors"></i> 发送到剪辑器';
+    sendToEditorBtn.onclick = function () {
+      var currentAsset = state.getCurrentAsset();
+      closeAssetDetail();
+      setTimeout(function () { sendAssetToEditor(currentAsset); }, 150);
+    };
+    actionsEl.insertBefore(sendToEditorBtn, actionsEl.firstChild);
 
     var genBtn = document.createElement('button');
     genBtn.id = 'asset-ai-create-btn';
@@ -164,6 +185,8 @@
     // Clean stale dynamic nodes
     var staleGenBtn = actionsEl.querySelector('#asset-ai-create-btn');
     if (staleGenBtn) staleGenBtn.remove();
+    var staleSendBtn = actionsEl.querySelector('#asset-send-to-editor-btn');
+    if (staleSendBtn) staleSendBtn.remove();
 
     overlay.classList.add('show');
     actionsEl.style.display = 'none';
@@ -237,6 +260,8 @@
     var overlay = document.getElementById('assetDetailOverlay');
     if (overlay) overlay.classList.remove('show');
     state.clearCurrentAsset();
+    // Phase 2-D-4.6: Clear selectedAsset, but keep toolbar button visible
+    // (user may have closed the modal but still wants to send the asset)
   }
 
   // ─── Overlay click to close ───────────────────────────────
