@@ -35,13 +35,20 @@
       +   '</button>'
       + '</div>'
 
-      // Center: transport controls (play, stop)
+      // Center: transport controls (play, stop) + edit actions (cut)
       + '<div class="yj-editor-toolbar-center">'
       +   '<button class="yj-editor-toolbar-btn" id="yjEditorPlayBtn" title="播放/暂停 (Space)">'
       +     '<i class="fas fa-play"></i>'
       +   '</button>'
       +   '<button class="yj-editor-toolbar-btn" id="yjEditorStopBtn" title="停止">'
       +     '<i class="fas fa-stop"></i>'
+      +   '</button>'
+      +   '<span class="yj-editor-toolbar-divider"></span>'
+      +   '<button class="yj-editor-toolbar-btn" id="yjEditorCutBtn" title="切割 (在当前播放头位置拆分选中片段)">'
+      +     '<i class="fas fa-cut"></i> 切割'
+      +   '</button>'
+      +   '<button class="yj-editor-toolbar-btn yj-editor-toolbar-btn--danger" id="yjEditorDeleteBtn" title="删除选中片段 (Delete)">'
+      +     '<i class="fas fa-trash-alt"></i>'
       +   '</button>'
       + '</div>'
 
@@ -112,6 +119,30 @@
         var showToast = (YJ.utils && YJ.utils.showToast) || window.showToast;
         if (typeof showToast === 'function') {
           showToast('请在资产管理中选择素材后发送到编辑器', 'info');
+        }
+      });
+    }
+
+    // Cut — split selected clip at current playhead position
+    var cutBtn = document.getElementById('yjEditorCutBtn');
+    if (cutBtn) {
+      cutBtn.addEventListener('click', function () {
+        if (YJ.EditorTimeline && YJ.EditorTimeline.cutClipAtPlayhead) {
+          YJ.EditorTimeline.cutClipAtPlayhead();
+        }
+      });
+    }
+
+    // Delete selected clip
+    var deleteBtn = document.getElementById('yjEditorDeleteBtn');
+    if (deleteBtn) {
+      deleteBtn.addEventListener('click', function () {
+        if (YJ.Editor.deleteSelectedClip()) {
+          var showToast = (YJ.utils && YJ.utils.showToast) || window.showToast;
+          if (typeof showToast === 'function') {
+            showToast('片段已删除', 'info');
+          }
+          YJ.EditorApp.refreshTimeline();
         }
       });
     }

@@ -289,6 +289,8 @@
         resolution: opts.resolution || { width: 1920, height: 1080 },
         tracks: opts.tracks || [],
         playheadPosition: 0,
+        currentTime: 0,
+        selectedClipId: null,
         zoom: 1,
         scrollLeft: 0
       };
@@ -622,6 +624,136 @@
     return true;
   }
 
+  /**
+   * 移动 Clip 到新的时间位置
+   * @param {string} trackId - 轨道 ID
+   * @param {string} clipId  - Clip ID
+   * @param {number} newPosition - 新的时间位置（秒）
+   * @returns {boolean}
+   */
+  function moveClip(trackId, clipId, newPosition) {
+    var ed = state.editor;
+    var tracks = ed.timeline.tracks;
+
+    for (var i = 0; i < tracks.length; i++) {
+      if (tracks[i].id === trackId) {
+        pushHistory();
+        tracks[i] = TRACK.updateClip(tracks[i], clipId, { position: Math.max(0, newPosition) });
+        // Re-sort clips by position
+        tracks[i].clips.sort(function (a, b) { return a.position - b.position; });
+        ed.timeline.duration = TIMELINE.calculateDuration(ed.timeline);
+        ed.project.updatedAt = new Date().toISOString();
+        return true;
+      }
+    }
+    return false;
+  }
+
+  /**
+   * 切割 Clip — 在指定时间点将 clip 拆分为左右两段
+   * @param {string} trackId - 轨道 ID
+   * @param {string} clipId  - Clip ID
+   * @param {number} splitTime - 切割时间点（相对于时间轴的绝对时间，秒）
+   * @returns {Object|null} 返回 { leftClip, rightClip }，失败返回 null
+   */
+  function splitClip(trackId, clipId, splitTime) {
+    var ed = state.editor;
+    var tracks = ed.timeline.tracks;
+
+    for (var i = 0; i < tracks.length; i++) {
+      if (tracks[i].id === trackId) {
+        var track = tracks[i];
+        var clip = null;
+        for (var j = 0; j < track.clips.length; j++) {
+          if (track.clips[j].id === clipId) {
+            clip = track.clips[j];
+            break;
+          }
+        }
+
+        if (!clip) return null;
+
+        // Calculate relative position within the clip
+        var relativeSplit = splitTime - clip.position;
+        if (relativeSplit <= 0 || relativeSplit >= clip.duration) {
+          // Split point is outside clip bounds
+          return null;
+        }
+
+        pushHistory();
+
+        // Create left clip (original position → split point)
+        var leftClip = CLIP.clone(clip);
+        leftClip.id = uid('clip');
+        leftClip.duration = relativeSplit;
+        leftClip.endTime = leftClip.startTime + relativeSplit;
+        leftClip.position = clip.position;
+        leftClip.name = clip.name + ' (左)';
+        leftClip.updatedAt = new Date().toISOString();
+
+        // Create right clip (split point → end)
+        var rightClip = CLIP.clone(clip);
+        rightClip.id = uid('clip');
+        rightClip.duration = clip.duration - relativeSplit;
+        rightClip.startTime = clip.startTime + relativeSplit;
+        rightClip.position = splitTime;
+        rightClip.name = clip.name + ' (右)';
+        rightClip.updatedAt = new Date().toISOString();
+
+        // Replace original clip with left + right
+        track.clips.splice(j, 1, leftClip, rightClip);
+        track.clips.sort(function (a, b) { return a.position - b.position; });
+
+        ed.timeline.duration = TIMELINE.calculateDuration(ed.timeline);
+        ed.project.updatedAt = new Date().toISOString();
+
+        // Select right clip after split
+        ed.ui.selectedClipId = rightClip.id;
+        ed.timeline.selectedClipId = rightClip.id;
+
+        console.log('[Editor] Clip 已切割:', clip.name, 'at', formatSplitTime(splitTime));
+        return { leftClip: leftClip, rightClip: rightClip };
+      }
+    }
+    return null;
+  }
+
+  /**
+   * 删除当前选中的 Clip
+   * @returns {boolean} 是否成功删除
+   */
+  function deleteSelectedClip() {
+    var ed = state.editor;
+    var clipId = ed.timeline.selectedClipId || ed.ui.selectedClipId;
+    if (!clipId) return false;
+
+    var tracks = ed.timeline.tracks;
+    for (var i = 0; i < tracks.length; i++) {
+      var track = tracks[i];
+      for (var j = 0; j < track.clips.length; j++) {
+        if (track.clips[j].id === clipId) {
+          pushHistory();
+          tracks[i] = TRACK.removeClip(track, clipId);
+          ed.timeline.duration = TIMELINE.calculateDuration(ed.timeline);
+          ed.project.updatedAt = new Date().toISOString();
+          ed.ui.selectedClipId = null;
+          ed.timeline.selectedClipId = null;
+          ed.ui.selectedTrackId = null;
+          console.log('[Editor] Clip 已删除:', clipId);
+          return true;
+        }
+      }
+    }
+    return false;
+  }
+
+  /** Helper: format split time for logging */
+  function formatSplitTime(seconds) {
+    var m = Math.floor(seconds / 60);
+    var s = Math.floor(seconds % 60);
+    return (m < 10 ? '0' + m : m) + ':' + (s < 10 ? '0' + s : s);
+  }
+
   // ── MediaBin 操作 ──────────────────────────────────────────
 
   /**
@@ -670,6 +802,7 @@
   function setPreviewTime(time) {
     state.editor.preview.currentTime = Math.max(0, time);
     state.editor.timeline.playheadPosition = state.editor.preview.currentTime;
+    state.editor.timeline.currentTime = state.editor.preview.currentTime;
   }
 
   function setPreviewVolume(volume) {
@@ -740,6 +873,7 @@
       state.editor.timeline.duration = TIMELINE.calculateDuration(state.editor.timeline);
       state.editor.project.updatedAt = new Date().toISOString();
       state.editor.ui.selectedClipId = clip.id;
+      state.editor.timeline.selectedClipId = clip.id;
 
       console.log('[Editor/Bridge] 素材已加载到编辑器:', asset.name, '→ Clip:', clip.id);
     }
@@ -798,6 +932,9 @@
     addClipToTrack: addClipToTrack,
     removeClipFromTrack: removeClipFromTrack,
     updateClip: updateClip,
+    moveClip: moveClip,
+    splitClip: splitClip,
+    deleteSelectedClip: deleteSelectedClip,
 
     // MediaBin
     addToMediaBin: addToMediaBin,

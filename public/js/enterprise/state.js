@@ -130,6 +130,8 @@
         resolution: { width: 1920, height: 1080 },
         tracks: [],
         playheadPosition: 0,
+        currentTime: 0,
+        selectedClipId: null,
         zoom: 1,
         scrollLeft: 0
       },
@@ -248,7 +250,7 @@
     APP_STATE.editor.mediaBin = { items: [], selectedIds: [] };
     APP_STATE.editor.timeline = {
       duration: 0, fps: 30, resolution: { width: 1920, height: 1080 },
-      tracks: [], playheadPosition: 0, zoom: 1, scrollLeft: 0
+      tracks: [], playheadPosition: 0, currentTime: 0, selectedClipId: null, zoom: 1, scrollLeft: 0
     };
     APP_STATE.editor.preview = { isPlaying: false, currentTime: 0, volume: 1, isMuted: false, quality: 'preview' };
     APP_STATE.editor.export = { format: 'mp4', resolution: { width: 1920, height: 1080 }, quality: 'high', bitrate: 8000, fps: 30, progress: 0, status: 'idle' };

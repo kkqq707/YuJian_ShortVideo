@@ -1,10 +1,17 @@
 /**
  * YuJian Editor — Timeline Component
- * Phase 2-D-2: 时间轴渲染
+ * Phase 2-D-3: 时间轴交互
+ *
+ * 功能：
+ *   1. Clip 选择 — 点击选中，更新 timeline.selectedClipId
+ *   2. Playhead  — 播放头同步 timeline.currentTime ↔ 播放器
+ *   3. Clip 拖动 — 鼠标拖动片段改变位置
+ *   4. 缩放控制   — 1x / 2x / 4x 离散缩放
+ *   5. 切割       — 在 currentTime 处拆分 Clip
+ *   6. 删除       — Delete 键删除选中片段
  *
  * 读取：YJ.state.editor.timeline
- * 显示：视频轨、音频轨、字幕轨、特效轨
- * 只渲染，不拖拽
+ * 依赖：YJ.Editor (editor-state.js), YJ.EditorPlayer
  */
 (function () {
   'use strict';
@@ -12,8 +19,11 @@
   var YJ = window.YJ || {};
   var state = YJ.state;
 
-  /** Pixels per second (affected by zoom) */
-  var PX_PER_SECOND = 80;
+  /** Base pixels per second (at 1x zoom) */
+  var BASE_PX_PER_SECOND = 80;
+
+  /** Supported zoom levels */
+  var ZOOM_LEVELS = [0.5, 1, 2, 4];
 
   /** Track type display config */
   var TRACK_CONFIG = {
@@ -22,6 +32,33 @@
     subtitle: { icon: 'fa-font',    label: '字幕',   cls: '--subtitle' },
     effect:   { icon: 'fa-magic',   label: '特效',   cls: '--effect' }
   };
+
+  // ═══════════════════════════════════════════════════════════════
+  // Drag State (module-private, survives re-renders through
+  // re-binding but is reset on each new drag)
+  // ═══════════════════════════════════════════════════════════════
+  var _drag = null;
+
+  /**
+   * Reset drag state
+   */
+  function resetDrag() {
+    _drag = null;
+    document.body.style.cursor = '';
+    document.body.style.userSelect = '';
+  }
+
+  // ═══════════════════════════════════════════════════════════════
+  // Rendering
+  // ═══════════════════════════════════════════════════════════════
+
+  /**
+   * Get current px per second (base × zoom)
+   * @returns {number}
+   */
+  function pxPerSec() {
+    return BASE_PX_PER_SECOND * (state.editor.timeline.zoom || 1);
+  }
 
   /**
    * 渲染时间轴 HTML
@@ -32,43 +69,65 @@
     var tl = ed.timeline;
     var tracks = tl.tracks || [];
     var zoom = tl.zoom || 1;
-    var pxPerSec = PX_PER_SECOND * zoom;
+    var pps = pxPerSec();
 
     return ''
       + '<div class="yj-editor-timeline">'
       // Header
       + '<div class="yj-editor-timeline-header">'
       +   '<span class="yj-editor-timeline-header-label">时间轴</span>'
-      +   '<span class="yj-editor-timeline-header-actions">'
-      +     '<span style="font-size:11px;color:#64748b;margin-right:4px">' + formatTime(tl.duration) + '</span>'
-      +     '<button class="yj-editor-timeline-header-btn" id="yjEditorZoomOut" title="缩小"><i class="fas fa-search-minus"></i></button>'
-      +     '<span style="font-size:11px;color:#64748b;min-width:32px;text-align:center">' + Math.round(zoom * 100) + '%</span>'
-      +     '<button class="yj-editor-timeline-header-btn" id="yjEditorZoomIn" title="放大"><i class="fas fa-search-plus"></i></button>'
-      +   '</span>'
+      +   '<span class="yj-editor-timeline-header-info">' + formatTime(tl.duration) + '</span>'
+      +   renderZoomControls(zoom)
       + '</div>'
 
       // Ruler
-      + '<div class="yj-editor-timeline-ruler" id="yjEditorRuler" style="position:relative">'
-      +   renderRulerMarks(tl.duration, pxPerSec)
-      +   renderPlayhead(tl.playheadPosition, pxPerSec)
+      + '<div class="yj-editor-timeline-ruler" id="yjEditorRuler">'
+      +   '<div class="yj-editor-timeline-ruler-inner" style="position:relative;width:' + Math.max(tl.duration * pps, 400) + 'px">'
+      +     renderRulerMarks(tl.duration, pps)
+      +     renderPlayhead(tl.currentTime || tl.playheadPosition || 0, pps)
+      +   '</div>'
       + '</div>'
 
       // Track list
-      + '<div class="yj-editor-timeline-tracks" id="yjEditorTracks">'
-      +   (tracks.length > 0
-          ? tracks.map(function (track) { return renderTrack(track, pxPerSec); }).join('')
-          : '<div style="padding:20px;text-align:center;color:#475569;font-size:13px">暂无轨道，请创建项目</div>')
+      + '<div class="yj-editor-timeline-tracks-wrapper">'
+      +   '<div class="yj-editor-timeline-tracks" id="yjEditorTracks"'
+      +     ' style="min-width:' + Math.max(tl.duration * pps, 400) + 'px">'
+      +     (tracks.length > 0
+          ? tracks.map(function (track) { return renderTrack(track, pps); }).join('')
+          : '<div class="yj-editor-timeline-empty">暂无轨道，请创建项目或添加素材</div>')
+      +   '</div>'
       + '</div>'
       + '</div>';
   }
 
   /**
-   * 渲染单个轨道
-   * @param {Object} track
-   * @param {number} pxPerSec
+   * 渲染缩放控件
+   * @param {number} currentZoom
    * @returns {string}
    */
-  function renderTrack(track, pxPerSec) {
+  function renderZoomControls(currentZoom) {
+    var html = '<span class="yj-editor-timeline-zoom-group">';
+    for (var i = 0; i < ZOOM_LEVELS.length; i++) {
+      var z = ZOOM_LEVELS[i];
+      var isActive = (Math.abs(currentZoom - z) < 0.01);
+      html += '<button class="yj-editor-timeline-zoom-btn'
+        + (isActive ? ' yj-editor-timeline-zoom-btn--active' : '') + '"'
+        + ' data-zoom="' + z + '"'
+        + ' title="' + z + 'x 缩放">'
+        + (z >= 1 ? Math.round(z) + 'x' : z + 'x')
+        + '</button>';
+    }
+    html += '</span>';
+    return html;
+  }
+
+  /**
+   * 渲染单个轨道
+   * @param {Object} track
+   * @param {number} pps - pixels per second
+   * @returns {string}
+   */
+  function renderTrack(track, pps) {
     var cfg = TRACK_CONFIG[track.type] || TRACK_CONFIG.video;
     var clips = track.clips || [];
     var trackHeight = track.height || 56;
@@ -84,7 +143,7 @@
       + '</div>'
       // Clips region
       + '<div class="yj-editor-timeline-track-clips" style="position:relative">'
-      +   clips.map(function (clip) { return renderClip(clip, pxPerSec); }).join('')
+      +   clips.map(function (clip) { return renderClip(clip, pps); }).join('')
       + '</div>'
       + '</div>';
   }
@@ -92,13 +151,15 @@
   /**
    * 渲染单个 Clip
    * @param {Object} clip
-   * @param {number} pxPerSec
+   * @param {number} pps
    * @returns {string}
    */
-  function renderClip(clip, pxPerSec) {
-    var left = clip.position * pxPerSec;
-    var width = Math.max(clip.duration * pxPerSec, 4);
-    var isSelected = state.editor.ui.selectedClipId === clip.id;
+  function renderClip(clip, pps) {
+    var left = clip.position * pps;
+    var width = Math.max(clip.duration * pps, 8);
+    var tl = state.editor.timeline;
+    var selectedId = tl.selectedClipId || state.editor.ui.selectedClipId;
+    var isSelected = selectedId === clip.id;
 
     var typeCls = '';
     switch (clip.type) {
@@ -122,17 +183,17 @@
   /**
    * 渲染时间尺刻度
    * @param {number} duration - 总时长（秒）
-   * @param {number} pxPerSec
+   * @param {number} pps
    * @returns {string}
    */
-  function renderRulerMarks(duration, pxPerSec) {
+  function renderRulerMarks(duration, pps) {
     if (duration <= 0) return '';
     var html = '';
-    var interval = calcRulerInterval(pxPerSec); // seconds between marks
-    var totalWidth = duration * pxPerSec;
+    var interval = calcRulerInterval(pps);
+    var totalWidth = duration * pps;
 
-    for (var t = 0; t <= duration; t += interval) {
-      var x = t * pxPerSec;
+    for (var t = 0; t <= duration + interval; t += interval) {
+      var x = t * pps;
       html += '<div class="yj-editor-timeline-ruler-tick" style="left:' + x + 'px"></div>';
       html += '<div class="yj-editor-timeline-ruler-mark" style="left:' + x + 'px">' + formatTimeShort(t) + '</div>';
     }
@@ -141,96 +202,403 @@
 
   /**
    * 计算合适的刻度间隔
-   * @param {number} pxPerSec
+   * @param {number} pps
    * @returns {number}
    */
-  function calcRulerInterval(pxPerSec) {
+  function calcRulerInterval(pps) {
     var minPxBetween = 50;
     var intervals = [0.5, 1, 2, 5, 10, 30, 60];
     for (var i = 0; i < intervals.length; i++) {
-      if (intervals[i] * pxPerSec >= minPxBetween) return intervals[i];
+      if (intervals[i] * pps >= minPxBetween) return intervals[i];
     }
     return 60;
   }
 
   /**
    * 渲染播放头指示器
-   * @param {number} position
-   * @param {number} pxPerSec
+   * @param {number} position - 时间（秒）
+   * @param {number} pps
    * @returns {string}
    */
-  function renderPlayhead(position, pxPerSec) {
-    var x = position * pxPerSec;
-    return '<div class="yj-editor-timeline-playhead" style="left:' + x + 'px"></div>';
+  function renderPlayhead(position, pps) {
+    var x = position * pps;
+    return ''
+      + '<div class="yj-editor-timeline-playhead" id="yjEditorPlayhead" style="left:' + x + 'px">'
+      +   '<div class="yj-editor-timeline-playhead-head"></div>'
+      +   '<div class="yj-editor-timeline-playhead-line"></div>'
+      + '</div>';
   }
 
+  // ═══════════════════════════════════════════════════════════════
+  // Event Binding
+  // ═══════════════════════════════════════════════════════════════
+
   /**
-   * 绑定时间轴事件
+   * 绑定所有时间轴事件（在每次 re-render 后调用）
    */
   function bindTimelineEvents() {
-    // Track clip click → select
-    var tracksContainer = document.getElementById('yjEditorTracks');
-    if (tracksContainer) {
-      tracksContainer.addEventListener('click', function (e) {
-        var clipEl = e.target.closest('.yj-editor-timeline-clip');
-        if (clipEl) {
-          var clipId = clipEl.getAttribute('data-clip-id');
-          var trackId = clipEl.getAttribute('data-track-id');
-          selectClip(clipId, trackId);
-          return;
-        }
-      });
-    }
-
-    // Ruler click → seek
-    var ruler = document.getElementById('yjEditorRuler');
-    if (ruler) {
-      ruler.addEventListener('click', function (e) {
-        var rect = ruler.getBoundingClientRect();
-        var x = e.clientX - rect.left;
-        var zoom = state.editor.timeline.zoom || 1;
-        var pxPerSec = PX_PER_SECOND * zoom;
-        var time = x / pxPerSec;
-        if (YJ.EditorPlayer && YJ.EditorPlayer.seekTo) {
-          YJ.EditorPlayer.seekTo(Math.max(0, time));
-        }
-        YJ.EditorApp.refreshTimeline();
-      });
-    }
-
-    // Zoom buttons
-    var zoomInBtn = document.getElementById('yjEditorZoomIn');
-    var zoomOutBtn = document.getElementById('yjEditorZoomOut');
-    if (zoomInBtn) {
-      zoomInBtn.addEventListener('click', function () {
-        var newZoom = Math.min(4, (state.editor.timeline.zoom || 1) * 1.25);
-        state.editor.timeline.zoom = newZoom;
-        state.editor.ui.zoom = newZoom;
-        YJ.EditorApp.refreshTimeline();
-      });
-    }
-    if (zoomOutBtn) {
-      zoomOutBtn.addEventListener('click', function () {
-        var newZoom = Math.max(0.25, (state.editor.timeline.zoom || 1) / 1.25);
-        state.editor.timeline.zoom = newZoom;
-        state.editor.ui.zoom = newZoom;
-        YJ.EditorApp.refreshTimeline();
-      });
-    }
+    bindClipClick();
+    bindRulerClick();
+    bindZoomButtons();
+    bindClipDrag();
+    bindDeleteKey();
+    bindCutButton();
+    bindScrollSync();
   }
 
   /**
-   * 选中 Clip
-   * @param {string} clipId
-   * @param {string} trackId
+   * 1. Clip 选择 — 点击剪辑片段，更新 selectedClipId
+   */
+  function bindClipClick() {
+    var tracksContainer = document.getElementById('yjEditorTracks');
+    if (!tracksContainer) return;
+
+    // Remove old listener by cloning (simple approach: add once via a flag)
+    // Instead, use a fresh listener each bind (since DOM is replaced)
+    tracksContainer.addEventListener('click', function (e) {
+      var clipEl = e.target.closest('.yj-editor-timeline-clip');
+      if (!clipEl) {
+        // Click on empty track area → deselect
+        selectClip(null, null);
+        return;
+      }
+
+      var clipId = clipEl.getAttribute('data-clip-id');
+      var trackId = clipEl.getAttribute('data-track-id');
+      selectClip(clipId, trackId);
+    });
+  }
+
+  /**
+   * 选中 Clip（更新状态 + 刷新 UI）
+   * @param {string|null} clipId
+   * @param {string|null} trackId
    */
   function selectClip(clipId, trackId) {
+    state.editor.timeline.selectedClipId = clipId;
     state.editor.ui.selectedClipId = clipId;
-    state.editor.ui.selectedTrackId = trackId;
+    state.editor.ui.selectedTrackId = trackId || null;
     YJ.EditorApp.refresh();
   }
 
-  // ─── Helpers ─────────────────────────────────────────────────
+  /**
+   * 2. Ruler 点击 → 移动 Playhead（同步播放器）
+   */
+  function bindRulerClick() {
+    var ruler = document.getElementById('yjEditorRuler');
+    if (!ruler) return;
+
+    ruler.addEventListener('click', function (e) {
+      // Ignore if clicking on the playhead itself (it overlaps)
+      if (e.target.closest('.yj-editor-timeline-playhead')) return;
+
+      var rect = ruler.getBoundingClientRect();
+      var x = e.clientX - rect.left + ruler.scrollLeft;
+      var pps = pxPerSec();
+      var time = x / pps;
+
+      seekPlayhead(Math.max(0, time));
+    });
+  }
+
+  /**
+   * 设置播放头位置（同步 timeline + preview + player）
+   * @param {number} time - 时间（秒）
+   */
+  function seekPlayhead(time) {
+    var tl = state.editor.timeline;
+    var maxTime = tl.duration || 0;
+    time = Math.max(0, Math.min(time, maxTime));
+
+    // Update state
+    tl.currentTime = time;
+    tl.playheadPosition = time;
+    state.editor.preview.currentTime = time;
+
+    // Sync video element
+    if (YJ.EditorPlayer && YJ.EditorPlayer.seekTo) {
+      YJ.EditorPlayer.seekTo(time);
+    }
+
+    // Refresh timeline to move playhead visually
+    updatePlayheadPosition();
+    YJ.EditorApp.refresh();
+  }
+
+  /**
+   * 仅更新播放头 CSS 位置（不重新渲染）
+   */
+  function updatePlayheadPosition() {
+    var playhead = document.getElementById('yjEditorPlayhead');
+    if (!playhead) return;
+    var pps = pxPerSec();
+    var time = state.editor.timeline.currentTime || state.editor.timeline.playheadPosition || 0;
+    playhead.style.left = (time * pps) + 'px';
+  }
+
+  /**
+   * 3. Clip 拖动 — 鼠标拖动改变片段位置
+   */
+  function bindClipDrag() {
+    var tracksContainer = document.getElementById('yjEditorTracks');
+    if (!tracksContainer) return;
+
+    tracksContainer.addEventListener('mousedown', function (e) {
+      var clipEl = e.target.closest('.yj-editor-timeline-clip');
+      if (!clipEl) return;
+
+      // Only left mouse button
+      if (e.button !== 0) return;
+
+      e.preventDefault();
+
+      var clipId = clipEl.getAttribute('data-clip-id');
+      var trackId = clipEl.getAttribute('data-track-id');
+
+      // Find the clip to get its data
+      var clip = findClipById(trackId, clipId);
+      if (!clip) return;
+
+      var pps = pxPerSec();
+      var startMouseX = e.clientX;
+      var startClipPosition = clip.position;
+
+      // Select on mousedown
+      selectClip(clipId, trackId);
+
+      _drag = {
+        clipId: clipId,
+        trackId: trackId,
+        clip: clip,
+        startMouseX: startMouseX,
+        startClipPosition: startClipPosition,
+        pps: pps,
+        hasMoved: false
+      };
+
+      document.body.style.cursor = 'grabbing';
+      document.body.style.userSelect = 'none';
+
+      // Add dragging class to clip
+      clipEl.classList.add('yj-editor-timeline-clip--dragging');
+    });
+  }
+
+  /**
+   * 全局 mousemove — 处理拖拽
+   */
+  document.addEventListener('mousemove', function (e) {
+    if (!_drag) return;
+
+    var dx = e.clientX - _drag.startMouseX;
+    var dt = dx / _drag.pps;
+    var newPosition = Math.max(0, _drag.startClipPosition + dt);
+
+    // Snap to grid (0.1s increments when zoom >= 2)
+    var zoom = state.editor.timeline.zoom || 1;
+    if (zoom >= 2) {
+      newPosition = Math.round(newPosition * 10) / 10;
+    } else {
+      newPosition = Math.round(newPosition * 5) / 5;
+    }
+
+    _drag.newPosition = newPosition;
+    _drag.hasMoved = true;
+
+    // Update clip position visually (without re-render for performance)
+    var clipEl = document.querySelector(
+      '.yj-editor-timeline-clip[data-clip-id="' + escAttrForSelector(_drag.clipId) + '"]'
+    );
+    if (clipEl) {
+      clipEl.style.left = (newPosition * _drag.pps) + 'px';
+    }
+  });
+
+  /**
+   * 全局 mouseup — 结束拖拽
+   */
+  document.addEventListener('mouseup', function (e) {
+    if (!_drag) return;
+
+    if (_drag.hasMoved && _drag.newPosition !== undefined) {
+      // Commit the move
+      YJ.Editor.moveClip(_drag.trackId, _drag.clipId, _drag.newPosition);
+    }
+
+    // Remove dragging class
+    var clipEl = document.querySelector(
+      '.yj-editor-timeline-clip[data-clip-id="' + escAttrForSelector(_drag.clipId) + '"]'
+    );
+    if (clipEl) {
+      clipEl.classList.remove('yj-editor-timeline-clip--dragging');
+    }
+
+    resetDrag();
+    YJ.EditorApp.refresh();
+  });
+
+  /**
+   * 4. 缩放控制 — 1x / 2x / 4x 按钮
+   */
+  function bindZoomButtons() {
+    var header = document.querySelector('.yj-editor-timeline-header');
+    if (!header) return;
+
+    // Use event delegation on the header
+    header.addEventListener('click', function (e) {
+      var btn = e.target.closest('.yj-editor-timeline-zoom-btn');
+      if (!btn) return;
+
+      var zoom = parseFloat(btn.getAttribute('data-zoom'));
+      if (isNaN(zoom)) return;
+
+      setZoom(zoom);
+    });
+  }
+
+  /**
+   * 设置缩放级别
+   * @param {number} zoom - 1, 2, or 4
+   */
+  function setZoom(zoom) {
+    state.editor.timeline.zoom = zoom;
+    state.editor.ui.zoom = zoom;
+    YJ.EditorApp.refreshTimeline();
+  }
+
+  /**
+   * 获取当前缩放级别
+   * @returns {number}
+   */
+  function getZoom() {
+    return state.editor.timeline.zoom || 1;
+  }
+
+  /**
+   * 5. 切割 Clip — 在当前播放头位置拆分选中的片段
+   */
+  function cutClipAtPlayhead() {
+    var tl = state.editor.timeline;
+    var clipId = tl.selectedClipId || state.editor.ui.selectedClipId;
+    var trackId = state.editor.ui.selectedTrackId;
+
+    if (!clipId || !trackId) {
+      var showToast = (YJ.utils && YJ.utils.showToast) || window.showToast;
+      if (typeof showToast === 'function') {
+        showToast('请先选择要切割的片段', 'info');
+      }
+      return;
+    }
+
+    var currentTime = tl.currentTime || tl.playheadPosition || 0;
+    var result = YJ.Editor.splitClip(trackId, clipId, currentTime);
+
+    if (result) {
+      var showToast = (YJ.utils && YJ.utils.showToast) || window.showToast;
+      if (typeof showToast === 'function') {
+        showToast('片段已切割', 'success');
+      }
+      YJ.EditorApp.refreshTimeline();
+    } else {
+      var showToast2 = (YJ.utils && YJ.utils.showToast) || window.showToast;
+      if (typeof showToast2 === 'function') {
+        showToast2('切割点不在选中片段范围内', 'warning');
+      }
+    }
+  }
+
+  /**
+   * 绑定切割按钮
+   */
+  function bindCutButton() {
+    // Listen for toolbar cut button (delegated)
+    var container = document.getElementById('yjEditorContainer');
+    if (!container) return;
+
+    container.addEventListener('click', function (e) {
+      var btn = e.target.closest('#yjEditorCutBtn, [data-action="cut"]');
+      if (!btn) return;
+      cutClipAtPlayhead();
+    });
+  }
+
+  /**
+   * 6. Delete 键 — 删除选中的 Clip
+   */
+  function bindDeleteKey() {
+    // Global keyboard handler (combined with existing shortcuts)
+    document.addEventListener('keydown', function (e) {
+      // Only when editor is visible
+      var editorContainer = document.getElementById('yjEditorContainer');
+      if (!editorContainer) return;
+      if (editorContainer.offsetParent === null && getComputedStyle(editorContainer).display === 'none') return;
+
+      // Don't delete when typing in inputs
+      var tag = (e.target.tagName || '').toLowerCase();
+      if (tag === 'input' || tag === 'textarea' || tag === 'select' || e.target.isContentEditable) return;
+
+      // Delete or Backspace
+      if (e.key === 'Delete' || e.key === 'Backspace') {
+        var clipId = state.editor.timeline.selectedClipId || state.editor.ui.selectedClipId;
+        if (!clipId) return;
+
+        e.preventDefault();
+        if (YJ.Editor.deleteSelectedClip()) {
+          var showToast = (YJ.utils && YJ.utils.showToast) || window.showToast;
+          if (typeof showToast === 'function') {
+            showToast('片段已删除', 'info');
+          }
+          YJ.EditorApp.refreshTimeline();
+        }
+      }
+    });
+  }
+
+  /**
+   * 同步 Ruler 和 Tracks 的水平滚动
+   */
+  function bindScrollSync() {
+    var ruler = document.getElementById('yjEditorRuler');
+    var tracksWrapper = document.querySelector('.yj-editor-timeline-tracks-wrapper');
+    if (!ruler || !tracksWrapper) return;
+
+    var syncing = false;
+
+    ruler.addEventListener('scroll', function () {
+      if (syncing) return;
+      syncing = true;
+      tracksWrapper.scrollLeft = ruler.scrollLeft;
+      syncing = false;
+    });
+
+    tracksWrapper.addEventListener('scroll', function () {
+      if (syncing) return;
+      syncing = true;
+      ruler.scrollLeft = tracksWrapper.scrollLeft;
+      syncing = false;
+    });
+  }
+
+  /**
+   * 在轨道中查找 Clip
+   * @param {string} trackId
+   * @param {string} clipId
+   * @returns {Object|null}
+   */
+  function findClipById(trackId, clipId) {
+    var tracks = state.editor.timeline.tracks || [];
+    for (var i = 0; i < tracks.length; i++) {
+      if (tracks[i].id === trackId) {
+        var clips = tracks[i].clips || [];
+        for (var j = 0; j < clips.length; j++) {
+          if (clips[j].id === clipId) return clips[j];
+        }
+      }
+    }
+    return null;
+  }
+
+  // ─── Formatting ────────────────────────────────────────────
 
   function formatTime(seconds) {
     if (isNaN(seconds) || seconds < 0) seconds = 0;
@@ -259,6 +627,10 @@
     return (str || '').replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
   }
 
+  function escAttrForSelector(str) {
+    return (str || '').replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+  }
+
   function truncateText(text, maxLen) {
     if (!text) return '';
     return text.length > maxLen ? text.substring(0, maxLen) + '…' : text;
@@ -269,8 +641,15 @@
     render: renderTimeline,
     bindEvents: bindTimelineEvents,
     selectClip: selectClip,
-    PX_PER_SECOND: PX_PER_SECOND
+    seekPlayhead: seekPlayhead,
+    cutClipAtPlayhead: cutClipAtPlayhead,
+    setZoom: setZoom,
+    getZoom: getZoom,
+    pxPerSec: pxPerSec,
+    BASE_PX_PER_SECOND: BASE_PX_PER_SECOND,
+    ZOOM_LEVELS: ZOOM_LEVELS
   };
 
   window.YJ = YJ;
+  console.log('[Enterprise/EditorTimeline] Phase 2-D-3 timeline interaction initialized');
 })();
