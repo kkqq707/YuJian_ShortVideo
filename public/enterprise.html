@@ -7,8 +7,20 @@
     <!-- Sprint 4.7 Patch1: Prevent favicon.ico 404 -->
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎬</text></svg>">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
-    <link rel="stylesheet" href="css/pages/editor.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <!-- Phase 0: Design System Foundation -->
+    <link rel="stylesheet" href="css/design-tokens.css">
+    <link rel="stylesheet" href="css/base.css">
+    <link rel="stylesheet" href="css/components.css">
+    <link rel="stylesheet" href="css/layout.css">
+    <!-- Phase 1-D: Page-level CSS (loaded after components for proper cascade) -->
+    <link rel="stylesheet" href="css/pages/dashboard.css">
+    <link rel="stylesheet" href="css/pages/works.css">
+    <link rel="stylesheet" href="css/pages/assets.css">
+    <link rel="stylesheet" href="css/pages/studio.css">
+    <link rel="stylesheet" href="css/pages/storyboard.css">
+    <link rel="stylesheet" href="css/pages/editor.css">
+    <link rel="stylesheet" href="css/pages/projects.css">
     <style>
         :root {
             --primary: #6366f1;
@@ -19,7 +31,7 @@
             --accent-blue: #3b82f6;
             --sidebar-width: 72px;
             --sidebar-expanded: 220px;
-            --header-height: 0px;
+            --header-height: 56px;
             --radius: 12px;
             --bg-dark: #0a0a0a;
             --bg-card: rgba(255, 255, 255, 0.04);
@@ -33,25 +45,13 @@
             --warning: #f59e0b;
             --danger: #ef4444;
         }
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        
-        /* 自定义滚动条 - 深色透明 */
-        ::-webkit-scrollbar { width: 6px; height: 6px; }
-        ::-webkit-scrollbar-track { background: transparent; }
-        ::-webkit-scrollbar-thumb { 
-            background: rgba(255, 255, 255, 0.15); 
-            border-radius: 3px; 
-            transition: background 0.2s;
-        }
-        ::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, 0.3); }
-        
-        body { 
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; 
-            background: transparent; 
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: transparent;
             color: var(--text-main);
             overflow-x: hidden;
         }
-        
+
         /* 背景光晕呼吸效果 */
         body::before {
             content: '';
@@ -60,24 +60,24 @@
             left: -50%;
             width: 200%;
             height: 200%;
-            background: 
+            background:
                 radial-gradient(ellipse at 20% 20%, rgba(99, 102, 241, 0.15) 0%, transparent 50%),
                 radial-gradient(ellipse at 80% 80%, rgba(168, 85, 247, 0.12) 0%, transparent 50%),
                 radial-gradient(ellipse at 50% 50%, rgba(59, 130, 246, 0.08) 0%, transparent 60%);
             animation: breathe 20s ease-in-out infinite;
-            z-index: -1;
+            z-index: var(--z-base, 0);
             pointer-events: none;
         }
         @keyframes breathe {
             0%, 100% { transform: scale(1) rotate(0deg); opacity: 1; }
             50% { transform: scale(1.1) rotate(3deg); opacity: 0.8; }
         }
-        
+
         /* 侧边栏 - 高透毛玻璃悬浮 */
         .sidebar {
             position: fixed; left: 0; top: 0; width: 90px; height: 100vh;
             background: transparent;
-            display: flex; flex-direction: column; z-index: 100;
+            display: flex; flex-direction: column; z-index: var(--z-sidebar, 200);
         }
         .sidebar-logo {
             height: 64px; display: flex; align-items: center; padding: 0 20px;
@@ -100,25 +100,25 @@
         }
         .nav-menu { flex: 1; padding: 12px 6px; overflow: hidden; }
         .nav-item {
-            padding: 10px 6px; cursor: pointer; display: flex; 
+            padding: 10px 6px; cursor: pointer; display: flex;
             flex-direction: column; align-items: center; justify-content: center;
             color: rgba(255, 255, 255, 0.7); transition: all 0.2s; border-radius: 8px;
             margin-bottom: 4px; gap: 4px; font-size: 11px; font-weight: 500;
             text-align: center;
         }
         .nav-item:hover { background: rgba(255, 255, 255, 0.06); color: #fff; }
-        .nav-item.active { 
-            background: rgba(255, 255, 255, 0.1); 
-            color: #fff; 
+        .nav-item.active {
+            background: rgba(255, 255, 255, 0.1);
+            color: #fff;
         }
         .nav-item i { width: 20px; text-align: center; font-size: 18px; flex-shrink: 0; }
-        .nav-section { 
-            padding: 16px 14px 8px; 
-            font-size: 11px; 
-            color: #6b7280; 
+        .nav-section {
+            padding: 16px 14px 8px;
+            font-size: 11px;
+            color: #6b7280;
             font-weight: 500;
         }
-        
+
         /* 导航图标统一白色 */
         .nav-item i {
             color: rgba(255, 255, 255, 0.85);
@@ -132,7 +132,7 @@
         .nav-item:hover i {
             color: #fff;
         }
-        
+
         /* 侧边栏底部 */
         .sidebar-footer {
             padding: 8px 0 16px;
@@ -196,1544 +196,44 @@
             flex-shrink: 0;
         }
         .user-mini:hover { background: rgba(255, 255, 255, 0.06); }
-        .avatar-sm {
-            width: 36px;
-            height: 36px;
-            border-radius: 50%;
-            background: linear-gradient(135deg, #6366f1, #a855f7);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: #fff;
-            font-weight: 600;
-            font-size: 14px;
-            flex-shrink: 0;
-        }
-        
-        /* 顶部栏 */
+        /* 顶部栏 — Phase 2-B: 统一头部 */
         .header {
-            position: fixed; left: var(--sidebar-width); top: 0; right: 0; height: 0;
-            background: transparent; display: none;
-        }
-        .page-title { display: none; }
-        
-        /* 主内容区 */
-        .main-content { margin-left: 90px; padding: 0 8px; min-height: 100vh; }
-        
-        /* 首页 Hero Banner */
-        .hero-banner {
-            position: relative;
-            height: 360px;
-            border-radius: 0;
-            overflow: hidden;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            margin-bottom: 32px;
-        }
-        .hero-bg {
-            position: absolute;
-            inset: 0;
-            background: 
-                radial-gradient(ellipse at 30% 50%, rgba(168, 85, 247, 0.25) 0%, transparent 50%),
-                radial-gradient(ellipse at 70% 50%, rgba(99, 102, 241, 0.2) 0%, transparent 50%),
-                linear-gradient(135deg, rgba(0,0,0,0.3), rgba(0,0,0,0.5));
-        }
-        .hero-content {
-            position: relative;
-            z-index: 2;
-            text-align: center;
-        }
-        .hero-title {
-            font-size: 52px;
-            font-weight: 700;
-            letter-spacing: 8px;
-            margin-bottom: 24px;
-            background: linear-gradient(135deg, #fff 0%, #d1d5db 50%, #fff 100%);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
-        }
-        .hero-btn {
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
-            padding: 14px 32px;
-            background: rgba(255, 255, 255, 0.1);
-            border: 1px solid rgba(255, 255, 255, 0.2);
-            border-radius: 12px;
-            color: #fff;
-            font-size: 15px;
-            font-weight: 500;
-            cursor: pointer;
-            backdrop-filter: blur(10px);
-            transition: all 0.3s;
-        }
-        .hero-btn:hover {
-            background: rgba(255, 255, 255, 0.15);
-            border-color: rgba(255, 255, 255, 0.3);
-            transform: translateY(-2px);
-        }
-        
-        /* 功能卡片 */
-        .feature-cards {
-            display: grid;
-            grid-template-columns: repeat(4, 1fr);
-            gap: 16px;
-            margin-bottom: 40px;
-        }
-        .feature-card {
-            background: rgba(255, 255, 255, 0.04);
-            border: 1px solid rgba(255, 255, 255, 0.12);
-            border-radius: 14px;
-            padding: 20px;
-            cursor: pointer;
-            transition: all 0.3s;
-            backdrop-filter: blur(16px) saturate(180%);
-            -webkit-backdrop-filter: blur(16px) saturate(180%);
-            display: flex;
-            justify-content: space-between;
-            align-items: flex-start;
-        }
-        .feature-card:hover {
-            border-color: rgba(255, 255, 255, 0.25);
-            background: rgba(255, 255, 255, 0.08);
-            transform: translateY(-4px);
-            box-shadow: 0 12px 40px rgba(0, 0, 0, 0.2);
-        }
-        .feature-card-info h4 {
-            font-size: 15px;
-            font-weight: 600;
-            margin-bottom: 4px;
-            color: #fff;
-        }
-        .feature-card-info p {
-            font-size: 12px;
-            color: #9ca3af;
-        }
-        .feature-card-badge {
-            font-size: 10px;
-            padding: 2px 6px;
-            background: linear-gradient(135deg, #ef4444, #f97316);
-            color: #fff;
-            border-radius: 4px;
-            font-weight: 600;
-        }
-        .feature-card-arrow {
-            color: #6b7280;
-            font-size: 12px;
-        }
-        
-        /* 作品展示区 */
-        .gallery-section {
-            padding-bottom: 40px;
-        }
-        .gallery-tabs {
-            display: flex;
-            gap: 24px;
-            margin-bottom: 20px;
-            border-bottom: 1px solid var(--border-glass);
-        }
-        .gallery-tab {
-            padding: 10px 0;
-            font-size: 14px;
-            color: #9ca3af;
-            cursor: pointer;
-            border-bottom: 2px solid transparent;
-            transition: all 0.2s;
-            font-weight: 500;
-        }
-        .gallery-tab.active {
-            color: #fff;
-            border-bottom-color: #a855f7;
-        }
-        .gallery-grid {
-            display: grid;
-            grid-template-columns: repeat(4, 1fr);
-            gap: 16px;
-        }
-        .gallery-item {
-            aspect-ratio: 16/9;
-            border-radius: 12px;
-            overflow: hidden;
-            cursor: pointer;
-            transition: all 0.3s;
-            position: relative;
-            background: #1a1a1a;
-            border: 1px solid rgba(255, 255, 255, 0.08);
-        }
-        .gallery-video {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-            display: block;
-        }
-        .gallery-item:hover {
-            transform: translateY(-4px);
-            box-shadow: 0 12px 32px rgba(0, 0, 0, 0.4);
-        }
-        .gallery-item-overlay {
-            position: absolute;
-            inset: 0;
-            background: linear-gradient(to top, rgba(0,0,0,0.7), transparent 50%);
-            display: flex;
-            align-items: flex-end;
-            padding: 16px;
-            opacity: 0;
-            transition: opacity 0.3s;
-        }
-        .gallery-item:hover .gallery-item-overlay { opacity: 1; }
-        .gallery-item-title {
-            color: #fff;
-            font-size: 13px;
-            font-weight: 500;
-        }
-        /* Sprint 4.7 Patch1: Hide missing gallery videos, show placeholder */
-        .gallery-video-missing video {
-            display: none;
-        }
-        .gallery-video-missing::before {
-            content: '🎬';
-            position: absolute;
-            inset: 0;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 36px;
-            background: linear-gradient(135deg, var(--primary-dark), var(--accent-purple));
-            opacity: 0.3;
-        }
-
-        /* 玻璃态卡片 */
-        .card { 
-            background: var(--bg-card); 
-            border: 1px solid var(--border-glass);
-            border-radius: var(--radius); 
-            backdrop-filter: blur(10px);
-            -webkit-backdrop-filter: blur(10px);
-            margin-bottom: 20px;
-            transition: all 0.3s;
-        }
-        .card:hover {
-            border-color: rgba(99, 102, 241, 0.3);
-            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
-        }
-        .card-header { padding: 20px 24px; border-bottom: 1px solid var(--border-glass); display: flex; align-items: center; justify-content: space-between; }
-        .card-header h3 { font-size: 16px; font-weight: 600; }
-        .card-body { padding: 24px; }
-        
-        /* 按钮 */
-        .btn { padding: 10px 20px; border-radius: 10px; border: 1px solid var(--border-glass); cursor: pointer; font-size: 14px; font-weight: 500; transition: all 0.2s; display: inline-flex; align-items: center; gap: 8px; background: var(--bg-card); color: var(--text-main); }
-        .btn:hover { background: var(--bg-card-hover); border-color: var(--primary-glow); }
-        .btn-primary { 
-            background: linear-gradient(135deg, var(--primary), var(--accent-purple)); 
-            color: #fff; 
-            border: none;
-            box-shadow: 0 4px 20px rgba(99, 102, 241, 0.3);
-        }
-        .btn-primary:hover { 
-            transform: translateY(-1px);
-            box-shadow: 0 6px 24px rgba(99, 102, 241, 0.4);
-        }
-        .btn-outline { background: transparent; border: 1px solid var(--border-glass); color: var(--text-main); }
-        .btn-outline:hover { border-color: var(--primary-light); color: var(--primary-light); }
-        .btn-sm { padding: 6px 14px; font-size: 13px; }
-        .btn-lg { padding: 14px 28px; font-size: 16px; }
-        .btn-danger { color: var(--danger); }
-        .btn-success { background: var(--success); color: #fff; border: none; }
-        
-        /* 状态标签 */
-        .status-badge { padding: 4px 10px; border-radius: 20px; font-size: 12px; font-weight: 500; display: inline-block; }
-        .status-active { background: rgba(16, 185, 129, 0.15); color: #34d399; }
-        .status-pending { background: rgba(245, 158, 11, 0.15); color: #fbbf24; }
-        .status-processing { background: rgba(59, 130, 246, 0.15); color: #60a5fa; }
-        .status-inactive { background: rgba(107, 114, 128, 0.15); color: #9ca3af; }
-        .status-danger { background: rgba(239, 68, 68, 0.15); color: #f87171; }
-        
-        /* 工作台 - 欢迎区 */
-        .welcome-banner {
-            background: linear-gradient(135deg, #0a58ca 0%, #3b7fe0 100%);
-            border-radius: var(--radius); padding: 32px; color: #fff; margin-bottom: 24px;
-            display: flex; justify-content: space-between; align-items: center;
-        }
-        .welcome-banner h2 { font-size: 24px; margin-bottom: 8px; }
-        .welcome-banner p { opacity: 0.9; font-size: 14px; }
-        .welcome-quota { text-align: right; }
-        .welcome-quota .num { font-size: 32px; font-weight: 700; }
-        .welcome-quota .label { opacity: 0.8; font-size: 13px; }
-        
-        /* 快捷创作入口 */
-        .quick-create { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 24px; }
-        
-        /* 首页 Hero Banner */
-        .hero-banner {
-            position: relative;
-            height: 420px;
-            border-radius: 0;
-            overflow: hidden;
-            margin: 0 -8px 32px -168px;
-            width: calc(100% + 176px);
-            display: flex;
-            align-items: center;
-            background: transparent;
-        }
-        /* 全屏视频背景 */
-        .fullscreen-bg {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            z-index: -1;
-            overflow: hidden;
-        }
-        .fullscreen-video {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            min-width: 100%;
-            min-height: 100%;
-            width: 105%;
-            height: 105%;
-            transform: translate(-50%, -50%);
-            object-fit: cover;
-        }
-        .fullscreen-overlay {
-            position: absolute;
-            inset: 0;
-            background: 
-                radial-gradient(ellipse at top center, rgba(0, 50, 80, 0.2) 0%, transparent 60%),
-                linear-gradient(180deg, rgba(0, 0, 0, 0.3) 0%, rgba(0, 0, 0, 0.5) 100%);
-        }
-        
-        /* 光束效果 */
-        .light-rays {
-            position: absolute;
-            inset: 0;
-            overflow: hidden;
-            z-index: 1;
-        }
-        .ray {
-            position: absolute;
-            top: -20%;
-            width: 120px;
-            height: 150%;
-            background: linear-gradient(to bottom, rgba(100, 200, 255, 0.15) 0%, rgba(100, 200, 255, 0.02) 70%, transparent 100%);
-            transform: rotate(15deg);
-            filter: blur(20px);
-            animation: ray-move 8s ease-in-out infinite;
-        }
-        .ray1 { left: 20%; animation-delay: 0s; }
-        .ray2 { left: 50%; animation-delay: 2s; width: 180px; opacity: 0.7; }
-        .ray3 { left: 75%; animation-delay: 4s; width: 100px; opacity: 0.5; }
-        
-        @keyframes ray-move {
-            0%, 100% { opacity: 0.3; transform: rotate(15deg) translateX(0); }
-            50% { opacity: 0.6; transform: rotate(12deg) translateX(20px); }
-        }
-        
-        /* 气泡 */
-        .bubbles {
-            position: absolute;
-            inset: 0;
-            overflow: hidden;
-            z-index: 2;
-        }
-        .bubble {
-            position: absolute;
-            bottom: -20px;
-            border-radius: 50%;
-            background: radial-gradient(circle at 30% 30%, rgba(255, 255, 255, 0.8), rgba(100, 200, 255, 0.3));
-            box-shadow: 0 0 4px rgba(255, 255, 255, 0.5);
-            animation: bubble-rise linear infinite;
-        }
-        
-        @keyframes bubble-rise {
-            0% {
-                bottom: -20px;
-                opacity: 0;
-                transform: translateX(0);
-            }
-            10% {
-                opacity: 0.8;
-            }
-            90% {
-                opacity: 0.6;
-            }
-            100% {
-                bottom: 100%;
-                opacity: 0;
-                transform: translateX(30px);
-            }
-        }
-        
-        /* 漂浮粒子 */
-        .particles {
-            position: absolute;
-            inset: 0;
-            z-index: 1;
-        }
-        .particle {
-            position: absolute;
-            width: 4px;
-            height: 4px;
-            background: rgba(150, 220, 255, 0.6);
-            border-radius: 50%;
-            box-shadow: 0 0 6px rgba(100, 200, 255, 0.8);
-            animation: particle-float 20s ease-in-out infinite;
-        }
-        .p1 { top: 30%; left: 15%; animation-delay: 0s; }
-        .p2 { top: 60%; left: 40%; animation-delay: 3s; width: 3px; height: 3px; }
-        .p3 { top: 20%; left: 70%; animation-delay: 6s; width: 5px; height: 5px; }
-        .p4 { top: 70%; left: 85%; animation-delay: 9s; }
-        .p5 { top: 45%; left: 55%; animation-delay: 12s; width: 2px; height: 2px; }
-        
-        @keyframes particle-float {
-            0%, 100% {
-                transform: translate(0, 0);
-                opacity: 0.4;
-            }
-            25% {
-                transform: translate(20px, -30px);
-                opacity: 0.8;
-            }
-            50% {
-                transform: translate(-10px, -50px);
-                opacity: 0.6;
-            }
-            75% {
-                transform: translate(30px, -20px);
-                opacity: 0.7;
-            }
-        }
-        .hero-banner::before {
-            content: '';
-            position: absolute;
-            inset: 0;
-            background: 
-                radial-gradient(ellipse at 30% 50%, rgba(99, 102, 241, 0.15) 0%, transparent 60%),
-                radial-gradient(ellipse at 70% 50%, rgba(168, 85, 247, 0.1) 0%, transparent 60%),
-                linear-gradient(to right, rgba(0,0,0,0.5) 0%, rgba(0,0,0,0.2) 40%, rgba(0,0,0,0.1) 100%);
-            z-index: 1;
-        }
-        @keyframes hero-breathe {
-            0%, 100% { opacity: 1; transform: scale(1); }
-            50% { opacity: 0.9; transform: scale(1.02); }
-        }
-        .hero-content {
-            position: relative;
-            z-index: 2;
-            text-align: center;
-            width: 100%;
-        }
-        .hero-title-group {
-            margin-bottom: 36px;
-        }
-        .title-line {
-            display: flex;
-            align-items: baseline;
-            justify-content: center;
-            gap: 10px;
-            line-height: 1;
-        }
-        .brush-text {
-            font-family: "Aa剑豪体", "鸿雷拙书简体", "三极泼墨体", "庞门正道粗书体", "STKaiti", "KaiTi", serif;
-            font-size: 64px;
-            font-weight: 900;
-            color: #fff;
-            text-shadow: 0 4px 32px rgba(0, 0, 0, 0.6);
-            letter-spacing: 2px;
-        }
-        .sans-text {
-            font-family: "Alibaba PuHuiTi", "阿里巴巴普惠体", "PingFang SC", "Microsoft YaHei", sans-serif;
-            font-size: 32px;
-            font-weight: 800;
-            color: rgba(210, 210, 220, 0.95);
-            text-shadow: 0 2px 16px rgba(0, 0, 0, 0.5);
-            letter-spacing: 1px;
-        }
-        .dot-sep {
-            font-family: "Alibaba PuHuiTi", "阿里巴巴普惠体", "PingFang SC", "Microsoft YaHei", sans-serif;
-            font-size: 28px;
-            font-weight: 700;
-            color: rgba(180, 180, 190, 0.9);
-            text-shadow: 0 2px 12px rgba(0, 0, 0, 0.4);
-            margin: 0 4px;
-        }
-        .hero-subtitle {
-            font-size: 16px;
-            color: rgba(255, 255, 255, 0.7);
-            margin-bottom: 32px;
-            letter-spacing: 2px;
-        }
-        .hero-btn {
-            padding: 14px 40px;
-            background: rgba(255, 255, 255, 0.1);
-            backdrop-filter: blur(10px);
-            border: 1px solid rgba(255, 255, 255, 0.2);
-            border-radius: 30px;
-            color: #fff;
-            font-size: 15px;
-            font-weight: 500;
-            cursor: pointer;
-            transition: all 0.3s;
-            display: inline-flex;
-            align-items: center;
-            gap: 10px;
-        }
-        .hero-btn:hover {
-            background: rgba(255, 255, 255, 0.15);
-            border-color: rgba(255, 255, 255, 0.3);
-            transform: translateY(-2px);
-            box-shadow: 0 8px 32px rgba(99, 102, 241, 0.3);
-        }
-        
-        /* 功能入口卡片 */
-        .feature-cards {
-            display: grid;
-            grid-template-columns: repeat(4, 1fr);
-            gap: 16px;
-            margin-bottom: 32px;
-        }
-        .feature-card {
-            background: var(--bg-card);
-            border: 1px solid var(--border-glass);
-            border-radius: 16px;
-            padding: 20px;
-            cursor: pointer;
-            transition: all 0.3s;
-            backdrop-filter: blur(10px);
-            display: flex;
-            justify-content: space-between;
-            align-items: flex-start;
-        }
-        .feature-card:hover {
-            border-color: rgba(99, 102, 241, 0.4);
-            transform: translateY(-4px);
-            box-shadow: 0 12px 40px rgba(0, 0, 0, 0.3);
-        }
-        .feature-card-info h4 {
-            font-size: 15px;
-            font-weight: 600;
-            margin-bottom: 6px;
-        }
-        .feature-card-info p {
-            font-size: 12px;
-            color: var(--text-sub);
-        }
-        .feature-card-badge {
-            font-size: 10px;
-            padding: 2px 8px;
-            border-radius: 10px;
-            background: linear-gradient(135deg, #ef4444, #f59e0b);
-            color: #fff;
-            font-weight: 600;
-        }
-        .feature-card-arrow {
-            color: var(--text-muted);
-            font-size: 12px;
-            margin-top: 4px;
-        }
-        
-        /* 作品展示区 */
-        .showcase-section {
-            margin-top: 32px;
-        }
-        .showcase-tabs {
-            display: flex;
-            gap: 24px;
-            margin-bottom: 20px;
-            border-bottom: 1px solid var(--border-glass);
-        }
-        .showcase-tab {
-            padding: 10px 0;
-            font-size: 14px;
-            color: var(--text-sub);
-            cursor: pointer;
-            border-bottom: 2px solid transparent;
-            margin-bottom: -1px;
-            transition: all 0.2s;
-        }
-        .showcase-tab.active {
-            color: #fff;
-            border-bottom-color: var(--primary-light);
-            font-weight: 600;
-        }
-        .showcase-grid {
-            display: grid;
-            grid-template-columns: repeat(4, 1fr);
-            gap: 16px;
-        }
-        .showcase-item {
-            aspect-ratio: 16/9;
-            border-radius: 12px;
-            overflow: hidden;
-            cursor: pointer;
-            transition: all 0.3s;
-            position: relative;
-        }
-        .showcase-item:hover {
-            transform: translateY(-4px);
-            box-shadow: 0 12px 40px rgba(0, 0, 0, 0.4);
-        }
-        .showcase-thumb {
-            width: 100%;
-            height: 100%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 32px;
-            color: rgba(255,255,255,0.5);
-        }
-        .showcase-overlay {
-            position: absolute;
-            bottom: 0;
-            left: 0;
-            right: 0;
-            padding: 12px;
-            background: linear-gradient(transparent, rgba(0,0,0,0.8));
-            color: #fff;
-            font-size: 12px;
-            opacity: 0;
-            transition: opacity 0.3s;
-        }
-        .showcase-item:hover .showcase-overlay { opacity: 1; }
-        
-        /* 故事板编辑器 */
-        .storyboard-editor {
-            background: var(--storyboard-bg); border-radius: var(--radius); padding: 20px;
-            min-height: 500px; color: #fff;
-        }
-        .storyboard-header {
-            display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;
-            padding-bottom: 16px; border-bottom: 1px solid rgba(255,255,255,0.1);
-        }
-        .storyboard-title { font-size: 18px; font-weight: 600; }
-        .storyboard-actions { display: flex; gap: 10px; }
-        
-        .shot-list { display: flex; flex-direction: column; gap: 12px; }
-        .shot-item {
-            background: rgba(255,255,255,0.05); border-radius: 10px; padding: 16px;
-            display: grid; grid-template-columns: 60px 1fr 120px 100px 80px; gap: 16px; align-items: center;
-            border: 1px solid rgba(255,255,255,0.08); transition: all 0.2s;
-        }
-        .shot-item:hover { background: rgba(255,255,255,0.08); border-color: rgba(59,127,224,0.5); }
-        .shot-num {
-            width: 40px; height: 40px; border-radius: 8px; background: var(--primary);
-            display: flex; align-items: center; justify-content: center; font-weight: 700;
-        }
-        .shot-desc { font-size: 14px; line-height: 1.6; }
-        .shot-desc .shot-line { color: #94a3b8; font-size: 12px; margin-top: 4px; }
-        .shot-style { font-size: 12px; color: #94a3b8; }
-        .shot-duration { font-size: 14px; text-align: center; color: #f59e0b; font-weight: 600; }
-        .shot-actions { display: flex; gap: 6px; justify-content: flex-end; }
-        .shot-actions button {
-            width: 32px; height: 32px; border-radius: 6px; border: none; cursor: pointer;
-            background: rgba(255,255,255,0.1); color: #fff; display: flex; align-items: center; justify-content: center;
-        }
-        .shot-actions button:hover { background: var(--primary); }
-        
-        /* 创作工具表单 */
-        /* 创作页面布局 - yikeai风格 */
-        .creation-layout {
-            display: grid;
-            grid-template-columns: 460px 1fr;
-            gap: 24px;
-            min-height: calc(100vh - 48px);
-        }
-        .creation-panel {
-            background: var(--bg-card);
-            border: 1px solid var(--border-glass);
-            border-radius: 16px;
-            padding: 24px;
-            backdrop-filter: blur(10px);
-            overflow-y: auto;
-            max-height: calc(100vh - 48px);
-        }
-        .preview-panel {
-            background: rgba(0, 0, 0, 0.5);
-            border: 1px solid var(--border-glass);
-            border-radius: 16px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            position: relative;
-            overflow: hidden;
-        }
-        .preview-panel::before {
-            content: '';
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            width: 60%;
-            height: 60%;
-            background: radial-gradient(circle, rgba(99, 102, 241, 0.15) 0%, transparent 70%);
-            animation: pulse-glow 4s ease-in-out infinite;
-        }
-        @keyframes pulse-glow {
-            0%, 100% { opacity: 0.5; transform: translate(-50%, -50%) scale(1); }
-            50% { opacity: 1; transform: translate(-50%, -50%) scale(1.2); }
-        }
-        .preview-content {
-            position: relative;
-            z-index: 1;
-            text-align: center;
-            color: var(--text-sub);
-        }
-        .preview-content i { font-size: 64px; margin-bottom: 16px; opacity: 0.5; }
-        
-        /* 子标签切换 */
-        .sub-tabs {
-            display: flex;
-            gap: 4px;
-            margin-bottom: 24px;
-            padding: 4px;
-            background: var(--bg-card);
-            border-radius: 12px;
-            border: 1px solid var(--border-glass);
-        }
-        .sub-tab {
-            flex: 1;
-            padding: 10px 16px;
-            border-radius: 10px;
-            font-size: 13px;
-            cursor: pointer;
-            text-align: center;
-            color: var(--text-sub);
-            transition: all 0.2s;
-        }
-        .sub-tab:hover { color: var(--text-main); }
-        .sub-tab.active {
-            background: linear-gradient(135deg, rgba(99, 102, 241, 0.3), rgba(168, 85, 247, 0.2));
-            color: #fff;
-            box-shadow: 0 2px 10px rgba(99, 102, 241, 0.2);
-        }
-        
-        /* 表单样式 */
-        .form-group { margin-bottom: 20px; }
-        .form-group label {
-            display: block;
-            margin-bottom: 10px;
-            font-size: 13px;
-            font-weight: 500;
-            color: var(--text-main);
-        }
-        .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
-        .form-row .form-group { margin-bottom: 0; }
-        .form-group input[type="text"],
-        .form-group input[type="number"],
-        .form-group select,
-        .form-group textarea {
-            width: 100%;
-            padding: 12px 14px;
-            background: rgba(255, 255, 255, 0.04);
-            border: 1px solid var(--border-glass);
-            border-radius: 10px;
-            color: var(--text-main);
-            font-size: 14px;
-            transition: all 0.2s;
-            outline: none;
-        }
-        .form-group input:focus,
-        .form-group select:focus,
-        .form-group textarea:focus {
-            border-color: var(--primary-light);
-            box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
-        }
-        .form-group textarea { resize: vertical; font-family: inherit; line-height: 1.6; }
-        .form-group select { cursor: pointer; appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%239ca3af' d='M6 8L1 3h10z'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 14px center; padding-right: 36px; }
-        
-        /* 上传网格 */
-        .upload-grid {
-            display: grid;
-            grid-template-columns: repeat(5, 1fr);
-            gap: 10px;
-        }
-        .upload-item {
-            aspect-ratio: 1;
-            border-radius: 10px;
-            border: 2px dashed var(--border-glass);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            flex-direction: column;
-            gap: 4px;
-            cursor: pointer;
-            color: var(--text-muted);
-            transition: all 0.2s;
-            font-size: 11px;
-        }
-        .upload-item:hover {
-            border-color: var(--primary-light);
-            background: rgba(99, 102, 241, 0.05);
-            color: var(--primary-light);
-        }
-        .upload-item.filled {
-            border: 2px solid var(--primary);
-            background: linear-gradient(135deg, rgba(99, 102, 241, 0.2), rgba(168, 85, 247, 0.15));
-            color: #fff;
-        }
-        .upload-item i { font-size: 18px; }
-        
-        /* 参数标签 */
-        .param-tags {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 8px;
-        }
-        .param-tag {
-            padding: 6px 14px;
-            background: rgba(255, 255, 255, 0.04);
-            border: 1px solid var(--border-glass);
-            border-radius: 20px;
-            font-size: 12px;
-            cursor: pointer;
-            color: var(--text-sub);
-            transition: all 0.2s;
-        }
-        .param-tag:hover {
-            border-color: var(--primary-light);
-            color: var(--primary-light);
-        }
-        
-        /* 模型选择条 */
-        .model-bar {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            padding: 14px 18px;
-            background: linear-gradient(135deg, rgba(99, 102, 241, 0.1), rgba(168, 85, 247, 0.08));
-            border: 1px solid rgba(99, 102, 241, 0.2);
-            border-radius: 12px;
-            margin-bottom: 24px;
-            cursor: pointer;
-            transition: all 0.2s;
-        }
-        .model-bar:hover {
-            border-color: rgba(99, 102, 241, 0.4);
-            box-shadow: 0 4px 20px rgba(99, 102, 241, 0.15);
-        }
-        .model-bar-left { display: flex; align-items: center; gap: 12px; }
-        .model-bar-icon {
-            width: 36px;
-            height: 36px;
-            border-radius: 10px;
-            background: linear-gradient(135deg, var(--primary), var(--accent-purple));
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: #fff;
-            font-weight: 700;
-            font-size: 14px;
-        }
-        .model-bar-name { font-weight: 600; font-size: 14px; }
-        .model-bar-badge {
-            background: linear-gradient(135deg, #f59e0b, #ef4444);
-            color: #fff;
-            font-size: 10px;
-            padding: 2px 8px;
-            border-radius: 10px;
-            margin-left: 8px;
-        }
-        
-        /* 生成按钮 */
-        .generate-btn {
-            width: 100%;
-            padding: 16px;
-            background: linear-gradient(135deg, var(--primary), var(--accent-purple));
-            color: #fff;
-            border: none;
-            border-radius: 12px;
-            font-size: 15px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.3s;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 10px;
-            box-shadow: 0 4px 20px rgba(99, 102, 241, 0.3);
-            margin-top: 8px;
-        }
-        .generate-btn:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 8px 30px rgba(99, 102, 241, 0.4);
-        }
-        .generate-btn:active { transform: translateY(0); }
-        
-        /* 消耗预估 */
-        .cost-estimate {
-            margin-top: 16px;
-            padding: 14px;
-            background: rgba(255, 255, 255, 0.03);
-            border-radius: 10px;
-            font-size: 13px;
-        }
-        .cost-estimate-row {
-            display: flex;
-            justify-content: space-between;
-            margin-bottom: 6px;
-        }
-        .cost-estimate-row:last-child { margin-bottom: 0; }
-        .cost-estimate .label { color: var(--text-sub); }
-        .cost-estimate .value { font-weight: 600; color: var(--primary-light); }
-        .form-group { margin-bottom: 20px; }
-        .form-group label { display: block; margin-bottom: 8px; font-size: 14px; font-weight: 600; }
-        .form-group textarea { width: 100%; padding: 12px; border: 1px solid var(--border); border-radius: 8px; font-size: 14px; min-height: 120px; resize: vertical; font-family: inherit; }
-        .form-group input, .form-group select { width: 100%; padding: 10px 12px; border: 1px solid var(--border); border-radius: 8px; font-size: 14px; }
-        .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
-        
-        /* 预览区 */
-        .preview-box {
-            background: #fff; border-radius: var(--radius); overflow: hidden;
-        }
-        .preview-header { padding: 16px; border-bottom: 1px solid var(--border); font-weight: 600; }
-        .preview-area {
-            aspect-ratio: 9/16; background: linear-gradient(135deg, #1a1a2e, #2d2d44);
-            display: flex; align-items: center; justify-content: center; color: #6b7280;
-            flex-direction: column; gap: 12px;
-        }
-        .preview-area i { font-size: 48px; opacity: 0.5; }
-        
-        /* 风格选项 */
-        .style-options { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
-        .style-option {
-            padding: 10px; border: 2px solid var(--border); border-radius: 8px;
-            text-align: center; cursor: pointer; font-size: 13px; transition: all 0.2s;
-        }
-        .style-option:hover, .style-option.active { border-color: var(--primary); background: var(--primary-bg); color: var(--primary); }
-        
-        /* 标签按钮 */
-        .tab-btn {
-            padding: 8px 16px; border-radius: 8px; font-size: 13px; cursor: pointer;
-            color: var(--text-sub); transition: all 0.2s; white-space: nowrap;
-        }
-        .tab-btn:hover { background: var(--bg); color: var(--text); }
-        .tab-btn.active { background: var(--primary-bg); color: var(--primary); font-weight: 600; }
-        
-        /* 比例选项 */
-        .ratio-options { display: flex; gap: 10px; }
-        .ratio-option {
-            flex: 1; padding: 12px; border: 2px solid var(--border); border-radius: 8px;
-            text-align: center; cursor: pointer; font-size: 13px; transition: all 0.2s;
-        }
-        .ratio-option.active { border-color: var(--primary); background: var(--primary-bg); color: var(--primary); }
-        
-        /* 数字人选择 */
-        .avatar-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
-        .avatar-item {
-            aspect-ratio: 3/4; border-radius: 10px; background: linear-gradient(135deg, #e0edff, #c7dbff);
-            display: flex; align-items: flex-end; justify-content: center; padding-bottom: 8px;
-            cursor: pointer; border: 3px solid transparent; transition: all 0.2s; font-size: 12px; font-weight: 500;
-        }
-        .avatar-item.active { border-color: var(--primary); }
-        .avatar-item i { font-size: 40px; color: var(--primary); margin-bottom: 8px; }
-        
-        /* 项目卡片 */
-        .project-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
-        .project-card {
-            background: var(--bg-card); border: 1px solid var(--border-glass);
-            border-radius: var(--radius); overflow: hidden; cursor: pointer;
-            transition: all 0.3s; backdrop-filter: blur(10px);
-        }
-        .project-card:hover { 
-            transform: translateY(-4px); 
-            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
-            border-color: var(--primary-glow);
-        }
-        .project-thumb {
-            aspect-ratio: 16/9; background: linear-gradient(135deg, rgba(99, 102, 241, 0.3), rgba(168, 85, 247, 0.2));
-            display: flex; align-items: center; justify-content: center; color: #fff; font-size: 32px;
-        }
-        .project-info { padding: 14px; }
-        .project-info h4 { font-size: 14px; margin-bottom: 6px; color: var(--text-main); }
-        .project-meta { display: flex; justify-content: space-between; font-size: 12px; color: var(--text-sub); }
-
-        /* ─── 我的作品（Sprint 3.3.2）──────────────────────── */
-        .works-grid {
-            display: grid;
-            grid-template-columns: repeat(4, 1fr);
-            gap: 16px;
-        }
-        .work-card {
-            background: var(--bg-card);
-            border: 1px solid var(--border-glass);
-            border-radius: var(--radius);
-            overflow: hidden;
-            transition: all 0.3s;
-            backdrop-filter: blur(10px);
-            display: flex;
-            flex-direction: column;
-        }
-        .work-card:hover {
-            border-color: rgba(255, 255, 255, 0.2);
-            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.25);
-        }
-        .work-thumb {
-            aspect-ratio: 16/9;
-            background: linear-gradient(135deg, rgba(99, 102, 241, 0.2), rgba(168, 85, 247, 0.15));
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            position: relative;
-            overflow: hidden;
-            cursor: pointer;
-        }
-        .work-thumb img {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-        }
-        .work-thumb .no-thumb {
-            font-size: 36px;
-            color: rgba(255, 255, 255, 0.3);
-        }
-        .work-thumb .play-overlay {
-            position: absolute;
-            inset: 0;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            background: rgba(0, 0, 0, 0.35);
-            opacity: 0;
-            transition: opacity 0.3s;
-        }
-        .work-thumb:hover .play-overlay {
-            opacity: 1;
-        }
-        .work-thumb .play-overlay i {
-            font-size: 40px;
-            color: #fff;
-            text-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
-        }
-        .work-info {
-            padding: 14px;
-            flex: 1;
-            display: flex;
-            flex-direction: column;
-        }
-        .work-info .prompt-text {
-            font-size: 13px;
-            color: var(--text-main);
-            margin-bottom: 8px;
-            line-height: 1.5;
-            display: -webkit-box;
-            -webkit-line-clamp: 2;
-            -webkit-box-orient: vertical;
-            overflow: hidden;
-            min-height: 39px;
-        }
-        .work-badges {
-            display: flex;
-            gap: 6px;
-            margin-bottom: 8px;
-            flex-wrap: wrap;
-        }
-        .work-type-badge {
-            font-size: 11px;
-            padding: 3px 8px;
-            border-radius: 4px;
-            background: rgba(99, 102, 241, 0.2);
-            color: #a5b4fc;
-            font-weight: 500;
-        }
-        .work-status-badge {
-            font-size: 11px;
-            padding: 3px 8px;
-            border-radius: 4px;
-            font-weight: 500;
-        }
-        .work-status-badge.status-success {
-            background: rgba(16, 185, 129, 0.2);
-            color: #6ee7b7;
-        }
-        .work-status-badge.status-processing {
-            background: rgba(245, 158, 11, 0.2);
-            color: #fcd34d;
-        }
-        .work-status-badge.status-pending {
-            background: rgba(139, 92, 246, 0.2);
-            color: #c4b5fd;
-        }
-        .work-status-badge.status-failed {
-            background: rgba(239, 68, 68, 0.2);
-            color: #fca5a5;
-        }
-        .work-meta-row {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            font-size: 11px;
-            color: var(--text-muted);
-            margin-top: auto;
-        }
-        .work-actions {
-            display: flex;
-            gap: 6px;
-            margin-top: 10px;
-        }
-        .work-actions .btn {
-            flex: 1;
-            font-size: 12px;
-            padding: 6px 4px;
-            text-align: center;
-        }
-        .work-actions .btn-sm-icon {
-            padding: 6px 8px;
-            font-size: 12px;
-        }
-
-        /* ─── 分页（Sprint 3.3.2）──────────────────────── */
-        .pagination-bar {
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            gap: 12px;
-            margin-top: 24px;
-            padding: 16px 0;
-        }
-        .pagination-bar .page-info {
-            font-size: 13px;
-            color: var(--text-sub);
-        }
-        .pagination-bar .btn {
-            min-width: 80px;
-            justify-content: center;
-        }
-
-        /* ─── 空状态（Sprint 3.3.2）──────────────────────── */
-        .empty-works {
-            text-align: center;
-            padding: 80px 20px;
-            color: var(--text-muted);
-        }
-        .empty-works i {
-            font-size: 56px;
-            display: block;
-            margin-bottom: 16px;
-            opacity: 0.4;
-        }
-        .empty-works p {
-            font-size: 15px;
-            margin-bottom: 6px;
-        }
-        .empty-works .sub-text {
-            font-size: 13px;
-            color: var(--text-muted);
-        }
-
-        /* ─── 视频播放器浮层（Sprint 3.3.2）──────────────────────── */
-        .video-player-overlay {
-            position: fixed;
-            inset: 0;
-            background: rgba(0, 0, 0, 0.85);
-            z-index: 9999;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            backdrop-filter: blur(8px);
-        }
-        .video-player-overlay.hidden {
-            display: none;
-        }
-        .video-player-container {
-            position: relative;
-            max-width: 90vw;
-            max-height: 85vh;
-            width: 800px;
-        }
-        .video-player-container video {
-            width: 100%;
-            max-height: 70vh;
-            border-radius: 8px;
-            background: #000;
-        }
-        .video-player-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 12px;
-            color: #fff;
-        }
-        .video-player-header h4 {
-            font-size: 16px;
-            font-weight: 600;
-        }
-        .video-player-close {
-            width: 36px;
-            height: 36px;
-            border-radius: 50%;
-            background: rgba(255, 255, 255, 0.15);
-            border: none;
-            color: #fff;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 16px;
-            transition: background 0.2s;
-        }
-        .video-player-close:hover {
-            background: rgba(255, 255, 255, 0.3);
-        }
-        .video-player-controls {
-            display: flex;
-            gap: 12px;
-            margin-top: 12px;
-            justify-content: center;
-        }
-        .video-player-controls button {
-            padding: 8px 18px;
-            border-radius: 6px;
-            border: 1px solid rgba(255, 255, 255, 0.25);
-            background: rgba(255, 255, 255, 0.1);
-            color: #fff;
-            cursor: pointer;
-            font-size: 13px;
-            transition: background 0.2s;
-        }
-        .video-player-controls button:hover {
-            background: rgba(255, 255, 255, 0.2);
-        }
-
-        /* ─── 加载骨架（Sprint 3.3.2）──────────────────────── */
-        .loading-skeleton {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            padding: 80px 20px;
-            color: var(--text-sub);
-        }
-        .loading-skeleton i {
-            margin-right: 8px;
-            font-size: 18px;
-        }
-
-        @media (max-width: 1200px) {
-            .works-grid { grid-template-columns: repeat(3, 1fr); }
-        }
-        @media (max-width: 900px) {
-            .works-grid { grid-template-columns: repeat(2, 1fr); }
-        }
-        @media (max-width: 600px) {
-            .works-grid { grid-template-columns: 1fr; }
-        }
-
-        /* ─── 素材库（Sprint 4.1 资产中心）──────────────────────── */
-        .asset-grid-new {
-            display: grid;
-            grid-template-columns: repeat(6, 1fr);
-            gap: 14px;
-        }
-        /* Sprint 4.1 Patch3: 素材卡片UI升级 */
-        .asset-card {
-            background: var(--bg-card);
-            border: 1px solid var(--border-glass);
-            border-radius: 20px;
-            overflow: hidden;
-            cursor: pointer;
-            transition: all 0.3s;
-            backdrop-filter: blur(10px);
-            position: relative;
-        }
-        .asset-card:hover {
-            border-color: rgba(255, 255, 255, 0.2);
-            transform: translateY(-4px);
-            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
-        }
-
-        /* ── 缩略图区域（16:9）── */
-        .asset-card-thumb {
-            aspect-ratio: 16/9;
-            background: linear-gradient(135deg, rgba(99, 102, 241, 0.15), rgba(168, 85, 247, 0.1));
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            overflow: hidden;
-            position: relative;
-        }
-        .asset-card-thumb img {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-            transition: transform 0.4s ease;
-        }
-        .asset-card:hover .asset-card-thumb img {
-            transform: scale(1.05);
-        }
-        .asset-card-icon {
-            font-size: 36px;
-            color: rgba(255, 255, 255, 0.3);
-        }
-
-        /* ── 类型标签（缩略图右下角）── */
-        .asset-type-badge {
-            position: absolute;
-            bottom: 8px;
-            right: 8px;
-            padding: 3px 8px;
-            font-size: 10px;
-            font-weight: 600;
-            letter-spacing: 0.5px;
-            color: #fff;
-            background: rgba(0, 0, 0, 0.55);
-            backdrop-filter: blur(4px);
-            border-radius: 6px;
-            z-index: 2;
-            pointer-events: none;
-        }
-
-        /* ── Hover 遮罩层 ── */
-        .asset-hover-overlay {
-            position: absolute;
-            inset: 0;
-            background: rgba(0, 0, 0, 0.5);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 12px;
-            opacity: 0;
-            transition: opacity 0.25s ease;
-            z-index: 4;
-            pointer-events: none;
-            border-radius: 20px;
-        }
-        .asset-card:hover .asset-hover-overlay {
-            opacity: 1;
-            pointer-events: auto;
-        }
-        .asset-hover-btn {
-            padding: 8px 18px;
-            border-radius: 8px;
-            border: 1px solid rgba(255, 255, 255, 0.3);
-            background: rgba(255, 255, 255, 0.12);
-            backdrop-filter: blur(6px);
-            color: #fff;
-            font-size: 13px;
-            font-weight: 500;
-            cursor: pointer;
-            transition: all 0.2s;
-            pointer-events: auto;
-        }
-        .asset-hover-btn:hover {
-            background: rgba(99, 102, 241, 0.7);
-            border-color: rgba(99, 102, 241, 0.8);
-            box-shadow: 0 2px 12px rgba(99, 102, 241, 0.4);
-        }
-        .asset-hover-delete:hover {
-            background: rgba(239, 68, 68, 0.75);
-            border-color: rgba(239, 68, 68, 0.8);
-            box-shadow: 0 2px 12px rgba(239, 68, 68, 0.4);
-        }
-
-        /* ── 更多按钮（⋮ 右上角）── */
-        .asset-more-btn {
-            position: absolute;
-            top: 8px;
-            right: 8px;
-            width: 30px;
-            height: 30px;
-            border-radius: 8px;
-            background: rgba(0, 0, 0, 0.55);
-            backdrop-filter: blur(4px);
-            border: 1px solid rgba(255, 255, 255, 0.12);
-            color: rgba(255, 255, 255, 0.8);
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 14px;
-            opacity: 0;
-            transition: all 0.2s;
-            z-index: 5;
-            pointer-events: auto;
-        }
-        .asset-card:hover .asset-more-btn {
-            opacity: 1;
-        }
-        .asset-more-btn:hover {
-            background: rgba(99, 102, 241, 0.6);
-            border-color: rgba(99, 102, 241, 0.7);
-            color: #fff;
-        }
-
-        /* ── 更多菜单 ── */
-        .asset-more-menu {
-            position: absolute;
-            top: 44px;
-            right: 8px;
-            min-width: 120px;
-            background: rgba(30, 30, 50, 0.96);
+            position: fixed; left: var(--sidebar-width); top: 0; right: 0; height: var(--header-height);
+            background: rgba(10, 10, 10, 0.8);
             backdrop-filter: blur(16px);
-            border: 1px solid rgba(255, 255, 255, 0.12);
-            border-radius: 12px;
-            padding: 6px;
-            z-index: 10;
-            display: none;
-            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
-        }
-        .asset-more-menu.show {
-            display: block;
-        }
-        .asset-menu-item {
-            padding: 9px 14px;
-            font-size: 13px;
-            color: var(--text-main);
-            cursor: pointer;
-            border-radius: 8px;
-            transition: background 0.15s;
+            -webkit-backdrop-filter: blur(16px);
+            border-bottom: 1px solid var(--border-glass);
             display: flex;
             align-items: center;
-            gap: 8px;
-        }
-        .asset-menu-item:hover {
-            background: rgba(99, 102, 241, 0.2);
-            color: var(--primary-light);
-        }
-        .asset-menu-delete {
-            color: #f87171;
-        }
-        .asset-menu-delete:hover {
-            background: rgba(239, 68, 68, 0.2);
-            color: #fca5a5;
-        }
-
-        .asset-thumb-video {
-            width: 100%;
-            height: 100%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            position: relative;
-            background: #000;
-        }
-        .asset-thumb-video img {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-            opacity: 0.6;
-        }
-        .asset-play-icon {
-            position: absolute;
-            font-size: 40px;
-            color: rgba(255, 255, 255, 0.8);
-            text-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
-            pointer-events: none;
-        }
-        .asset-thumb-audio {
-            width: 100%;
-            height: 100%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            background: linear-gradient(135deg, rgba(16, 185, 129, 0.2), rgba(59, 130, 246, 0.15));
-        }
-        .asset-audio-icon {
-            font-size: 48px;
-            color: rgba(16, 185, 129, 0.6);
-        }
-
-        /* ── 信息区域 ── */
-        .asset-card-info {
-            padding: 12px 14px;
-        }
-        .asset-card-name {
-            font-size: 13px;
-            font-weight: 500;
-            color: var(--text-main);
-            margin-bottom: 6px;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-        }
-        .asset-card-meta {
-            display: flex;
             justify-content: space-between;
-            align-items: center;
-            font-size: 11px;
-            color: var(--text-sub);
-            margin-bottom: 4px;
+            padding: 0 24px;
+            z-index: var(--z-header, 300);
         }
-        .asset-card-type {
+        .page-title {
             display: flex;
             align-items: center;
-            gap: 4px;
-            color: var(--primary-light);
-            font-size: 11px;
-        }
-        .asset-card-size {
-            font-size: 11px;
-            color: var(--text-muted);
-        }
-        .asset-card-date {
-            font-size: 11px;
-            color: var(--text-muted);
-        }
-        @media (max-width: 1400px) {
-            .asset-grid-new { grid-template-columns: repeat(4, 1fr); }
-        }
-        @media (max-width: 900px) {
-            .asset-grid-new { grid-template-columns: repeat(3, 1fr); }
-        }
-        @media (max-width: 600px) {
-            .asset-grid-new { grid-template-columns: repeat(2, 1fr); }
+            gap: 16px;
         }
 
-        /* 素材库 */
-        .asset-grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 12px; }
-        .asset-item {
-            aspect-ratio: 1; border-radius: 8px; 
-            background: linear-gradient(135deg, rgba(99, 102, 241, 0.1), rgba(168, 85, 247, 0.08));
-            border: 1px solid var(--border-glass);
-            display: flex; align-items: center; justify-content: center; cursor: pointer;
-            transition: all 0.2s; position: relative; overflow: hidden;
-        }
-        .asset-item:hover { transform: scale(1.05); }
-        .asset-item i { font-size: 24px; color: var(--text-sub); }
-        .asset-item .asset-type {
-            position: absolute; bottom: 4px; right: 4px; font-size: 10px;
-            background: rgba(0,0,0,0.6); color: #fff; padding: 2px 6px; border-radius: 4px;
-        }
-        
-        /* 剪辑工作台 */
-        .timeline-editor {
-            background: #1a1a2e; border-radius: var(--radius); padding: 20px; color: #fff;
-        }
-        .timeline-preview {
-            width: 100%; max-width: 640px; margin: 0 auto 20px; aspect-ratio: 16/9;
-            background: #000; border-radius: 8px; display: flex; align-items: center; justify-content: center;
-            flex-direction: column; color: #6b7280;
-        }
-        .timeline-preview i { font-size: 48px; margin-bottom: 8px; }
-        .timeline-track {
-            background: #2d2d44; height: 60px; border-radius: 8px; margin-bottom: 10px;
-            display: flex; align-items: center; padding: 0 12px; gap: 8px; overflow-x: auto;
-        }
-        .timeline-clip {
-            height: 40px; background: #3b7fe0; border-radius: 4px; padding: 0 10px;
-            display: flex; align-items: center; font-size: 12px; flex-shrink: 0; cursor: move;
-        }
-        .timeline-clip.audio { background: #10b981; }
-        .timeline-clip.text { background: #f59e0b; }
-        .timeline-controls { display: flex; gap: 12px; margin-top: 16px; flex-wrap: wrap; }
-        
+        /* 主内容区 — Phase 2-B: 增加顶部留白给 Header */
+        .main-content { margin-left: 90px; padding: calc(var(--header-height) + 8px) 8px 0; min-height: 100vh; }
+
         /* 表格 */
         .table-wrap { overflow-x: auto; }
         table { width: 100%; border-collapse: collapse; }
         th, td { padding: 14px 16px; text-align: left; border-bottom: 1px solid var(--border); font-size: 14px; }
         th { background: #f9fafb; font-weight: 600; color: var(--text-sub); font-size: 13px; }
         tr:hover { background: #f9fafb; }
-        
+
         /* 搜索栏 */
         .toolbar { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; gap: 12px; flex-wrap: wrap; }
         .search-box { position: relative; }
-        .search-box input { 
-            padding: 10px 14px 10px 38px; 
-            border: 1px solid var(--border-glass); 
-            border-radius: 10px; 
-            width: 240px; 
-            font-size: 14px; 
+        .search-box input {
+            padding: 10px 14px 10px 38px;
+            border: 1px solid var(--border-glass);
+            border-radius: 10px;
+            width: 240px;
+            font-size: 14px;
             background: var(--bg-card);
             color: var(--text-main);
             outline: none;
@@ -1741,38 +241,13 @@
         }
         .search-box input:focus { border-color: var(--primary-light); }
         .search-box i { position: absolute; left: 14px; top: 50%; transform: translateY(-50%); color: var(--text-muted); }
-        
-        /* 进度条 */
-        .progress-bar { width: 100%; height: 8px; background: #e5e7eb; border-radius: 4px; overflow: hidden; }
-        .progress-bar .fill { height: 100%; background: linear-gradient(90deg, var(--primary), var(--primary-light)); border-radius: 4px; }
-        
-        /* 模态框 */
-        .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.5); display: none; align-items: center; justify-content: center; z-index: 1000; }
-        .modal-overlay.show { display: flex; }
-        .modal { background: #fff; border-radius: var(--radius); width: 500px; max-width: 90vw; max-height: 90vh; overflow-y: auto; }
-        .modal-header { padding: 20px 24px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; }
-        .modal-header h3 { font-size: 18px; font-weight: 600; }
-        .modal-close { cursor: pointer; color: var(--text-sub); font-size: 20px; }
-        .modal-body { padding: 24px; }
-        .modal-footer { padding: 16px 24px; border-top: 1px solid var(--border); display: flex; justify-content: flex-end; gap: 12px; }
-        
-        /* 故事板编辑侧栏 */
-        .storyboard-drawer {
-            position: fixed; right: -420px; top: 0; width: 420px; height: 100vh;
-            background: #fff; box-shadow: -4px 0 20px rgba(0,0,0,0.1); z-index: 200;
-            transition: right 0.3s; display: flex; flex-direction: column;
-        }
-        .storyboard-drawer.show { right: 0; }
-        .drawer-header { padding: 20px 24px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
-        .drawer-body { flex: 1; padding: 24px; overflow-y: auto; }
-        .drawer-footer { padding: 16px 24px; border-top: 1px solid var(--border); display: flex; gap: 12px; justify-content: flex-end; }
-        
-        /* ─── 登录弹层（Sprint 3.3.2 UI Patch：玻璃拟态风格）─── */
+
+        /* --- 登录弹层（Sprint 3.3.2 UI Patch：玻璃拟态风格）--- */
         .login-overlay {
             position: fixed; inset: 0;
             background: rgba(0, 0, 0, 0.4);
             display: none; align-items: center; justify-content: center;
-            z-index: 2000;
+            z-index: var(--z-overlay, 900);
             backdrop-filter: blur(12px);
             -webkit-backdrop-filter: blur(12px);
         }
@@ -1861,930 +336,18 @@
             .login-modal h2 { font-size: 22px; }
         }
 
-        /* ─── Toast 通知 ─── */
-        .toast-container {
-            position: fixed; top: 20px; right: 20px; z-index: 3000;
-            display: flex; flex-direction: column; gap: 8px;
-        }
-        .toast {
-            padding: 12px 20px;
-            border-radius: 10px;
-            font-size: 14px; font-weight: 500;
-            color: #fff;
-            min-width: 280px; max-width: 420px;
-            animation: toast-in 0.3s ease-out;
-            backdrop-filter: blur(10px);
-            box-shadow: 0 4px 16px rgba(0,0,0,0.3);
-            display: flex; align-items: center; gap: 10px;
-        }
-        .toast.error { background: rgba(239,68,68,0.9); }
-        .toast.success { background: rgba(16,185,129,0.9); }
-        .toast.info { background: rgba(59,130,246,0.9); }
-        .toast.warning { background: rgba(245,158,11,0.9); }
-        .toast.fade-out { animation: toast-out 0.3s ease-out forwards; }
-        @keyframes toast-in { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
-        @keyframes toast-out { from { transform: translateX(0); opacity: 1; } to { transform: translateX(100%); opacity: 0; } }
-
-        /* ─── 状态区 ─── */
-        .status-area {
-            padding: 14px 18px;
-            border-radius: 10px;
-            font-size: 13px;
-            display: none;
-            align-items: center;
-            gap: 10px;
-            margin-top: 16px;
-        }
-        .status-area.show { display: flex; }
-        .status-area.uploading { background: rgba(59,130,246,0.1); border: 1px solid rgba(59,130,246,0.3); color: #60a5fa; }
-        .status-area.processing { background: rgba(245,158,11,0.1); border: 1px solid rgba(245,158,11,0.3); color: #fbbf24; }
-        .status-area.success { background: rgba(16,185,129,0.1); border: 1px solid rgba(16,185,129,0.3); color: #34d399; }
-        .status-area.error { background: rgba(239,68,68,0.1); border: 1px solid rgba(239,68,68,0.3); color: #f87171; }
-        .status-area .spinner {
-            width: 18px; height: 18px;
-            border: 2px solid currentColor;
-            border-top-color: transparent;
-            border-radius: 50%;
-            animation: spin 0.8s linear infinite;
-        }
-        @keyframes spin { to { transform: rotate(360deg); } }
-
-        /* ─── 生成按钮禁用态 ─── */
-        .generate-btn:disabled {
-            opacity: 0.5; cursor: not-allowed;
-            transform: none !important;
-            box-shadow: none !important;
-        }
-
-        /* ─── 视频结果区 ─── */
-        .result-video-area { display: none; margin-top: 20px; }
-        .result-video-area.show { display: block; }
-        .result-video-area video {
-            width: 100%; border-radius: 12px;
-            background: #000;
-            max-height: 400px;
-        }
-        .result-actions {
-            display: flex; gap: 10px; margin-top: 12px; flex-wrap: wrap;
-        }
-
-        /* ─── 响应式 ─── */
+        /* --- 响应式 --- */
         @media (max-width: 1024px) {
             .sidebar { width: 72px; }
             .sidebar-logo span, .nav-item span, .nav-section { display: none; }
             .nav-item { justify-content: center; padding: 14px; }
             .nav-item i { margin-right: 0; }
             .header, .main-content { left: 72px; margin-left: 72px; }
+            .header { padding: 0 12px; }
+            .yj-user-name { display: none; }
             .quick-create { grid-template-columns: repeat(2, 1fr); }
             .project-grid { grid-template-columns: repeat(2, 1fr); }
             .creation-form { grid-template-columns: 1fr; }
-        }
-
-        /* ─── AssetPicker 模态框（Sprint 4.2）──────────────────────── */
-        .asset-picker-overlay {
-            position: fixed; inset: 0;
-            background: rgba(0, 0, 0, 0.6);
-            display: none; align-items: center; justify-content: center;
-            z-index: 1500;
-            backdrop-filter: blur(8px);
-            -webkit-backdrop-filter: blur(8px);
-        }
-        .asset-picker-overlay.show { display: flex; }
-        .asset-picker-modal {
-            background: rgba(20, 22, 30, 0.95);
-            border: 1px solid rgba(255, 255, 255, 0.12);
-            border-radius: 16px;
-            width: 720px; max-width: 92vw; max-height: 80vh;
-            display: flex; flex-direction: column;
-            box-shadow: 0 16px 48px rgba(0, 0, 0, 0.5);
-            backdrop-filter: blur(20px) saturate(180%);
-            -webkit-backdrop-filter: blur(20px) saturate(180%);
-        }
-        .asset-picker-header {
-            padding: 20px 24px;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-            display: flex; align-items: center; justify-content: space-between;
-        }
-        .asset-picker-header h3 {
-            font-size: 16px; font-weight: 600; color: #fff;
-        }
-        .asset-picker-close {
-            width: 32px; height: 32px; border-radius: 8px;
-            background: rgba(255, 255, 255, 0.06);
-            border: none; color: rgba(255, 255, 255, 0.7);
-            cursor: pointer; display: flex; align-items: center; justify-content: center;
-            font-size: 14px; transition: all 0.2s;
-        }
-        .asset-picker-close:hover {
-            background: rgba(255, 255, 255, 0.12);
-            color: #fff;
-        }
-        .asset-picker-toolbar {
-            padding: 14px 24px;
-            display: flex; gap: 12px; align-items: center;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-        }
-        .asset-picker-filter {
-            padding: 8px 14px; border-radius: 8px;
-            background: rgba(255, 255, 255, 0.05);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            color: #fff; font-size: 13px; cursor: pointer;
-            transition: all 0.2s;
-        }
-        .asset-picker-filter:hover, .asset-picker-filter.active {
-            background: rgba(99, 102, 241, 0.15);
-            border-color: rgba(99, 102, 241, 0.3);
-        }
-        .asset-picker-filter.active {
-            color: #a5b4fc;
-            font-weight: 500;
-        }
-        .asset-picker-body {
-            flex: 1; overflow-y: auto; padding: 16px 24px;
-            display: grid;
-            grid-template-columns: repeat(4, 1fr);
-            gap: 12px;
-            min-height: 280px;
-            align-content: start;
-        }
-        .asset-picker-item {
-            border-radius: 10px; overflow: hidden;
-            border: 2px solid rgba(255, 255, 255, 0.06);
-            cursor: pointer; transition: all 0.2s;
-            background: rgba(255, 255, 255, 0.03);
-        }
-        .asset-picker-item:hover {
-            border-color: rgba(99, 102, 241, 0.4);
-            transform: translateY(-2px);
-        }
-        .asset-picker-item.selected {
-            border-color: #6366f1;
-            box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.3);
-        }
-        .asset-picker-item-thumb {
-            aspect-ratio: 16/10;
-            background: rgba(0, 0, 0, 0.3);
-            display: flex; align-items: center; justify-content: center;
-            overflow: hidden;
-        }
-        .asset-picker-item-thumb img {
-            width: 100%; height: 100%; object-fit: cover;
-        }
-        .asset-picker-item-thumb .no-thumb {
-            font-size: 28px; color: rgba(255, 255, 255, 0.2);
-        }
-        .asset-picker-item-info {
-            padding: 8px 10px;
-        }
-        .asset-picker-item-name {
-            font-size: 12px; color: rgba(255, 255, 255, 0.85);
-            white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-        }
-        .asset-picker-empty {
-            grid-column: 1 / -1;
-            text-align: center; padding: 60px 20px; color: rgba(255, 255, 255, 0.4);
-        }
-        .asset-picker-empty i {
-            font-size: 48px; display: block; margin-bottom: 12px; opacity: 0.4;
-        }
-        .asset-picker-loading {
-            grid-column: 1 / -1;
-            text-align: center; padding: 60px 20px; color: rgba(255, 255, 255, 0.5);
-        }
-        .asset-picker-loading .spinner {
-            width: 24px; height: 24px;
-            border: 2px solid rgba(255, 255, 255, 0.2);
-            border-top-color: #6366f1;
-            border-radius: 50%;
-            animation: spin 0.8s linear infinite;
-            margin: 0 auto 12px;
-        }
-        .asset-picker-footer {
-            padding: 16px 24px;
-            border-top: 1px solid rgba(255, 255, 255, 0.08);
-            display: flex; justify-content: space-between; align-items: center;
-        }
-        .asset-picker-selected-info {
-            font-size: 13px; color: rgba(255, 255, 255, 0.6);
-        }
-        .asset-picker-selected-name {
-            color: #a5b4fc; font-weight: 500;
-        }
-        .asset-picker-actions {
-            display: flex; gap: 10px;
-        }
-        .asset-picker-pagination {
-            display: flex; gap: 8px; align-items: center; font-size: 12px; color: rgba(255,255,255,0.5);
-        }
-
-        /* ─── Asset Detail 模态框（Sprint 4.2）──────────────────────── */
-        .asset-detail-overlay {
-            position: fixed; inset: 0;
-            background: rgba(0, 0, 0, 0.6);
-            display: none; align-items: center; justify-content: center;
-            z-index: 1600;
-            backdrop-filter: blur(12px);
-            -webkit-backdrop-filter: blur(12px);
-        }
-        .asset-detail-overlay.show { display: flex; }
-        .asset-detail-modal {
-            background: rgba(20, 22, 38, 0.92);
-            border: 1px solid rgba(255, 255, 255, 0.12);
-            border-radius: 20px;
-            width: 480px; max-width: 92vw;
-            max-height: 92vh; overflow-y: auto;
-            backdrop-filter: blur(30px) saturate(180%);
-            -webkit-backdrop-filter: blur(30px) saturate(180%);
-            box-shadow: 0 16px 64px rgba(0, 0, 0, 0.4),
-                        0 0 0 1px rgba(255, 255, 255, 0.06) inset;
-            animation: detail-modal-in 0.25s ease-out;
-        }
-        @keyframes detail-modal-in {
-            from { opacity: 0; transform: scale(0.95) translateY(12px); }
-            to { opacity: 1; transform: scale(1) translateY(0); }
-        }
-        .asset-detail-header {
-            display: flex; justify-content: space-between; align-items: center;
-            padding: 20px 24px 0;
-        }
-        .asset-detail-header h3 {
-            font-size: 17px; font-weight: 600; color: #fff;
-            letter-spacing: 0.5px;
-        }
-        .asset-detail-close {
-            width: 32px; height: 32px; border-radius: 8px;
-            background: rgba(255, 255, 255, 0.06);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            color: rgba(255, 255, 255, 0.7);
-            cursor: pointer; display: flex; align-items: center; justify-content: center;
-            font-size: 14px; transition: all 0.2s;
-        }
-        .asset-detail-close:hover {
-            background: rgba(255, 255, 255, 0.12);
-            color: #fff;
-        }
-        .asset-detail-preview {
-            margin: 16px 24px;
-            border-radius: 12px;
-            overflow: hidden;
-            background: rgba(0, 0, 0, 0.4);
-            border: 1px solid rgba(255, 255, 255, 0.06);
-            display: flex; align-items: center; justify-content: center;
-            min-height: 240px;
-            max-height: 360px;
-        }
-        .asset-detail-preview img {
-            width: 100%; max-height: 360px; object-fit: contain;
-            display: block;
-        }
-        .asset-detail-preview .preview-icon {
-            font-size: 72px; color: rgba(255, 255, 255, 0.15);
-        }
-        .asset-detail-body {
-            padding: 0 24px 20px;
-        }
-        .asset-detail-meta-grid {
-            display: grid; grid-template-columns: 1fr 1fr; gap: 12px;
-            margin-bottom: 16px;
-        }
-        .asset-detail-meta-item {
-            background: rgba(255, 255, 255, 0.04);
-            border: 1px solid rgba(255, 255, 255, 0.06);
-            border-radius: 10px; padding: 12px 14px;
-        }
-        .asset-detail-meta-item .meta-label {
-            font-size: 11px; color: rgba(255, 255, 255, 0.45);
-            margin-bottom: 6px; letter-spacing: 0.5px;
-            text-transform: uppercase;
-        }
-        .asset-detail-meta-item .meta-value {
-            font-size: 13px; color: rgba(255, 255, 255, 0.85);
-            font-weight: 500; word-break: break-all;
-        }
-        .asset-detail-name-row {
-            margin-bottom: 16px;
-            padding: 0 4px;
-        }
-        .asset-detail-name-row .meta-label {
-            font-size: 11px; color: rgba(255, 255, 255, 0.45);
-            margin-bottom: 4px; letter-spacing: 0.5px;
-        }
-        .asset-detail-name-row .meta-value {
-            font-size: 14px; color: #fff; font-weight: 500;
-            word-break: break-all;
-        }
-        .asset-detail-usage {
-            display: flex; align-items: center; gap: 10px;
-            padding: 14px 16px;
-            background: linear-gradient(135deg, rgba(99, 102, 241, 0.12), rgba(168, 85, 247, 0.08));
-            border: 1px solid rgba(99, 102, 241, 0.2);
-            border-radius: 12px; margin-bottom: 16px;
-        }
-        .asset-detail-usage-icon {
-            width: 40px; height: 40px; border-radius: 10px;
-            background: linear-gradient(135deg, var(--primary), var(--accent-purple));
-            display: flex; align-items: center; justify-content: center;
-            font-size: 18px; color: #fff; flex-shrink: 0;
-        }
-        .asset-detail-usage-text {
-            font-size: 13px; color: rgba(255, 255, 255, 0.75);
-        }
-        .asset-detail-usage-text strong {
-            color: #fff; font-size: 16px;
-        }
-        /* ─── Sprint 4.3: 创作历史 ─────────────────────────── */
-        .asset-detail-history {
-            margin-top: 12px;
-            padding: 16px;
-            background: rgba(255, 255, 255, 0.03);
-            border: 1px solid rgba(255, 255, 255, 0.08);
-            border-radius: 14px;
-        }
-        .asset-detail-history-title {
-            display: flex; align-items: center; gap: 8px;
-            font-size: 14px; font-weight: 600;
-            color: rgba(255, 255, 255, 0.85);
-            margin-bottom: 4px;
-        }
-        .asset-detail-history-title i {
-            color: var(--primary-light);
-        }
-        .asset-detail-history-subtitle {
-            font-size: 12px; color: rgba(255, 255, 255, 0.5);
-            margin-bottom: 14px;
-        }
-        .asset-detail-history-subtitle strong {
-            color: #a5b4fc;
-        }
-        .history-item {
-            background: rgba(255, 255, 255, 0.04);
-            border: 1px solid rgba(255, 255, 255, 0.06);
-            border-radius: 10px;
-            padding: 12px 14px;
-            margin-bottom: 10px;
-            transition: border-color 0.2s;
-        }
-        .history-item:last-child { margin-bottom: 0; }
-        .history-item:hover {
-            border-color: rgba(99, 102, 241, 0.25);
-        }
-        .history-item-header {
-            display: flex; align-items: center; justify-content: space-between;
-            margin-bottom: 6px;
-        }
-        .history-item-name {
-            font-size: 14px; font-weight: 600;
-            color: rgba(255, 255, 255, 0.9);
-            display: flex; align-items: center; gap: 6px;
-        }
-        .history-item-name .task-icon {
-            font-size: 16px; color: var(--primary-light);
-        }
-        .history-item-status {
-            font-size: 11px; padding: 2px 8px; border-radius: 10px;
-            font-weight: 500;
-        }
-        .history-status-success {
-            background: rgba(16, 185, 129, 0.15);
-            color: #34d399;
-        }
-        .history-status-processing {
-            background: rgba(245, 158, 11, 0.15);
-            color: #fbbf24;
-        }
-        .history-status-pending {
-            background: rgba(148, 163, 184, 0.12);
-            color: #94a3b8;
-        }
-        .history-status-failed {
-            background: rgba(239, 68, 68, 0.12);
-            color: #f87171;
-        }
-        .history-item-meta {
-            font-size: 11px; color: rgba(255, 255, 255, 0.45);
-            margin-bottom: 4px;
-        }
-        .history-item-prompt {
-            font-size: 12px; color: rgba(255, 255, 255, 0.6);
-            background: rgba(0, 0, 0, 0.2);
-            padding: 8px 10px;
-            border-radius: 6px;
-            line-height: 1.5;
-            max-height: 48px;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            white-space: nowrap;
-            margin-top: 6px;
-        }
-        .history-item-action {
-            margin-top: 8px;
-            text-align: right;
-        }
-        .history-item-action .btn-view-work {
-            font-size: 12px;
-            padding: 5px 12px;
-            border-radius: 6px;
-            background: rgba(99, 102, 241, 0.15);
-            border: 1px solid rgba(99, 102, 241, 0.25);
-            color: #a5b4fc;
-            cursor: pointer;
-            transition: all 0.2s;
-        }
-        .history-item-action .btn-view-work:hover {
-            background: rgba(99, 102, 241, 0.25);
-            border-color: rgba(99, 102, 241, 0.4);
-            color: #c4b5fd;
-        }
-        .history-empty {
-            text-align: center; padding: 20px;
-            color: rgba(255, 255, 255, 0.4); font-size: 13px;
-        }
-
-        .asset-detail-actions {
-            display: flex; gap: 10px;
-        }
-        .asset-detail-actions .btn {
-            flex: 1; justify-content: center; padding: 10px 0;
-            font-size: 13px; border-radius: 10px;
-        }
-        .asset-detail-actions .btn-copy {
-            background: rgba(255, 255, 255, 0.06);
-            border: 1px solid rgba(255, 255, 255, 0.12);
-            color: rgba(255, 255, 255, 0.8);
-        }
-        .asset-detail-actions .btn-copy:hover {
-            background: rgba(99, 102, 241, 0.15);
-            border-color: rgba(99, 102, 241, 0.3);
-            color: #a5b4fc;
-        }
-        .asset-detail-actions .btn-delete {
-            background: rgba(239, 68, 68, 0.12);
-            border: 1px solid rgba(239, 68, 68, 0.25);
-            color: #f87171;
-        }
-        .asset-detail-actions .btn-delete:hover {
-            background: rgba(239, 68, 68, 0.25);
-            border-color: rgba(239, 68, 68, 0.4);
-            color: #fca5a5;
-        }
-        .asset-detail-loading {
-            text-align: center; padding: 60px 20px;
-            color: rgba(255, 255, 255, 0.5);
-        }
-        .asset-detail-loading .spinner {
-            width: 32px; height: 32px;
-            border: 2px solid rgba(255, 255, 255, 0.15);
-            border-top-color: var(--primary-light);
-            border-radius: 50%;
-            animation: spin 0.8s linear infinite;
-            margin: 0 auto 12px;
-        }
-
-        /* ─── Sprint 4.4 Patch6: 独立图片预览 Modal ──────────── */
-        .image-preview-overlay {
-            position: fixed; inset: 0;
-            background: rgba(0, 0, 0, 0.78);
-            display: none; align-items: center; justify-content: center;
-            z-index: 1700;
-            backdrop-filter: blur(16px);
-            -webkit-backdrop-filter: blur(16px);
-        }
-        .image-preview-overlay.show { display: flex; }
-        .image-preview-container {
-            position: relative;
-            display: flex; align-items: center; justify-content: center;
-            max-width: 94vw; max-height: 94vh;
-            animation: detail-modal-in 0.2s ease-out;
-        }
-        .image-preview-close {
-            position: absolute; top: -44px; right: -4px;
-            width: 36px; height: 36px; border-radius: 9px;
-            background: rgba(255, 255, 255, 0.08);
-            border: 1px solid rgba(255, 255, 255, 0.12);
-            color: rgba(255, 255, 255, 0.75);
-            cursor: pointer; display: flex; align-items: center; justify-content: center;
-            font-size: 16px; transition: all 0.2s;
-            z-index: 10;
-            backdrop-filter: blur(12px);
-            -webkit-backdrop-filter: blur(12px);
-        }
-        .image-preview-close:hover {
-            background: rgba(255, 255, 255, 0.15);
-            color: #fff;
-        }
-        .image-preview-body {
-            display: flex; align-items: center; justify-content: center;
-            border-radius: 12px; overflow: hidden;
-        }
-        .image-preview-body img {
-            max-width: 90vw; max-height: 90vh;
-            object-fit: contain;
-            display: block;
-            border-radius: 8px;
-            box-shadow: 0 8px 48px rgba(0, 0, 0, 0.5);
-        }
-        .image-preview-error {
-            text-align: center; padding: 60px 40px;
-            color: rgba(255, 255, 255, 0.55);
-            background: rgba(20, 22, 38, 0.85);
-            border-radius: 12px;
-            border: 1px solid rgba(255, 255, 255, 0.08);
-        }
-        .image-preview-error i {
-            font-size: 48px; display: block; margin-bottom: 14px;
-            opacity: 0.35;
-        }
-
-        /* ─── Sprint 4.4: 资产状态标签 ────────────────────────── */
-        .asset-status-tag {
-            display: inline-flex; align-items: center; gap: 4px;
-            padding: 2px 8px; border-radius: 10px;
-            font-size: 10px; font-weight: 600;
-            white-space: nowrap;
-            margin-top: 4px;
-        }
-        .asset-status-tag.raw { background: rgba(107, 114, 128, 0.2); color: #9ca3af; }
-        .asset-status-tag.processing { background: rgba(245, 158, 11, 0.2); color: #fbbf24; animation: statusPulse 2s ease-in-out infinite; }
-        .asset-status-tag.generated { background: rgba(16, 185, 129, 0.2); color: #34d399; }
-        .asset-status-tag.archived { background: rgba(156, 163, 175, 0.15); color: #9ca3af; }
-
-        @keyframes statusPulse {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.6; }
-        }
-
-        .asset-gen-count {
-            font-size: 10px; color: var(--text-muted);
-            margin-top: 2px;
-        }
-        .asset-gen-count strong { color: var(--primary-light); }
-
-        /* ─── Sprint 4.4: AI创作 Panel 模态框 ──────────────── */
-        .gen-panel-overlay {
-            position: fixed; inset: 0; background: rgba(0, 0, 0, 0.7);
-            backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px);
-            z-index: 1000; display: none; align-items: center; justify-content: center;
-        }
-        .gen-panel-overlay.show { display: flex; }
-        .gen-panel-modal {
-            background: rgba(20, 20, 20, 0.95);
-            border: 1px solid rgba(255, 255, 255, 0.12);
-            border-radius: 20px;
-            width: 90%; max-width: 680px; max-height: 85vh;
-            overflow-y: auto;
-            backdrop-filter: blur(24px) saturate(180%);
-            -webkit-backdrop-filter: blur(24px) saturate(180%);
-            box-shadow: 0 24px 80px rgba(0, 0, 0, 0.5), 0 0 60px rgba(99, 102, 241, 0.1);
-        }
-        .gen-panel-header {
-            display: flex; justify-content: space-between; align-items: center;
-            padding: 20px 24px; border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-        }
-        .gen-panel-header h3 {
-            font-size: 16px; font-weight: 600;
-            display: flex; align-items: center; gap: 10px;
-        }
-        .gen-panel-header h3 i { color: var(--accent-purple); font-size: 18px; }
-        .gen-panel-close {
-            width: 32px; height: 32px; border: 1px solid rgba(255, 255, 255, 0.12);
-            background: rgba(255, 255, 255, 0.05); color: #fff;
-            border-radius: 50%; cursor: pointer; font-size: 14px;
-            display: flex; align-items: center; justify-content: center;
-            transition: all 0.2s;
-        }
-        .gen-panel-close:hover { background: rgba(255, 255, 255, 0.12); }
-
-        .gen-panel-body { padding: 24px; }
-        .gen-panel-section { margin-bottom: 20px; }
-        .gen-panel-section label {
-            display: block; font-size: 13px; font-weight: 500;
-            margin-bottom: 8px; color: rgba(255, 255, 255, 0.85);
-        }
-        .gen-panel-section label .hint { font-weight: 400; color: var(--text-muted); font-size: 11px; }
-
-        /* 参考素材预览卡片 */
-        .gen-source-card {
-            display: flex; gap: 12px; align-items: center;
-            padding: 12px; border-radius: 12px;
-            background: rgba(255, 255, 255, 0.04);
-            border: 1px solid rgba(255, 255, 255, 0.08);
-        }
-        .gen-source-card-thumb {
-            width: 64px; height: 64px; border-radius: 8px;
-            object-fit: cover; flex-shrink: 0;
-            background: rgba(0, 0, 0, 0.3);
-        }
-        .gen-source-card-info { flex: 1; min-width: 0; }
-        .gen-source-card-name {
-            font-size: 13px; font-weight: 500; white-space: nowrap;
-            overflow: hidden; text-overflow: ellipsis;
-        }
-        .gen-source-card-meta { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
-
-        /* prompt textarea */
-        .gen-prompt-textarea {
-            width: 100%; padding: 12px; border-radius: 10px;
-            background: rgba(255, 255, 255, 0.05);
-            border: 1px solid rgba(255, 255, 255, 0.12);
-            color: #fff; font-size: 13px; font-family: inherit;
-            resize: vertical; min-height: 80px;
-            transition: border-color 0.2s;
-        }
-        .gen-prompt-textarea:focus {
-            outline: none; border-color: var(--primary);
-            box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15);
-        }
-        .gen-prompt-counter { text-align: right; font-size: 11px; color: var(--text-muted); margin-top: 4px; }
-
-        /* 模型选择卡片 */
-        .gen-model-grid {
-            display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px;
-        }
-        .gen-model-card {
-            padding: 14px 12px; border-radius: 12px;
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            background: rgba(255, 255, 255, 0.03);
-            cursor: pointer; text-align: center;
-            transition: all 0.2s;
-        }
-        .gen-model-card:hover {
-            border-color: rgba(255, 255, 255, 0.2);
-            background: rgba(255, 255, 255, 0.06);
-        }
-        .gen-model-card.selected {
-            border-color: var(--accent-purple);
-            background: rgba(168, 85, 247, 0.12);
-        }
-        .gen-model-card-icon { font-size: 22px; margin-bottom: 4px; }
-        .gen-model-card-name { font-size: 14px; font-weight: 600; }
-        .gen-model-card-desc { font-size: 10px; color: var(--text-muted); margin-top: 2px; }
-
-        /* 输出类型选择器 */
-        .gen-output-type-row { display: flex; gap: 10px; }
-        .gen-output-type-btn {
-            flex: 1; padding: 12px; border-radius: 12px;
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            background: rgba(255, 255, 255, 0.03);
-            color: #fff; cursor: pointer; text-align: center;
-            font-size: 14px; font-weight: 500;
-            display: flex; align-items: center; justify-content: center; gap: 8px;
-            transition: all 0.2s;
-        }
-        .gen-output-type-btn:hover {
-            border-color: rgba(255, 255, 255, 0.2);
-            background: rgba(255, 255, 255, 0.06);
-        }
-        .gen-output-type-btn.selected {
-            border-color: var(--accent-purple);
-            background: rgba(168, 85, 247, 0.12);
-        }
-
-        .gen-panel-footer {
-            padding: 16px 24px; border-top: 1px solid rgba(255, 255, 255, 0.08);
-            display: flex; justify-content: flex-end; gap: 10px;
-        }
-        .gen-panel-footer .btn { padding: 10px 24px; border-radius: 10px; }
-
-        /* ─── Sprint 4.4: Generation Timeline ──────────────── */
-        .gen-timeline {
-            display: flex; align-items: center; gap: 0;
-            padding: 24px 20px; margin: 16px 0;
-            background: rgba(255, 255, 255, 0.03);
-            border-radius: 16px; border: 1px solid rgba(255, 255, 255, 0.06);
-            overflow-x: auto;
-        }
-        .gen-timeline-step {
-            display: flex; flex-direction: column; align-items: center;
-            gap: 8px; flex-shrink: 0;
-            position: relative;
-        }
-        .gen-timeline-dot {
-            width: 36px; height: 36px; border-radius: 50%;
-            display: flex; align-items: center; justify-content: center;
-            font-size: 14px; transition: all 0.3s;
-            border: 2px solid rgba(255, 255, 255, 0.15);
-            background: rgba(255, 255, 255, 0.05);
-            color: rgba(255, 255, 255, 0.4);
-        }
-        .gen-timeline-step.active .gen-timeline-dot {
-            border-color: var(--accent-purple);
-            background: rgba(168, 85, 247, 0.2);
-            color: var(--accent-purple);
-            box-shadow: 0 0 16px rgba(168, 85, 247, 0.3);
-        }
-        .gen-timeline-step.done .gen-timeline-dot {
-            border-color: var(--success);
-            background: rgba(16, 185, 129, 0.2);
-            color: var(--success);
-        }
-        .gen-timeline-step.failed .gen-timeline-dot {
-            border-color: var(--danger);
-            background: rgba(239, 68, 68, 0.2);
-            color: var(--danger);
-        }
-        .gen-timeline-label {
-            font-size: 11px; color: rgba(255, 255, 255, 0.5);
-            white-space: nowrap;
-        }
-        .gen-timeline-step.active .gen-timeline-label { color: var(--accent-purple); }
-        .gen-timeline-step.done .gen-timeline-label { color: var(--success); }
-        .gen-timeline-step.failed .gen-timeline-label { color: var(--danger); }
-        .gen-timeline-line {
-            width: 40px; height: 2px;
-            background: rgba(255, 255, 255, 0.1);
-            margin: 0 12px 24px; flex-shrink: 0;
-        }
-        .gen-timeline-line.done { background: var(--success); }
-
-        /* ─── Sprint 4.4: 资产详情 AI作品区域 ──────────────── */
-        .asset-detail-ai-works {
-            margin-top: 16px; padding-top: 16px;
-            border-top: 1px solid rgba(255, 255, 255, 0.06);
-        }
-        .asset-detail-ai-works-title {
-            font-size: 14px; font-weight: 600; margin-bottom: 12px;
-            display: flex; align-items: center; gap: 8px;
-        }
-        .asset-detail-ai-works-title i { color: var(--accent-purple); }
-        .ai-work-card {
-            display: flex; gap: 12px; align-items: center;
-            padding: 12px; border-radius: 12px;
-            background: rgba(255, 255, 255, 0.03);
-            border: 1px solid rgba(255, 255, 255, 0.06);
-            margin-bottom: 8px; cursor: pointer;
-            transition: all 0.2s;
-        }
-        .ai-work-card:hover {
-            background: rgba(255, 255, 255, 0.06);
-            border-color: rgba(255, 255, 255, 0.12);
-        }
-        .ai-work-thumb {
-            width: 80px; height: 56px; border-radius: 8px;
-            object-fit: cover; flex-shrink: 0;
-            background: rgba(0, 0, 0, 0.3);
-        }
-        .ai-work-info { flex: 1; min-width: 0; }
-        .ai-work-prompt {
-            font-size: 12px; color: rgba(255, 255, 255, 0.8);
-            white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-            margin-bottom: 4px;
-        }
-        .ai-work-meta {
-            font-size: 11px; color: var(--text-muted);
-            display: flex; gap: 12px; flex-wrap: wrap;
-        }
-        .ai-work-status {
-            flex-shrink: 0;
-        }
-
-        /* ─── Sprint 4.4: 资产项内嵌时间线 ───────────────── */
-        .gen-status-bar {
-            display: flex; align-items: center; gap: 6px;
-            padding: 8px 12px; border-radius: 8px;
-            font-size: 11px; font-weight: 500;
-            margin-top: 8px;
-        }
-        .gen-status-bar.gen-status-pending {
-            background: rgba(245, 158, 11, 0.1); color: #fbbf24;
-        }
-        .gen-status-bar.gen-status-processing {
-            background: rgba(59, 130, 246, 0.1); color: #60a5fa;
-        }
-        .gen-status-bar.gen-status-success {
-            background: rgba(16, 185, 129, 0.1); color: #34d399;
-        }
-        .gen-status-bar.gen-status-failed {
-            background: rgba(239, 68, 68, 0.1); color: #f87171;
-        }
-        .gen-status-spinner {
-            width: 14px; height: 14px; border: 2px solid currentColor;
-            border-top-color: transparent; border-radius: 50%;
-            animation: spin 0.8s linear infinite; flex-shrink: 0;
-        }
-
-        /* 加载 / 空 / 错误状态 */
-        .workspace-state {
-            text-align: center; padding: 40px 20px; color: rgba(255, 255, 255, 0.5);
-        }
-        .workspace-state i { font-size: 48px; margin-bottom: 12px; display: block; opacity: 0.4; }
-        .workspace-state p { font-size: 14px; margin-bottom: 4px; }
-        .workspace-state .sub-text { font-size: 12px; color: var(--text-muted); }
-        .workspace-loading-spinner {
-            width: 40px; height: 40px; margin: 0 auto 16px;
-            border: 3px solid rgba(255, 255, 255, 0.1);
-            border-top-color: var(--primary-light);
-            border-radius: 50%;
-            animation: spin 0.8s linear infinite;
-        }
-
-        /* ─── 参考素材区域（Sprint 4.2）──────────────────────── */
-        .ref-source-area {
-            display: flex; gap: 12px; align-items: stretch;
-        }
-        .ref-source-upload {
-            flex: 1;
-        }
-        .ref-source-divider {
-            display: flex; flex-direction: column; align-items: center;
-            justify-content: center; gap: 8px;
-            padding: 0 4px;
-        }
-        .ref-source-divider-line {
-            width: 1px; flex: 1; background: rgba(255, 255, 255, 0.1);
-        }
-        .ref-source-divider-text {
-            font-size: 11px; color: rgba(255, 255, 255, 0.4);
-            white-space: nowrap;
-        }
-        .ref-source-asset-btn {
-            display: flex; flex-direction: column; align-items: center;
-            justify-content: center; gap: 8px;
-            padding: 16px 20px;
-            border: 2px dashed rgba(255, 255, 255, 0.12);
-            border-radius: 10px;
-            cursor: pointer; color: rgba(255, 255, 255, 0.6);
-            transition: all 0.2s; font-size: 12px;
-            min-width: 100px;
-            background: rgba(255, 255, 255, 0.02);
-        }
-        .ref-source-asset-btn:hover {
-            border-color: rgba(99, 102, 241, 0.4);
-            background: rgba(99, 102, 241, 0.06);
-            color: #a5b4fc;
-        }
-        .ref-source-asset-btn i {
-            font-size: 24px;
-        }
-        .ref-source-asset-btn.asset-selected {
-            border-color: #6366f1;
-            border-style: solid;
-            background: rgba(99, 102, 241, 0.1);
-            color: #c7d2fe;
-        }
-        /* ─── Sprint 4.3: 创作模板选择器 ──────────────────── */
-        .template-selector {
-            margin-bottom: 16px;
-        }
-        .template-selector-label {
-            font-size: 13px;
-            font-weight: 500;
-            color: var(--text-sub);
-            margin-bottom: 10px;
-            display: flex;
-            align-items: center;
-            gap: 6px;
-        }
-        .template-selector-label::before {
-            content: '✨';
-            font-size: 14px;
-        }
-        .template-cards {
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 8px;
-        }
-        .template-card {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            padding: 10px 14px;
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            border-radius: 10px;
-            cursor: pointer;
-            background: rgba(255, 255, 255, 0.03);
-            transition: all 0.2s ease;
-            user-select: none;
-            -webkit-user-select: none;
-        }
-        .template-card:hover {
-            border-color: rgba(99, 102, 241, 0.4);
-            background: rgba(99, 102, 241, 0.08);
-            transform: translateY(-1px);
-            box-shadow: 0 4px 16px rgba(99, 102, 241, 0.15);
-        }
-        .template-card:active {
-            transform: scale(0.97);
-        }
-        .template-card.active {
-            border-color: #6366f1;
-            background: rgba(99, 102, 241, 0.12);
-            box-shadow: 0 0 16px rgba(99, 102, 241, 0.25);
-        }
-        .template-card-icon {
-            font-size: 20px;
-            flex-shrink: 0;
-        }
-        .template-card-name {
-            font-size: 12px;
-            font-weight: 500;
-            color: var(--text-main);
-            white-space: nowrap;
-        }
-        /* 响应式：小屏两列 */
-        @media (max-width: 768px) {
-            .template-cards {
-                grid-template-columns: repeat(2, 1fr);
-            }
         }
     </style>
 </head>
@@ -2796,15 +359,21 @@
         </video>
         <div class="fullscreen-overlay"></div>
     </div>
-    <!-- 侧边栏 — Phase 2-B 结构：首页 / 创作 / 资源 / 账户 -->
+    <!-- 侧边栏 — Phase 2-B: 分组导航结构 -->
     <div class="sidebar" id="sidebar">
+        <div class="sidebar-logo">
+            <div class="logo-icon">煜</div>
+            <span>煜见光影</span>
+        </div>
         <div class="nav-menu">
+            <!-- 首页入口 -->
             <div class="nav-item active" data-page="dashboard" onclick="navigateTo('dashboard')">
                 <i class="fas fa-home"></i><span>首页</span>
             </div>
 
+            <!-- 创作 -->
             <div class="nav-section">创作</div>
-            <div class="nav-item" data-page="ref2video" onclick="navigateTo('ref2video')">
+            <div class="nav-item" data-page="studio" onclick="navigateTo('studio')">
                 <i class="fas fa-wand-magic-sparkles"></i><span>AI创作</span>
             </div>
             <div class="nav-item" data-page="storyboard" onclick="navigateTo('storyboard')">
@@ -2814,50 +383,54 @@
                 <i class="fas fa-scissors"></i><span>视频剪辑</span>
             </div>
 
+            <!-- 资源 -->
             <div class="nav-section">资源</div>
             <div class="nav-item" data-page="assets" onclick="navigateTo('assets')">
                 <i class="fas fa-folder-open"></i><span>素材库</span>
             </div>
             <div class="nav-item" data-page="projects" onclick="navigateTo('projects')">
-                <i class="fas fa-diagram-project"></i><span>项目管理</span>
+                <i class="fas fa-folder"></i><span>项目管理</span>
             </div>
             <div class="nav-item" data-page="myworks" onclick="navigateTo('myworks')">
                 <i class="fas fa-film"></i><span>作品库</span>
             </div>
 
+            <!-- 账户 -->
             <div class="nav-section">账户</div>
             <div class="nav-item" data-page="billing" onclick="navigateTo('billing')">
                 <i class="fas fa-coins"></i><span>积分中心</span>
             </div>
             <div class="nav-item" data-page="settings" onclick="navigateTo('settings')">
-                <i class="fas fa-cog"></i><span>系统设置</span>
+                <i class="fas fa-gear"></i><span>系统设置</span>
             </div>
         </div>
 
-        <!-- 侧边栏底部 -->
+        <!-- 侧边栏底部：用户头像 -->
         <div class="sidebar-footer">
-            <div class="footer-links">
-                <div class="footer-link">
-                    <i class="fas fa-circle-question"></i>
-                    <span>帮助</span>
-                </div>
-            </div>
-            <div class="user-mini">
+            <div class="user-mini" onclick="navigateTo('settings')">
                 <div class="avatar-sm">王</div>
             </div>
         </div>
     </div>
 
-    <!-- 顶部栏（已移除，沉浸式设计） -->
-    <div class="header" style="display:none">
-        <div class="header-right">
-            <div class="quota-display">
-                <i class="fas fa-coins"></i>
-                <span>剩余额度：<strong>18,700</strong> 积分</span>
+    <!-- 顶部栏 — Phase 2-B: 统一头部 -->
+    <div class="header" id="mainHeader">
+        <div class="page-title">
+            <h1 class="yj-header-page-title" id="headerPageTitle">首页</h1>
+            <div class="yj-breadcrumb" id="headerBreadcrumb">
+                <span class="yj-breadcrumb-item yj-breadcrumb-current">首页</span>
             </div>
-            <div class="user-avatar">
-                <div class="avatar-circle">王</div>
-                <span style="font-size: 14px;">王磊</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:16px">
+            <div class="yj-credits-display" onclick="navigateTo('billing')" title="点击查看积分详情">
+                <i class="fas fa-coins"></i>
+                <span>剩余</span>
+                <span class="yj-credits-value" id="headerCredits">18,700</span>
+                <span>积分</span>
+            </div>
+            <div class="yj-user-entry" onclick="navigateTo('settings')" title="账户设置">
+                <div class="yj-user-avatar">王</div>
+                <span class="yj-user-name">王磊</span>
             </div>
         </div>
     </div>
@@ -3205,6 +778,7 @@
             const container = document.getElementById('mainContent');
             switch (page) {
                 case 'dashboard': container.innerHTML = renderDashboard(); break;
+                case 'studio': container.innerHTML = renderStudio(); initTemplateSelector('#studioTemplateContainer', 'studioPrompt'); break;
                 case 'storyboard': container.innerHTML = renderStoryboardPage(); break;
                 case 'text2video': container.innerHTML = renderText2Video(); initTemplateSelector('#t2vTemplateContainer', 't2vPrompt'); break;
                 case 'image2video': container.innerHTML = renderImage2Video(); initTemplateSelector('#i2vTemplateContainer', 'i2vPrompt'); break;
@@ -3247,8 +821,8 @@
                                 <span class="sans-text">生辉</span>
                             </div>
                         </div>
-                        <button class="hero-btn" onclick="navigateTo('ref2video')">
-                            使用 YuanjianGuang 1.1
+                        <button class="hero-btn" onclick="navigateTo('studio')">
+                            开始AI创作
                             <i class="fas fa-arrow-right"></i>
                         </button>
                     </div>
@@ -3256,13 +830,13 @@
                 
                 <!-- 功能卡片 -->
                 <div class="feature-cards">
-                    <div class="feature-card" onclick="navigateTo('ref2video')">
+                    <div class="feature-card" onclick="navigateTo('studio')">
                         <div class="feature-card-info">
                             <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
-                                <h4>YuanjianGuang 1.1</h4>
+                                <h4>AI创作中心</h4>
                                 <span class="feature-card-badge">NEW</span>
                             </div>
-                            <p>影视级视频生成</p>
+                            <p>统一创作入口，一站式生成</p>
                         </div>
                         <i class="fas fa-arrow-up-right-from-square feature-card-arrow"></i>
                     </div>
@@ -3282,7 +856,7 @@
                     </div>
                     <div class="feature-card" onclick="navigateTo('assets')">
                         <div class="feature-card-info">
-                            <h4>资产管理</h4>
+                            <h4>素材库</h4>
                             <p>素材统一管理</p>
                         </div>
                         <i class="fas fa-arrow-up-right-from-square feature-card-arrow"></i>
@@ -3324,6 +898,692 @@
                 </div>
             `;
         }
+        // ===================================================
+        //  Phase 2-C: AI创作中心 — 统一创作页面
+        // ===================================================
+        var STUDIO_STATE = {
+            creationType: 'image2video',  // 当前创作类型: imageGen | image2video | text2video | digitalhuman
+            selectedFile: null,
+            previewUrl: null,
+            uploadedImageUrl: null,
+            assetId: null,
+            selectedAsset: null,
+            sourceMode: 'upload',
+            currentTaskId: null,
+            isUploading: false,
+            isGenerating: false
+        };
+
+        function renderStudio() {
+            return ''
+                + '<div class="yj-studio-container">'
+                // ── Step 1: 创作类型选择器 ──
+                + '<div class="yj-studio-type-selector">'
+                + '  <div class="yj-studio-type-card active" data-type="image2video" onclick="studioSelectType(this, \'image2video\')">'
+                + '    <div class="yj-studio-type-icon"><i class="fas fa-video"></i></div>'
+                + '    <div class="yj-studio-type-label">图片转视频</div>'
+                + '    <div class="yj-studio-type-desc">静态图片 → 动态视频</div>'
+                + '  </div>'
+                + '  <div class="yj-studio-type-card" data-type="text2video" onclick="studioSelectType(this, \'text2video\')">'
+                + '    <div class="yj-studio-type-icon"><i class="fas fa-film"></i></div>'
+                + '    <div class="yj-studio-type-label">文字生成视频</div>'
+                + '    <div class="yj-studio-type-desc">文字描述 → 视频</div>'
+                + '  </div>'
+                + '  <div class="yj-studio-type-card" data-type="imageGen" onclick="studioSelectType(this, \'imageGen\')">'
+                + '    <div class="yj-studio-type-icon"><i class="fas fa-image"></i></div>'
+                + '    <div class="yj-studio-type-label">图片生成</div>'
+                + '    <div class="yj-studio-type-desc">文字描述 → 图片</div>'
+                + '  </div>'
+                + '  <div class="yj-studio-type-card" data-type="digitalhuman" onclick="studioSelectType(this, \'digitalhuman\')">'
+                + '    <div class="yj-studio-type-icon"><i class="fas fa-user-tie"></i></div>'
+                + '    <div class="yj-studio-type-label">数字人口播</div>'
+                + '    <div class="yj-studio-type-desc">真人形象，智能口播</div>'
+                + '  </div>'
+                + '</div>'
+                // ── Main layout: left panel + right preview ──
+                + '<div class="yj-studio-layout">'
+                + '<div class="yj-studio-panel">'
+                // ── Step 2: 素材输入区 ──
+                + '<div class="yj-studio-section" id="studioMaterialSection">'
+                + '  <div class="yj-studio-section-header">'
+                + '    <span class="yj-studio-step-badge">1</span>'
+                + '    <label>素材输入</label>'
+                + '    <span class="yj-studio-hint">上传图片或从素材库选择</span>'
+                + '  </div>'
+                + '  <div class="yj-studio-material-area">'
+                + '    <div class="yj-studio-upload-wrap">'
+                + '      <div class="yj-upload-zone" id="studioUploadZone" onclick="document.getElementById(\'studioFileInput\').click()">'
+                + '        <i class="fas fa-cloud-upload-alt yj-upload-zone-icon"></i>'
+                + '        <div class="yj-upload-zone-text" id="studioUploadText">点击上传图片</div>'
+                + '        <div class="yj-upload-zone-hint">JPG / PNG / WebP</div>'
+                + '      </div>'
+                + '      <input type="file" id="studioFileInput" accept="image/jpeg,image/png,image/webp" style="display:none" onchange="studioHandleFileSelect(event)">'
+                + '    </div>'
+                + '    <div class="yj-studio-material-divider"><span>或</span></div>'
+                + '    <button class="yj-btn yj-btn-outline yj-studio-asset-btn" onclick="openAssetPicker({type:\'image\', callback: studioOnAssetPicked})">'
+                + '      <i class="fas fa-folder-open"></i> 从素材库选择'
+                + '    </button>'
+                + '  </div>'
+                + '  <div class="yj-studio-preview-thumb" id="studioPreviewThumb" style="display:none">'
+                + '    <img id="studioPreviewImg" src="" alt="预览">'
+                + '    <div class="yj-studio-preview-info">'
+                + '      <span id="studioFileInfo"></span>'
+                + '      <button class="yj-btn yj-btn-sm yj-btn-ghost" onclick="studioClearMaterial()" style="color:var(--danger)"><i class="fas fa-trash"></i> 移除</button>'
+                + '    </div>'
+                + '  </div>'
+                + '</div>'
+                // ── Step 3: Prompt区域 ──
+                + '<div class="yj-studio-section" id="studioPromptSection">'
+                + '  <div class="yj-studio-section-header">'
+                + '    <span class="yj-studio-step-badge">2</span>'
+                + '    <label>提示词</label>'
+                + '    <span class="yj-studio-hint">描述期望的生成效果</span>'
+                + '  </div>'
+                + '  <div id="studioTemplateContainer"></div>'
+                + '  <textarea id="studioPrompt" class="yj-studio-prompt-textarea" rows="4"'
+                + '    placeholder="描述期望的画面内容、风格、运镜方式..."'
+                + '    oninput="studioUpdatePromptCount()"></textarea>'
+                + '  <div class="yj-studio-prompt-footer">'
+                + '    <span class="yj-studio-prompt-counter"><span id="studioPromptCount">0</span>/2000</span>'
+                + '  </div>'
+                + '</div>'
+                // ── Step 4: 参数区域 ──
+                + '<div class="yj-studio-section" id="studioParamsSection">'
+                + '  <div class="yj-studio-section-header">'
+                + '    <span class="yj-studio-step-badge">3</span>'
+                + '    <label>参数配置</label>'
+                + '  </div>'
+                + '  <div class="yj-studio-params">'
+                + '    <div class="yj-studio-param-row">'
+                + '      <div class="yj-studio-param-item">'
+                + '        <label>模型</label>'
+                + '        <select id="studioModel" class="yj-studio-select">'
+                + '          <option value="happyhorse-i2v" selected>HappyHorse 图片转视频</option>'
+                + '        </select>'
+                + '      </div>'
+                + '      <div class="yj-studio-param-item">'
+                + '        <label>视频时长</label>'
+                + '        <select id="studioDuration" class="yj-studio-select">'
+                + '          <option value="2">2 秒</option>'
+                + '          <option value="5" selected>5 秒</option>'
+                + '          <option value="10">10 秒</option>'
+                + '        </select>'
+                + '      </div>'
+                + '    </div>'
+                + '    <div class="yj-studio-param-row">'
+                + '      <div class="yj-studio-param-item">'
+                + '        <label>画面风格</label>'
+                + '        <select id="studioStyle" class="yj-studio-select">'
+                + '          <option value="realistic" selected>真实感</option>'
+                + '          <option value="anime">动漫风格</option>'
+                + '          <option value="cyberpunk">赛博朋克</option>'
+                + '          <option value="watercolor">水彩画</option>'
+                + '          <option value="3d">3D渲染</option>'
+                + '          <option value="cinematic">电影感</option>'
+                + '        </select>'
+                + '      </div>'
+                + '      <div class="yj-studio-param-item">'
+                + '        <label>画面比例</label>'
+                + '        <select id="studioRatio" class="yj-studio-select">'
+                + '          <option value="16:9" selected>16:9 横屏</option>'
+                + '          <option value="9:16">9:16 竖屏</option>'
+                + '          <option value="1:1">1:1 方形</option>'
+                + '        </select>'
+                + '      </div>'
+                + '    </div>'
+                + '    <div class="yj-studio-param-row">'
+                + '      <div class="yj-studio-param-item">'
+                + '        <label>分辨率</label>'
+                + '        <select id="studioResolution" class="yj-studio-select">'
+                + '          <option value="720p">720P（HD）</option>'
+                + '          <option value="1080p" selected>1080P（FHD）</option>'
+                + '        </select>'
+                + '      </div>'
+                + '    </div>'
+                + '  </div>'
+                + '</div>'
+                // ── Step 5: 生成按钮 ──
+                + '<div class="yj-studio-action-bar">'
+                + '  <div class="yj-studio-cost-hint" id="studioCostHint">'
+                + '    <i class="fas fa-coins"></i>'
+                + '    <span>预计消耗 <strong id="studioCostEstimate">~ 80</strong> 积分</span>'
+                + '  </div>'
+                + '  <button class="yj-studio-generate-btn" id="studioGenerateBtn" onclick="studioStartGenerate()">'
+                + '    <i class="fas fa-magic"></i> <span id="studioGenerateText">开始生成</span>'
+                + '  </button>'
+                + '</div>'
+                // ── Step 6: 状态反馈 ──
+                + '<div class="yj-studio-status" id="studioStatus" style="display:none">'
+                + '  <div class="yj-studio-status-inner">'
+                + '    <div class="yj-studio-status-icon" id="studioStatusIcon">'
+                + '      <div class="yj-spinner yj-spinner-lg"></div>'
+                + '    </div>'
+                + '    <div class="yj-studio-status-text" id="studioStatusText">等待生成...</div>'
+                + '    <div class="yj-studio-status-progress" id="studioStatusProgress" style="display:none">'
+                + '      <div class="yj-progress">'
+                + '        <div class="yj-progress-bar" id="studioProgressBar" style="width:0%"></div>'
+                + '      </div>'
+                + '    </div>'
+                + '    <div class="yj-studio-status-actions" id="studioStatusActions" style="display:none"></div>'
+                + '  </div>'
+                + '</div>'
+                // ── Step 7: 结果区域 ──
+                + '<div class="yj-studio-result" id="studioResult" style="display:none">'
+                + '  <div class="yj-studio-result-header">'
+                + '    <span><i class="fas fa-check-circle" style="color:var(--success)"></i> 生成完成</span>'
+                + '  </div>'
+                + '  <div class="yj-studio-result-body" id="studioResultBody"></div>'
+                + '  <div class="yj-studio-result-actions">'
+                + '    <a class="yj-btn yj-btn-outline yj-btn-sm" id="studioDownloadBtn" target="_blank" rel="noopener" style="display:none">'
+                + '      <i class="fas fa-download"></i> 下载</a>'
+                + '    <button class="yj-btn yj-btn-outline yj-btn-sm" onclick="studioReset()">'
+                + '      <i class="fas fa-redo"></i> 再次生成</button>'
+                + '    <button class="yj-btn yj-btn-primary yj-btn-sm" id="studioSendToEditorBtn" onclick="navigateTo(\'editor\')" style="display:none">'
+                + '      <i class="fas fa-scissors"></i> 发送到剪辑</button>'
+                + '  </div>'
+                + '</div>'
+                + '</div>'  // close yj-studio-panel
+                // ── 右侧预览面板 ──
+                + '<div class="yj-studio-preview-panel" id="studioPreviewPanel">'
+                + '  <div class="yj-studio-preview-placeholder" id="studioPreviewPlaceholder">'
+                + '    <i class="fas fa-image" style="font-size:64px;opacity:0.3"></i>'
+                + '    <div style="font-size:15px;color:var(--text-sub);margin-top:12px">预览区域</div>'
+                + '    <div style="font-size:12px;color:var(--text-muted);margin-top:6px">上传素材后可在此预览</div>'
+                + '  </div>'
+                + '  <img id="studioLargePreview" style="display:none;width:100%;height:100%;object-fit:contain;position:relative;z-index:1" alt="大图预览">'
+                + '  <video id="studioResultVideo" controls playsinline style="display:none;width:100%;max-height:100%;border-radius:8px;background:#000"></video>'
+                + '</div>'
+                + '</div>'  // close yj-studio-layout
+                + '</div>';  // close yj-studio-container
+        }
+
+        // ─── 创作类型切换 ───────────────────────────────
+        function studioSelectType(el, type) {
+            STUDIO_STATE.creationType = type;
+            document.querySelectorAll('.yj-studio-type-card').forEach(function(c) {
+                c.classList.remove('active');
+            });
+            if (el) el.classList.add('active');
+
+            // 根据类型调整 UI 可见性
+            var materialSection = document.getElementById('studioMaterialSection');
+            var promptSection = document.getElementById('studioPromptSection');
+            var paramsSection = document.getElementById('studioParamsSection');
+            var modelSelect = document.getElementById('studioModel');
+            var durationSelect = document.getElementById('studioDuration');
+            var costEstimate = document.getElementById('studioCostEstimate');
+
+            // 图片生成不需要素材输入
+            if (type === 'imageGen') {
+                if (materialSection) materialSection.style.display = 'none';
+                if (promptSection) promptSection.querySelector('.yj-studio-section-header label').textContent = '图片描述';
+                if (modelSelect) {
+                    modelSelect.innerHTML = '<option value="wanx-image" selected>通义万相 图片生成</option>';
+                }
+                if (durationSelect) { durationSelect.parentElement.parentElement.style.display = 'none'; }
+                if (costEstimate) costEstimate.textContent = '~ 4 积分';
+            } else if (type === 'digitalhuman') {
+                if (materialSection) materialSection.style.display = 'block';
+                if (promptSection) promptSection.querySelector('.yj-studio-section-header label').textContent = '口播文案';
+                if (modelSelect) {
+                    modelSelect.innerHTML = '<option value="wanx-digitalhuman" selected>万相数字人 Pro</option>';
+                }
+                if (durationSelect) { durationSelect.parentElement.parentElement.style.display = 'block'; }
+                if (costEstimate) costEstimate.textContent = '~ 120 积分';
+            } else {
+                // image2video, text2video
+                if (materialSection) {
+                    materialSection.style.display = (type === 'text2video') ? 'none' : 'block';
+                }
+                if (promptSection) promptSection.querySelector('.yj-studio-section-header label').textContent = '提示词';
+                if (modelSelect) {
+                    if (type === 'image2video') {
+                        modelSelect.innerHTML = '<option value="happyhorse-i2v" selected>HappyHorse 图片转视频</option>';
+                    } else {
+                        modelSelect.innerHTML = '<option value="yuanjianguang" selected>YuanjianGuang 1.1</option>';
+                    }
+                }
+                if (durationSelect) { durationSelect.parentElement.parentElement.style.display = 'block'; }
+                if (costEstimate) {
+                    costEstimate.textContent = (type === 'text2video') ? '~ 80 积分' : '~ 80 积分';
+                }
+            }
+
+            // 清理素材状态
+            studioClearMaterial();
+            // 重置结果
+            studioResetResult();
+        }
+
+        // ─── 文件选择处理 ───────────────────────────────
+        async function studioHandleFileSelect(event) {
+            var file = event.target.files && event.target.files[0];
+            if (!file) return;
+
+            studioClearMaterial();
+
+            var validation = await YuJianUpload.validateImage(file);
+            if (!validation.valid) {
+                showToast(validation.error, 'error');
+                event.target.value = '';
+                return;
+            }
+
+            var meta = validation.meta;
+            var preview = YuJianUpload.createPreview(file);
+
+            STUDIO_STATE.selectedFile = file;
+            STUDIO_STATE.previewUrl = preview.url;
+            STUDIO_STATE.uploadedImageUrl = null;
+            STUDIO_STATE.assetId = null;
+            STUDIO_STATE.sourceMode = 'upload';
+
+            studioShowPreview(preview.url, meta);
+        }
+
+        // ─── 资产选择回调 ───────────────────────────────
+        function studioOnAssetPicked(asset) {
+            STUDIO_STATE.sourceMode = 'asset';
+            STUDIO_STATE.selectedAsset = asset;
+            STUDIO_STATE.assetId = asset.id;
+            STUDIO_STATE.selectedFile = null;
+            STUDIO_STATE.uploadedImageUrl = asset.url;
+
+            var thumbUrl = asset.thumbnailUrl || asset.url || '';
+            studioShowPreview(thumbUrl, {
+                name: asset.name || '素材',
+                size: asset.size || 0,
+                width: asset.width || 0,
+                height: asset.height || 0
+            });
+
+            showToast('已选择素材：' + (asset.name || '未命名'), 'success');
+        }
+
+        // ─── 显示预览 ───────────────────────────────────
+        function studioShowPreview(url, meta) {
+            var thumbContainer = document.getElementById('studioPreviewThumb');
+            var img = document.getElementById('studioPreviewImg');
+            var info = document.getElementById('studioFileInfo');
+            var uploadZone = document.getElementById('studioUploadZone');
+
+            if (thumbContainer) thumbContainer.style.display = 'block';
+            if (img) img.src = url;
+            if (info && meta) {
+                var parts = [];
+                if (meta.name) parts.push(meta.name);
+                if (meta.size) parts.push((meta.size / (1024 * 1024)).toFixed(2) + 'MB');
+                if (meta.width && meta.height) parts.push(meta.width + '×' + meta.height);
+                info.textContent = parts.join(' | ');
+            }
+            if (uploadZone) uploadZone.classList.add('filled');
+
+            // 大图预览
+            var largePreview = document.getElementById('studioLargePreview');
+            var placeholder = document.getElementById('studioPreviewPlaceholder');
+            if (largePreview) { largePreview.src = url; largePreview.style.display = 'block'; }
+            if (placeholder) placeholder.style.display = 'none';
+
+            studioResetResult();
+        }
+
+        // ─── 清理素材 ───────────────────────────────────
+        function studioClearMaterial() {
+            if (STUDIO_STATE.previewUrl) {
+                URL.revokeObjectURL(STUDIO_STATE.previewUrl);
+            }
+            STUDIO_STATE.selectedFile = null;
+            STUDIO_STATE.previewUrl = null;
+            STUDIO_STATE.uploadedImageUrl = null;
+            STUDIO_STATE.assetId = null;
+            STUDIO_STATE.selectedAsset = null;
+            STUDIO_STATE.sourceMode = 'upload';
+
+            var thumbContainer = document.getElementById('studioPreviewThumb');
+            var uploadZone = document.getElementById('studioUploadZone');
+            var largePreview = document.getElementById('studioLargePreview');
+            var placeholder = document.getElementById('studioPreviewPlaceholder');
+
+            if (thumbContainer) thumbContainer.style.display = 'none';
+            if (uploadZone) uploadZone.classList.remove('filled');
+            if (largePreview) { largePreview.style.display = 'none'; largePreview.src = ''; }
+            if (placeholder) placeholder.style.display = '';
+
+            var fileInput = document.getElementById('studioFileInput');
+            if (fileInput) fileInput.value = '';
+        }
+
+        // ─── Prompt字数统计 ──────────────────────────────
+        function studioUpdatePromptCount() {
+            var promptEl = document.getElementById('studioPrompt');
+            var countEl = document.getElementById('studioPromptCount');
+            if (promptEl && countEl) {
+                countEl.textContent = (promptEl.value || '').length;
+            }
+        }
+
+        // ─── 开始生成 ────────────────────────────────────
+        async function studioStartGenerate() {
+            if (STUDIO_STATE.isGenerating) return;
+
+            var prompt = (document.getElementById('studioPrompt').value || '').trim();
+            if (!prompt) {
+                showToast('请输入提示词', 'warning');
+                return;
+            }
+            if (prompt.length > 2000) {
+                showToast('提示词不能超过2000字', 'warning');
+                return;
+            }
+
+            STUDIO_STATE.isGenerating = true;
+            var generateBtn = document.getElementById('studioGenerateBtn');
+            var generateText = document.getElementById('studioGenerateText');
+            var statusArea = document.getElementById('studioStatus');
+            var statusText = document.getElementById('studioStatusText');
+            var statusIcon = document.getElementById('studioStatusIcon');
+            var statusProgress = document.getElementById('studioStatusProgress');
+            var progressBar = document.getElementById('studioProgressBar');
+            var statusActions = document.getElementById('studioStatusActions');
+            var resultArea = document.getElementById('studioResult');
+
+            // 重置状态
+            if (statusArea) statusArea.style.display = 'block';
+            if (resultArea) resultArea.style.display = 'none';
+            if (statusIcon) statusIcon.innerHTML = '<div class="yj-spinner yj-spinner-lg"></div>';
+            if (statusText) statusText.textContent = '准备提交任务...';
+            if (statusProgress) statusProgress.style.display = 'none';
+            if (statusActions) statusActions.style.display = 'none';
+            if (generateBtn) generateBtn.disabled = true;
+            if (generateText) generateText.textContent = '提交中...';
+
+            var creationType = STUDIO_STATE.creationType;
+
+            try {
+                // 设置 Processing 状态
+                if (statusText) statusText.textContent = '正在生成，请耐心等待...';
+                if (statusProgress) statusProgress.style.display = 'block';
+                if (progressBar) progressBar.style.width = '0%';
+                if (generateText) generateText.textContent = '生成中...';
+
+                // 根据类型选择生成方式
+                var task = null;
+                if (creationType === 'imageGen') {
+                    // 图片生成 — 直接使用 API
+                    task = await YuJianAPI.request('/enterprise/video-generation/text-to-image', {
+                        method: 'POST',
+                        body: JSON.stringify({
+                            prompt: prompt,
+                            style: document.getElementById('studioStyle').value,
+                            ratio: document.getElementById('studioRatio').value,
+                            count: 4
+                        })
+                    });
+                } else if (creationType === 'digitalhuman') {
+                    // 数字人口播
+                    task = await YuJianAPI.request('/enterprise/video-generation/digital-human', {
+                        method: 'POST',
+                        body: JSON.stringify({
+                            prompt: prompt,
+                            avatar: '职场女性-小雅',
+                            voice: '温柔女声-小雅',
+                            duration: parseInt(document.getElementById('studioDuration').value) || 5,
+                            resolution: document.getElementById('studioResolution').value,
+                            ratio: document.getElementById('studioRatio').value
+                        })
+                    });
+                } else {
+                    // image2video / text2video — 使用 video-task 模块
+                    var taskInput = {
+                        prompt: prompt,
+                        duration: parseInt(document.getElementById('studioDuration').value) || 5,
+                        resolution: document.getElementById('studioResolution').value,
+                        ratio: document.getElementById('studioRatio').value
+                    };
+
+                    if (creationType === 'image2video') {
+                        if (!STUDIO_STATE.assetId && !STUDIO_STATE.uploadedImageUrl && !STUDIO_STATE.selectedFile) {
+                            throw new Error('请先上传参考图片');
+                        }
+                        if (STUDIO_STATE.assetId) {
+                            taskInput.sourceAssetId = STUDIO_STATE.assetId;
+                        } else if (STUDIO_STATE.uploadedImageUrl) {
+                            taskInput.imageUrl = STUDIO_STATE.uploadedImageUrl;
+                        } else if (STUDIO_STATE.selectedFile) {
+                            // 先上传
+                            if (statusText) statusText.textContent = '正在上传素材...';
+                            if (generateText) generateText.textContent = '上传中...';
+                            var uploadResult = await YuJianUpload.uploadImage(STUDIO_STATE.selectedFile);
+                            STUDIO_STATE.uploadedImageUrl = uploadResult.url;
+                            STUDIO_STATE.assetId = uploadResult.id;
+                            taskInput.imageUrl = uploadResult.url;
+                            taskInput.sourceAssetId = uploadResult.id;
+                        }
+                        taskInput.templateId = 'image_to_video';
+                    } else {
+                        taskInput.templateId = 'text_to_video';
+                    }
+
+                    task = await YuJianVideoTask.createImageToVideoTask(taskInput);
+                }
+
+                STUDIO_STATE.currentTaskId = task.id || task.task_id;
+                console.log('[Studio] 任务创建成功, taskId:', STUDIO_STATE.currentTaskId);
+
+                // 开始轮询
+                if (typeof YuJianVideoTask !== 'undefined' && YuJianVideoTask.pollTaskStatus) {
+                    YuJianVideoTask.pollTaskStatus(STUDIO_STATE.currentTaskId, {
+                        onUpdate: function(t) {
+                            var pct = (t.progress !== null && t.progress !== undefined) ? t.progress : 0;
+                            if (progressBar) progressBar.style.width = pct + '%';
+                            if (statusText) {
+                                statusText.textContent = (t.status === 'pending')
+                                    ? '排队中...'
+                                    : '生成中 ' + pct + '%';
+                            }
+                            if (generateText) {
+                                generateText.textContent = (t.status === 'pending') ? '排队中...' : pct + '%';
+                            }
+                        },
+                        onSuccess: function(t) {
+                            studioOnSuccess(t);
+                        },
+                        onFailed: function(t) {
+                            studioOnFailed(t);
+                        },
+                        onTimeout: function() {
+                            studioOnTimeout();
+                        },
+                        onError: function(err) {
+                            console.error('[Studio] 轮询出错:', err);
+                        }
+                    });
+                } else {
+                    // 无轮询模块，直接显示成功
+                    studioOnSuccess(task);
+                }
+
+            } catch (err) {
+                console.error('[Studio] 生成失败:', err);
+                studioOnFailed({ error_msg: err.message || '生成失败，请重试' });
+            }
+        }
+
+        // ─── 生成成功 ────────────────────────────────────
+        function studioOnSuccess(task) {
+            STUDIO_STATE.isGenerating = false;
+            var generateBtn = document.getElementById('studioGenerateBtn');
+            var generateText = document.getElementById('studioGenerateText');
+            var statusText = document.getElementById('studioStatusText');
+            var statusIcon = document.getElementById('studioStatusIcon');
+            var statusProgress = document.getElementById('studioStatusProgress');
+            var progressBar = document.getElementById('studioProgressBar');
+            var statusActions = document.getElementById('studioStatusActions');
+            var resultArea = document.getElementById('studioResult');
+            var resultBody = document.getElementById('studioResultBody');
+            var downloadBtn = document.getElementById('studioDownloadBtn');
+            var sendToEditorBtn = document.getElementById('studioSendToEditorBtn');
+
+            if (statusIcon) statusIcon.innerHTML = '<i class="fas fa-check-circle" style="font-size:36px;color:var(--success)"></i>';
+            if (statusText) statusText.textContent = '生成成功！';
+            if (statusProgress) statusProgress.style.display = 'none';
+            if (progressBar) progressBar.style.width = '100%';
+            if (generateBtn) generateBtn.disabled = false;
+            if (generateText) generateText.textContent = '开始生成';
+
+            // 结果展示
+            var videoUrl = task.playUrl || task.videoUrl || task.output_url || '';
+            if (resultArea) resultArea.style.display = 'block';
+            if (resultBody) {
+                if (videoUrl) {
+                    resultBody.innerHTML = '<video src="' + escapeHtml(videoUrl) + '" controls playsinline style="width:100%;max-height:300px;border-radius:8px;background:#000"></video>';
+                    if (downloadBtn) { downloadBtn.href = videoUrl; downloadBtn.style.display = 'inline-flex'; }
+                    if (sendToEditorBtn) {
+                        sendToEditorBtn.style.display = 'inline-flex';
+                        // Phase 2-D-1-B: Wire Studio → Editor bridge
+                        sendToEditorBtn.onclick = function() {
+                            var bridgeAsset = {
+                                id: task.task_id || task.id || '',
+                                name: task.prompt ? task.prompt.substring(0, 40) : 'AI生成视频',
+                                type: 'video',
+                                url: videoUrl,
+                                duration: task.duration || 5,
+                                thumbnailUrl: task.cover_url || ''
+                            };
+                            if (window.YJ && window.YJ.Editor && window.YJ.Editor.openEditorWithAsset) {
+                                YJ.Editor.openEditorWithAsset(bridgeAsset);
+                            } else {
+                                navigateTo('editor');
+                            }
+                        };
+                    }
+
+                    // 右侧预览
+                    var previewVideo = document.getElementById('studioResultVideo');
+                    var placeholder = document.getElementById('studioPreviewPlaceholder');
+                    var largePreview = document.getElementById('studioLargePreview');
+                    if (previewVideo) { previewVideo.src = videoUrl; previewVideo.style.display = 'block'; }
+                    if (placeholder) placeholder.style.display = 'none';
+                    if (largePreview) largePreview.style.display = 'none';
+                } else if (task.images && task.images.length > 0) {
+                    // 图片生成结果
+                    resultBody.innerHTML = '<div style="display:grid;grid-template-columns:repeat(2,1fr);gap:8px">'
+                        + task.images.map(function(img) {
+                            return '<img src="' + escapeHtml(img) + '" style="width:100%;border-radius:8px" alt="生成图片">';
+                        }).join('')
+                        + '</div>';
+                    if (sendToEditorBtn) {
+                        sendToEditorBtn.style.display = 'inline-flex';
+                        sendToEditorBtn.onclick = function() {
+                            var bridgeAsset = {
+                                id: task.task_id || task.id || '',
+                                name: task.prompt ? task.prompt.substring(0, 40) : 'AI生成图片',
+                                type: 'image',
+                                url: task.images[0] || '',
+                                duration: 5,
+                                thumbnailUrl: task.images[0] || ''
+                            };
+                            if (window.YJ && window.YJ.Editor && window.YJ.Editor.openEditorWithAsset) {
+                                YJ.Editor.openEditorWithAsset(bridgeAsset);
+                            } else {
+                                navigateTo('editor');
+                            }
+                        };
+                    }
+                } else {
+                    resultBody.innerHTML = '<div style="text-align:center;padding:20px;color:var(--text-sub)">'
+                        + '<i class="fas fa-check-circle" style="font-size:32px;color:var(--success);display:block;margin-bottom:8px"></i>'
+                        + '生成完成，请在<a href="javascript:navigateTo(\'myworks\')" style="color:var(--primary-light)">作品库</a>中查看</div>';
+                }
+            }
+
+            if (statusActions) {
+                statusActions.style.display = 'flex';
+                statusActions.innerHTML = ''
+                    + '<button class="yj-btn yj-btn-outline yj-btn-sm" onclick="studioReset()"><i class="fas fa-redo"></i> 再次生成</button>'
+                    + '<button class="yj-btn yj-btn-primary yj-btn-sm" onclick="navigateTo(\'myworks\')"><i class="fas fa-film"></i> 查看作品库</button>';
+            }
+
+            showToast('生成成功！', 'success');
+            refreshMyWorksIfActive();
+        }
+
+        // ─── 生成失败 ────────────────────────────────────
+        function studioOnFailed(task) {
+            STUDIO_STATE.isGenerating = false;
+            var generateBtn = document.getElementById('studioGenerateBtn');
+            var generateText = document.getElementById('studioGenerateText');
+            var statusText = document.getElementById('studioStatusText');
+            var statusIcon = document.getElementById('studioStatusIcon');
+            var statusProgress = document.getElementById('studioStatusProgress');
+            var statusActions = document.getElementById('studioStatusActions');
+
+            if (statusIcon) statusIcon.innerHTML = '<i class="fas fa-exclamation-circle" style="font-size:36px;color:var(--danger)"></i>';
+            if (statusText) statusText.textContent = '生成失败：' + (task.error_msg || task.errorMsg || '未知错误');
+            if (statusProgress) statusProgress.style.display = 'none';
+            if (generateBtn) generateBtn.disabled = false;
+            if (generateText) generateText.textContent = '重新生成';
+
+            if (statusActions) {
+                statusActions.style.display = 'flex';
+                statusActions.innerHTML = ''
+                    + '<button class="yj-btn yj-btn-outline yj-btn-sm" onclick="studioStartGenerate()"><i class="fas fa-redo"></i> 重试</button>'
+                    + '<button class="yj-btn yj-btn-ghost yj-btn-sm" onclick="studioReset()"><i class="fas fa-times"></i> 取消</button>';
+            }
+
+            showToast(task.error_msg || task.errorMsg || '生成失败，请重试', 'error');
+        }
+
+        // ─── 生成超时 ────────────────────────────────────
+        function studioOnTimeout() {
+            STUDIO_STATE.isGenerating = false;
+            var generateBtn = document.getElementById('studioGenerateBtn');
+            var generateText = document.getElementById('studioGenerateText');
+            var statusText = document.getElementById('studioStatusText');
+            var statusIcon = document.getElementById('studioStatusIcon');
+            var statusActions = document.getElementById('studioStatusActions');
+
+            if (statusIcon) statusIcon.innerHTML = '<i class="fas fa-clock" style="font-size:36px;color:var(--warning)"></i>';
+            if (statusText) statusText.textContent = '任务状态确认超时，可稍后在作品库中查看';
+            if (generateBtn) generateBtn.disabled = false;
+            if (generateText) generateText.textContent = '重新生成';
+
+            if (statusActions) {
+                statusActions.style.display = 'flex';
+                statusActions.innerHTML = ''
+                    + '<button class="yj-btn yj-btn-outline yj-btn-sm" onclick="studioStartGenerate()"><i class="fas fa-redo"></i> 重试</button>'
+                    + '<button class="yj-btn yj-btn-primary yj-btn-sm" onclick="navigateTo(\'myworks\')"><i class="fas fa-film"></i> 查看作品库</button>';
+            }
+
+            showToast('任务确认超时，可稍后在作品库中查看', 'warning');
+        }
+
+        // ─── 重置结果 ────────────────────────────────────
+        function studioResetResult() {
+            var resultArea = document.getElementById('studioResult');
+            var statusArea = document.getElementById('studioStatus');
+            var previewVideo = document.getElementById('studioResultVideo');
+
+            if (resultArea) resultArea.style.display = 'none';
+            if (statusArea) statusArea.style.display = 'none';
+            if (previewVideo) { previewVideo.style.display = 'none'; previewVideo.src = ''; }
+        }
+
+        // ─── 重置整个 Studio 状态 ─────────────────────────
+        function studioReset() {
+            STUDIO_STATE.isGenerating = false;
+            STUDIO_STATE.currentTaskId = null;
+
+            var generateBtn = document.getElementById('studioGenerateBtn');
+            var generateText = document.getElementById('studioGenerateText');
+
+            if (generateBtn) generateBtn.disabled = false;
+            if (generateText) generateText.textContent = '开始生成';
+
+            studioResetResult();
+        }
+
+        // ═══════════════════════════════════════════════════
         function renderStoryboardPage() {
             const s = APP.storyboard;
             return `
@@ -3953,31 +2213,349 @@
         }
 
         function renderProjects() {
-            return `
-                <div class="toolbar">
-                    <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap">
-                        <div class="search-box"><i class="fas fa-search"></i><input type="text" placeholder="搜索项目..."></div>
-                        <select class="btn btn-outline" style="padding:8px 12px"><option>全部类型</option><option>文生视频</option><option>图生视频</option><option>故事板</option><option>数字人</option></select>
-                        <select class="btn btn-outline" style="padding:8px 12px"><option>全部状态</option><option>已完成</option><option>进行中</option><option>草稿</option></select>
-                    </div>
-                    <button class="btn btn-primary" onclick="navigateTo('text2video')"><i class="fas fa-plus"></i> 新建项目</button>
-                </div>
-                <div class="project-grid">
-                    ${APP.projects.map(p => `
-                        <div class="project-card">
-                            <div class="project-thumb"><i class="fas fa-${p.type === '文生视频' ? 'video' : p.type === '故事板' ? 'film' : p.type === '数字人' ? 'user-circle' : 'image'}"></i></div>
-                            <div class="project-info">
-                                <h4>${p.name}</h4>
-                                <div class="project-meta">
-                                    <span>${p.type}</span>
-                                    <span class="status-badge status-${p.status === '已完成' ? 'active' : p.status === '进行中' ? 'processing' : 'inactive'}">${p.status}</span>
-                                </div>
-                                <div style="font-size:11px;color:var(--text-sub);margin-top:6px">${p.time}</div>
-                            </div>
-                        </div>
-                    `).join('')}
-                </div>
-            `;
+            var projects = APP.projects || [];
+            var emptyHtml = '' +
+              '<div class="yj-project-empty">' +
+                '<div class="yj-project-empty-icon"><i class="fas fa-folder-open"></i></div>' +
+                '<div class="yj-project-empty-title">还没有项目</div>' +
+                '<div class="yj-project-empty-desc">点击"新建项目"开始你的第一个AI视频创作吧</div>' +
+              '</div>';
+
+            var gridHtml = projects.length === 0 ? emptyHtml : '' +
+              '<div class="yj-project-grid">' +
+                projects.map(function(p) {
+                  var statusClass = 'yj-project-status-' + (p.status || 'draft');
+                  var typeClass = 'yj-project-type-' + (p.type || 'text2video');
+                  return '' +
+                    '<div class="yj-project-card" onclick="navigateToProjectDetail(' + p.id + ')" title="查看项目详情">' +
+                      '<div class="yj-project-card-cover">' +
+                        '<i class="fas ' + (p.typeIcon || 'fa-video') + '"></i>' +
+                        '<div class="yj-project-card-status-badge">' +
+                          '<span class="yj-project-status ' + statusClass + '">' + (p.statusLabel || p.status) + '</span>' +
+                        '</div>' +
+                      '</div>' +
+                      '<div class="yj-project-card-body">' +
+                        '<div class="yj-project-card-title">' + escapeJsString(p.name) + '</div>' +
+                        '<div class="yj-project-card-meta">' +
+                          '<span class="yj-project-card-type"><i class="fas ' + (p.typeIcon || 'fa-video') + '"></i> ' + (p.typeLabel || p.type) + '</span>' +
+                        '</div>' +
+                        '<div class="yj-project-card-stats">' +
+                          '<span class="yj-project-card-stat"><i class="fas fa-folder-open"></i> <span class="yj-project-card-stat-value">' + (p.materialCount || 0) + '</span> 素材</span>' +
+                          '<span class="yj-project-card-stat"><i class="fas fa-clapperboard"></i> <span class="yj-project-card-stat-value">' + (p.shotCount || 0) + '</span> 镜头</span>' +
+                          '<span class="yj-project-card-time">' + (p.time || '') + '</span>' +
+                        '</div>' +
+                      '</div>' +
+                    '</div>';
+                }).join('') +
+              '</div>';
+
+            return '' +
+              '<div class="yj-project-page">' +
+                '<div class="yj-project-toolbar">' +
+                  '<div class="yj-project-toolbar-left">' +
+                    '<div class="yj-project-search">' +
+                      '<i class="fas fa-search"></i>' +
+                      '<input type="text" placeholder="搜索项目名称..." oninput="filterProjects(this.value)">' +
+                    '</div>' +
+                    '<select class="yj-project-filter" onchange="filterProjectsByType(this.value)">' +
+                      '<option value="">全部类型</option>' +
+                      '<option value="text2video">文生视频</option>' +
+                      '<option value="image2video">图生视频</option>' +
+                      '<option value="storyboard">故事板</option>' +
+                      '<option value="digitalhuman">数字人</option>' +
+                    '</select>' +
+                    '<select class="yj-project-filter" onchange="filterProjectsByStatus(this.value)">' +
+                      '<option value="">全部状态</option>' +
+                      '<option value="draft">草稿</option>' +
+                      '<option value="generating">生成中</option>' +
+                      '<option value="processing">处理中</option>' +
+                      '<option value="completed">已完成</option>' +
+                      '<option value="failed">失败</option>' +
+                    '</select>' +
+                  '</div>' +
+                  '<div class="yj-project-toolbar-right">' +
+                    '<button class="yj-project-create-btn" onclick="createNewProject()">' +
+                      '<i class="fas fa-plus"></i> 新建项目' +
+                    '</button>' +
+                  '</div>' +
+                '</div>' +
+                '<div id="yjProjectGridContainer">' + gridHtml + '</div>' +
+              '</div>';
+        }
+
+        // ─── 项目管理中心 — 项目详情页 ──────────────────────
+        function renderProjectDetail(projectId) {
+            var projects = APP.projects || [];
+            var project = null;
+            for (var i = 0; i < projects.length; i++) {
+                if (projects[i].id === projectId) { project = projects[i]; break; }
+            }
+            if (!project) {
+                return '' +
+                  '<div class="yj-project-empty">' +
+                    '<div class="yj-project-empty-icon"><i class="fas fa-exclamation-circle"></i></div>' +
+                    '<div class="yj-project-empty-title">项目未找到</div>' +
+                    '<div class="yj-project-empty-desc">该项目可能已被删除或不存在</div>' +
+                    '<button class="yj-project-create-btn" onclick="navigateTo(\'projects\')" style="margin-top:12px">返回项目列表</button>' +
+                  '</div>';
+            }
+
+            var statusClass = 'yj-project-status-' + (project.status || 'draft');
+            var typeClass = 'yj-project-type-' + (project.type || 'text2video');
+
+            return '' +
+              '<div class="yj-project-detail">' +
+                // 返回链接
+                '<div class="yj-project-detail-back" onclick="navigateTo(\'projects\')">' +
+                  '<i class="fas fa-arrow-left"></i> 返回项目列表' +
+                '</div>' +
+                // 标题行
+                '<div class="yj-project-detail-header">' +
+                  '<div class="yj-project-detail-title-group">' +
+                    '<h2 class="yj-project-detail-title">' + escapeJsString(project.name) + '</h2>' +
+                    '<div class="yj-project-detail-subtitle">' +
+                      '<span class="yj-project-type-tag ' + typeClass + '">' + (project.typeLabel || project.type) + '</span>' +
+                      '<span class="yj-project-status ' + statusClass + '">' + (project.statusLabel || project.status) + '</span>' +
+                      '<span style="color:var(--text-muted)">创建于 ' + (project.time || '--') + '</span>' +
+                    '</div>' +
+                  '</div>' +
+                  '<div class="yj-project-detail-actions">' +
+                    '<button class="btn btn-outline" onclick="navigateTo(\'editor\')"><i class="fas fa-ellipsis-h"></i> 更多操作</button>' +
+                  '</div>' +
+                '</div>' +
+                // 项目概览
+                '<div class="yj-project-overview">' +
+                  '<div class="yj-project-overview-card">' +
+                    '<i class="fas fa-folder-open yj-project-overview-icon"></i>' +
+                    '<span class="yj-project-overview-label">素材数量</span>' +
+                    '<span class="yj-project-overview-value">' + (project.materialCount || 0) + '</span>' +
+                  '</div>' +
+                  '<div class="yj-project-overview-card">' +
+                    '<i class="fas fa-clapperboard yj-project-overview-icon"></i>' +
+                    '<span class="yj-project-overview-label">镜头数量</span>' +
+                    '<span class="yj-project-overview-value">' + (project.shotCount || 0) + '</span>' +
+                  '</div>' +
+                  '<div class="yj-project-overview-card">' +
+                    '<i class="fas fa-film yj-project-overview-icon"></i>' +
+                    '<span class="yj-project-overview-label">已生成视频</span>' +
+                    '<span class="yj-project-overview-value">' + (project.generatedVideos || 0) + '</span>' +
+                  '</div>' +
+                  '<div class="yj-project-overview-card">' +
+                    '<i class="fas fa-clock yj-project-overview-icon"></i>' +
+                    '<span class="yj-project-overview-label">项目状态</span>' +
+                    '<span class="yj-project-overview-value-sm">' + (project.statusLabel || project.status) + '</span>' +
+                  '</div>' +
+                '</div>' +
+                // 快捷入口
+                '<div style="margin-top:4px">' +
+                  '<h3 style="font-size:var(--text-base);font-weight:var(--font-semibold);margin-bottom:var(--space-4);color:var(--text-primary)">快捷入口</h3>' +
+                  '<div class="yj-project-quick-actions">' +
+                    '<div class="yj-project-quick-action" onclick="navigateTo(\'studio\')">' +
+                      '<i class="fas fa-wand-magic-sparkles"></i>' +
+                      '<span class="yj-project-quick-action-label">进入AI创作</span>' +
+                      '<span class="yj-project-quick-action-desc">文生视频 / 图生视频</span>' +
+                    '</div>' +
+                    '<div class="yj-project-quick-action" onclick="navigateTo(\'storyboard\')">' +
+                      '<i class="fas fa-clapperboard"></i>' +
+                      '<span class="yj-project-quick-action-label">进入故事板</span>' +
+                      '<span class="yj-project-quick-action-desc">分镜编辑与批量生成</span>' +
+                    '</div>' +
+                    '<div class="yj-project-quick-action" onclick="navigateTo(\'editor\')">' +
+                      '<i class="fas fa-scissors"></i>' +
+                      '<span class="yj-project-quick-action-label">进入视频剪辑</span>' +
+                      '<span class="yj-project-quick-action-desc">剪辑、转场与导出</span>' +
+                    '</div>' +
+                  '</div>' +
+                '</div>' +
+                // 项目信息
+                '<div class="yj-project-info-grid" style="margin-top:4px">' +
+                  '<div class="yj-project-info-card">' +
+                    '<div class="yj-project-info-card-header">' +
+                      '<span class="yj-project-info-card-title">基本信息</span>' +
+                    '</div>' +
+                    '<div class="yj-project-info-card-body">' +
+                      '<div class="yj-project-info-row">' +
+                        '<span class="yj-project-info-row-label">项目名称</span>' +
+                        '<span class="yj-project-info-row-value">' + escapeJsString(project.name) + '</span>' +
+                      '</div>' +
+                      '<div class="yj-project-info-row">' +
+                        '<span class="yj-project-info-row-label">项目类型</span>' +
+                        '<span class="yj-project-info-row-value">' + (project.typeLabel || project.type) + '</span>' +
+                      '</div>' +
+                      '<div class="yj-project-info-row">' +
+                        '<span class="yj-project-info-row-label">创建时间</span>' +
+                        '<span class="yj-project-info-row-value">' + (project.time || '--') + '</span>' +
+                      '</div>' +
+                      '<div class="yj-project-info-row">' +
+                        '<span class="yj-project-info-row-label">项目状态</span>' +
+                        '<span class="yj-project-info-row-value"><span class="yj-project-status ' + statusClass + '">' + (project.statusLabel || project.status) + '</span></span>' +
+                      '</div>' +
+                    '</div>' +
+                  '</div>' +
+                  '<div class="yj-project-info-card">' +
+                    '<div class="yj-project-info-card-header">' +
+                      '<span class="yj-project-info-card-title">项目描述</span>' +
+                    '</div>' +
+                    '<div class="yj-project-info-card-body">' +
+                      '<p style="font-size:var(--text-sm);color:var(--text-secondary);line-height:var(--leading-relaxed);margin:0">' + (project.description || '暂无描述信息') + '</p>' +
+                    '</div>' +
+                  '</div>' +
+                '</div>' +
+              '</div>';
+        }
+
+        // ─── 项目管理中心 — 项目筛选与创建 ──────────────────
+        function filterProjects(keyword) {
+            var container = document.getElementById('yjProjectGridContainer');
+            if (!container) return;
+            var projects = APP.projects || [];
+            var kw = (keyword || '').toLowerCase();
+            var filtered = kw ? projects.filter(function(p) {
+                return (p.name || '').toLowerCase().indexOf(kw) !== -1;
+            }) : projects;
+
+            if (filtered.length === 0) {
+                container.innerHTML = '' +
+                  '<div class="yj-project-empty">' +
+                    '<div class="yj-project-empty-icon"><i class="fas fa-search"></i></div>' +
+                    '<div class="yj-project-empty-title">没有找到匹配的项目</div>' +
+                    '<div class="yj-project-empty-desc">请尝试其他关键词搜索</div>' +
+                  '</div>';
+                return;
+            }
+
+            container.innerHTML = '' +
+              '<div class="yj-project-grid">' +
+                filtered.map(function(p) {
+                  var statusClass = 'yj-project-status-' + (p.status || 'draft');
+                  return '' +
+                    '<div class="yj-project-card" onclick="navigateToProjectDetail(' + p.id + ')" title="查看项目详情">' +
+                      '<div class="yj-project-card-cover">' +
+                        '<i class="fas ' + (p.typeIcon || 'fa-video') + '"></i>' +
+                        '<div class="yj-project-card-status-badge">' +
+                          '<span class="yj-project-status ' + statusClass + '">' + (p.statusLabel || p.status) + '</span>' +
+                        '</div>' +
+                      '</div>' +
+                      '<div class="yj-project-card-body">' +
+                        '<div class="yj-project-card-title">' + escapeJsString(p.name) + '</div>' +
+                        '<div class="yj-project-card-meta">' +
+                          '<span class="yj-project-card-type"><i class="fas ' + (p.typeIcon || 'fa-video') + '"></i> ' + (p.typeLabel || p.type) + '</span>' +
+                        '</div>' +
+                        '<div class="yj-project-card-stats">' +
+                          '<span class="yj-project-card-stat"><i class="fas fa-folder-open"></i> <span class="yj-project-card-stat-value">' + (p.materialCount || 0) + '</span> 素材</span>' +
+                          '<span class="yj-project-card-stat"><i class="fas fa-clapperboard"></i> <span class="yj-project-card-stat-value">' + (p.shotCount || 0) + '</span> 镜头</span>' +
+                          '<span class="yj-project-card-time">' + (p.time || '') + '</span>' +
+                        '</div>' +
+                      '</div>' +
+                    '</div>';
+                }).join('') +
+              '</div>';
+        }
+
+        function filterProjectsByType(type) {
+            var container = document.getElementById('yjProjectGridContainer');
+            if (!container) return;
+            var projects = APP.projects || [];
+            var filtered = type ? projects.filter(function(p) { return p.type === type; }) : projects;
+
+            if (filtered.length === 0) {
+                container.innerHTML = '' +
+                  '<div class="yj-project-empty">' +
+                    '<div class="yj-project-empty-icon"><i class="fas fa-filter"></i></div>' +
+                    '<div class="yj-project-empty-title">没有该类型的项目</div>' +
+                    '<div class="yj-project-empty-desc">请尝试选择其他类型</div>' +
+                  '</div>';
+                return;
+            }
+
+            container.innerHTML = '' +
+              '<div class="yj-project-grid">' +
+                filtered.map(function(p) {
+                  var statusClass = 'yj-project-status-' + (p.status || 'draft');
+                  return '' +
+                    '<div class="yj-project-card" onclick="navigateToProjectDetail(' + p.id + ')" title="查看项目详情">' +
+                      '<div class="yj-project-card-cover">' +
+                        '<i class="fas ' + (p.typeIcon || 'fa-video') + '"></i>' +
+                        '<div class="yj-project-card-status-badge">' +
+                          '<span class="yj-project-status ' + statusClass + '">' + (p.statusLabel || p.status) + '</span>' +
+                        '</div>' +
+                      '</div>' +
+                      '<div class="yj-project-card-body">' +
+                        '<div class="yj-project-card-title">' + escapeJsString(p.name) + '</div>' +
+                        '<div class="yj-project-card-meta">' +
+                          '<span class="yj-project-card-type"><i class="fas ' + (p.typeIcon || 'fa-video') + '"></i> ' + (p.typeLabel || p.type) + '</span>' +
+                        '</div>' +
+                        '<div class="yj-project-card-stats">' +
+                          '<span class="yj-project-card-stat"><i class="fas fa-folder-open"></i> <span class="yj-project-card-stat-value">' + (p.materialCount || 0) + '</span> 素材</span>' +
+                          '<span class="yj-project-card-stat"><i class="fas fa-clapperboard"></i> <span class="yj-project-card-stat-value">' + (p.shotCount || 0) + '</span> 镜头</span>' +
+                          '<span class="yj-project-card-time">' + (p.time || '') + '</span>' +
+                        '</div>' +
+                      '</div>' +
+                    '</div>';
+                }).join('') +
+              '</div>';
+        }
+
+        function filterProjectsByStatus(status) {
+            var container = document.getElementById('yjProjectGridContainer');
+            if (!container) return;
+            var projects = APP.projects || [];
+            var filtered = status ? projects.filter(function(p) { return p.status === status; }) : projects;
+
+            if (filtered.length === 0) {
+                container.innerHTML = '' +
+                  '<div class="yj-project-empty">' +
+                    '<div class="yj-project-empty-icon"><i class="fas fa-filter"></i></div>' +
+                    '<div class="yj-project-empty-title">没有该状态的项目</div>' +
+                    '<div class="yj-project-empty-desc">请尝试选择其他状态</div>' +
+                  '</div>';
+                return;
+            }
+
+            container.innerHTML = '' +
+              '<div class="yj-project-grid">' +
+                filtered.map(function(p) {
+                  var statusClass = 'yj-project-status-' + (p.status || 'draft');
+                  return '' +
+                    '<div class="yj-project-card" onclick="navigateToProjectDetail(' + p.id + ')" title="查看项目详情">' +
+                      '<div class="yj-project-card-cover">' +
+                        '<i class="fas ' + (p.typeIcon || 'fa-video') + '"></i>' +
+                        '<div class="yj-project-card-status-badge">' +
+                          '<span class="yj-project-status ' + statusClass + '">' + (p.statusLabel || p.status) + '</span>' +
+                        '</div>' +
+                      '</div>' +
+                      '<div class="yj-project-card-body">' +
+                        '<div class="yj-project-card-title">' + escapeJsString(p.name) + '</div>' +
+                        '<div class="yj-project-card-meta">' +
+                          '<span class="yj-project-card-type"><i class="fas ' + (p.typeIcon || 'fa-video') + '"></i> ' + (p.typeLabel || p.type) + '</span>' +
+                        '</div>' +
+                        '<div class="yj-project-card-stats">' +
+                          '<span class="yj-project-card-stat"><i class="fas fa-folder-open"></i> <span class="yj-project-card-stat-value">' + (p.materialCount || 0) + '</span> 素材</span>' +
+                          '<span class="yj-project-card-stat"><i class="fas fa-clapperboard"></i> <span class="yj-project-card-stat-value">' + (p.shotCount || 0) + '</span> 镜头</span>' +
+                          '<span class="yj-project-card-time">' + (p.time || '') + '</span>' +
+                        '</div>' +
+                      '</div>' +
+                    '</div>';
+                }).join('') +
+              '</div>';
+        }
+
+        function navigateToProjectDetail(projectId) {
+            APP.currentPage = 'project-detail';
+            APP.currentProjectId = projectId;
+            var container = document.getElementById('mainContent');
+            container.innerHTML = renderProjectDetail(projectId);
+            updateHeaderForPage('project-detail');
+            document.querySelectorAll('.nav-item').forEach(function (el) { el.classList.remove('active'); });
+            var projectsNav = document.querySelector('.nav-item[data-page="projects"]');
+            if (projectsNav) projectsNav.classList.add('active');
+        }
+
+        function createNewProject() {
+            if (typeof showToast === 'function') {
+                showToast('新建项目功能开发中，请前往AI创作中心开始创作', 'info');
+            }
+            setTimeout(function() { navigateTo('studio'); }, 800);
         }
 
         function renderAssets() {
@@ -4017,18 +2595,45 @@
             `;
         }
 
-        // Phase 2-D-2: renderEditor() is now provided by YJ.EditorApp.renderEditor
-        // (loaded via js/enterprise/editor/editor-app.js)
         function renderEditor() {
-            if (window.YJ && window.YJ.EditorApp && window.YJ.EditorApp.renderEditor) {
-                var html = YJ.EditorApp.renderEditor();
-                // Schedule init after DOM is rendered
-                setTimeout(function () {
-                    if (YJ.EditorApp.initEditor) YJ.EditorApp.initEditor();
-                }, 0);
-                return html;
-            }
-            return '<div class="card"><div class="card-body" style="text-align:center;padding:40px">编辑器加载中…</div></div>';
+            return `
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+                    <h3 style="font-size:18px">🎬 视频剪辑工作台</h3>
+                    <div style="display:flex;gap:8px">
+                        <button class="btn btn-outline btn-sm"><i class="fas fa-folder-open"></i> 导入素材</button>
+                        <button class="btn btn-primary btn-sm"><i class="fas fa-download"></i> 导出视频</button>
+                    </div>
+                </div>
+                <div class="timeline-editor">
+                    <div class="timeline-preview">
+                        <i class="fas fa-play-circle" style="font-size:48px;color:var(--primary)"></i>
+                        <div>预览区域</div>
+                    </div>
+                    <div style="margin-bottom:12px;color:#94a3b8;font-size:13px">视频轨道</div>
+                    <div class="timeline-track">
+                        <div class="timeline-clip">片段1 · 5s</div>
+                        <div class="timeline-clip">片段2 · 4s</div>
+                        <div class="timeline-clip">片段3 · 6s</div>
+                        <div style="color:#6b7280;font-size:12px">+ 添加片段</div>
+                    </div>
+                    <div style="margin-bottom:12px;color:#94a3b8;font-size:13px">音频轨道</div>
+                    <div class="timeline-track">
+                        <div class="timeline-clip audio">背景音乐 · 15s</div>
+                    </div>
+                    <div style="margin-bottom:12px;color:#94a3b8;font-size:13px">字幕轨道</div>
+                    <div class="timeline-track">
+                        <div class="timeline-clip text">字幕1</div>
+                        <div class="timeline-clip text">字幕2</div>
+                        <div class="timeline-clip text">字幕3</div>
+                    </div>
+                    <div class="timeline-controls">
+                        <button class="btn btn-outline btn-sm" style="background:rgba(255,255,255,0.1);border-color:rgba(255,255,255,0.2);color:#fff"><i class="fas fa-cut"></i> 切割</button>
+                        <button class="btn btn-outline btn-sm" style="background:rgba(255,255,255,0.1);border-color:rgba(255,255,255,0.2);color:#fff"><i class="fas fa-magic"></i> 转场效果</button>
+                        <button class="btn btn-outline btn-sm" style="background:rgba(255,255,255,0.1);border-color:rgba(255,255,255,0.2);color:#fff"><i class="fas fa-font"></i> 添加字幕</button>
+                        <button class="btn btn-outline btn-sm" style="background:rgba(255,255,255,0.1);border-color:rgba(255,255,255,0.2);color:#fff"><i class="fas fa-music"></i> 背景音乐</button>
+                    </div>
+                </div>
+            `;
         }
 
         function renderTeam() {
@@ -4192,8 +2797,51 @@
                 PageState.save(page);
             }
             render(page);
+            // Phase 2-B: 更新 Header 标题和面包屑
+            updateHeaderForPage(page);
             if (window.innerWidth < 1024) {
                 document.getElementById('sidebar').style.width = '72px';
+            }
+        }
+
+        // Phase 2-B: Header 标题与面包屑映射
+        var PAGE_META = {
+            'dashboard':    { title: '首页',        section: '概览', icon: 'fa-home' },
+            'studio':       { title: 'AI创作',      section: '创作', icon: 'fa-wand-magic-sparkles' },
+            'ref2video':    { title: '参考生视频',  section: '创作', parent: 'studio' },
+            'text2video':   { title: '文生视频',    section: '创作', parent: 'studio' },
+            'image2video':  { title: '图生视频',    section: '创作', parent: 'studio' },
+            'imageGen':     { title: '图片生成',    section: '创作', parent: 'studio' },
+            'digitalhuman': { title: '数字人口播',  section: '创作', parent: 'studio' },
+            'storyboard':   { title: '故事板',      section: '创作', icon: 'fa-clapperboard' },
+            'editor':       { title: '视频剪辑',    section: '创作', icon: 'fa-scissors' },
+            'assets':       { title: '素材库',      section: '资源', icon: 'fa-folder-open' },
+            'projects':     { title: '项目管理',    section: '资源', icon: 'fa-folder' },
+            'project-detail': { title: '项目详情',  section: '资源', parent: 'projects' },
+            'myworks':      { title: '作品库',      section: '资源', icon: 'fa-film' },
+            'team':         { title: '团队',        section: '账户', icon: 'fa-users' },
+            'billing':      { title: '积分中心',    section: '账户', icon: 'fa-coins' },
+            'settings':     { title: '系统设置',    section: '账户', icon: 'fa-gear' }
+        };
+
+        function updateHeaderForPage(page) {
+            var meta = PAGE_META[page];
+            var titleEl = document.getElementById('headerPageTitle');
+            var breadcrumbEl = document.getElementById('headerBreadcrumb');
+
+            if (titleEl && meta) {
+                titleEl.textContent = meta.title;
+            }
+
+            if (breadcrumbEl && meta) {
+                var html = '';
+                if (meta.parent) {
+                    var parentMeta = PAGE_META[meta.parent];
+                    html += '<span class="yj-breadcrumb-item" onclick="navigateTo(\'' + meta.parent + '\')">' + (parentMeta ? parentMeta.title : meta.parent) + '</span>';
+                    html += '<span class="yj-breadcrumb-sep">›</span>';
+                }
+                html += '<span class="yj-breadcrumb-item yj-breadcrumb-current">' + meta.title + '</span>';
+                breadcrumbEl.innerHTML = html;
             }
         }
 
@@ -4245,7 +2893,7 @@
 
         var WORKS_STATUS_MAP = {
             'success': '生成完成',
-            'processing': '生成中',
+            'processing': '正在生成',
             'pending': '等待生成',
             'failed': '生成失败'
         };
@@ -4353,6 +3001,42 @@
             } finally {
                 WORKS_STATE.isLoading = false;
             }
+
+            // ── 自动刷新：如果当前列表中还有未完成任务，定时刷新 ──
+            scheduleMyWorksRefresh();
+        }
+
+        // ─── 作品列表自动刷新（有活跃任务时）──────────────────
+        var worksRefreshTimer = null;
+
+        function scheduleMyWorksRefresh() {
+            // 清除之前的定时器
+            if (worksRefreshTimer) {
+                clearTimeout(worksRefreshTimer);
+                worksRefreshTimer = null;
+            }
+
+            // 检查是否有未完成任务需要持续刷新
+            var hasActive = WORKS_STATE.items.some(function (item) {
+                return item.status === 'pending' || item.status === 'processing';
+            });
+
+            if (hasActive && APP.currentPage === 'myworks') {
+                worksRefreshTimer = setTimeout(function () {
+                    if (APP.currentPage === 'myworks' && !WORKS_STATE.isLoading) {
+                        loadMyWorks(WORKS_STATE.currentPage || 1);
+                    }
+                }, 3000); // 每 3 秒刷新一次
+            }
+        }
+
+        function refreshMyWorksIfActive() {
+            // 只在 myworks 页面且不在加载中时刷新
+            if (APP.currentPage !== 'myworks') return;
+            if (WORKS_STATE.isLoading) return;
+            if (typeof loadMyWorks === 'function') {
+                loadMyWorks(WORKS_STATE.currentPage || 1);
+            }
         }
 
         // ─── 渲染单个作品卡片 ──────────────────────────────
@@ -4394,6 +3078,31 @@
                 ? ' onclick="playWorkVideo(\'' + item.id + '\', \'' + escapeJsString(promptText || 'AI视频') + '\')"'
                 : '';
 
+            var isProcessing = item.status === 'processing' || item.status === 'pending';
+            var isFailed = item.status === 'failed';
+            var progressPct = item.progress || 0;
+
+            // 进度条 HTML（processing/pending 状态）
+            var progressHtml = '';
+            if (isProcessing) {
+                var progressLabel = item.status === 'pending' ? '排队中' : '正在生成视频';
+                progressHtml = '<div class="work-progress">' +
+                    '<div class="work-progress-bar">' +
+                    '<div class="work-progress-fill" style="width:' + progressPct + '%"></div>' +
+                    '</div>' +
+                    '<span class="work-progress-text">' + progressLabel + ' ' + progressPct + '%</span>' +
+                    '</div>';
+            }
+
+            // 错误信息 HTML（failed 状态）
+            var errorHtml = '';
+            if (isFailed && item.errorMsg) {
+                errorHtml = '<div class="work-error">' +
+                    '<i class="fas fa-exclamation-circle"></i>' +
+                    '<span>错误原因：' + escapeHtml(item.errorMsg) + '</span>' +
+                    '</div>';
+            }
+
             return '<div class="work-card">' +
                 '<div class="work-thumb"' + thumbClickAttr + '>' +
                 thumbHtml +
@@ -4405,6 +3114,8 @@
                 '<span class="work-type-badge">' + escapeHtml(typeLabel) + '</span>' +
                 '<span class="work-status-badge status-' + (item.status || '') + '">' + escapeHtml(statusLabel) + '</span>' +
                 '</div>' +
+                progressHtml +
+                errorHtml +
                 '<div class="work-meta-row">' +
                 '<span>' + (durationStr ? '<i class="far fa-clock" style="margin-right:3px"></i>' + durationStr + ' · ' : '') + dateStr + '</span>' +
                 '</div>' +
@@ -4621,6 +3332,8 @@
         // Sprint Stable: 页面状态持久化 — 恢复上次访问的页面，而非总是返回首页
         var restoredPage = (typeof PageState !== 'undefined' && PageState.restore) ? PageState.restore() : 'dashboard';
         render(restoredPage);
+        // Phase 2-B: 初始化 Header 显示
+        updateHeaderForPage(restoredPage);
 
         // 响应式侧栏
         window.addEventListener('resize', () => {
@@ -5014,10 +3727,10 @@
                 showToast('登录成功，欢迎回来！', 'success');
                 updateUserDisplay(result.userInfo);
                 // 检查是否有待恢复的任务
-                YuJianVideoTask.resumePendingTask({
-                    onUpdate: function (t) { updateTaskStatusDisplay(t); },
-                    onSuccess: function (t) { handleTaskSuccess(t); },
-                    onFailed: function (t) { handleTaskFailed(t); }
+                YuJianVideoTask.recoverIncompleteTasks({
+                    onUpdate: function (t) { updateTaskStatusDisplay(t); refreshMyWorksIfActive(); },
+                    onSuccess: function (t) { handleTaskSuccess(t); refreshMyWorksIfActive(); },
+                    onFailed: function (t) { handleTaskFailed(t); refreshMyWorksIfActive(); }
                 });
             } catch (err) {
                 console.error('[Auth] 登录失败', err);
@@ -5041,12 +3754,12 @@
             if (YuJianAuth.isAuthenticated()) {
                 var userInfo = YuJianAuth.getUserInfo();
                 if (userInfo) updateUserDisplay(userInfo);
-                // 尝试恢复任务
+                // 尝试恢复任务（从数据库查询所有未完成任务）
                 setTimeout(function () {
-                    YuJianVideoTask.resumePendingTask({
-                        onUpdate: function (t) { updateTaskStatusDisplay(t); },
-                        onSuccess: function (t) { handleTaskSuccess(t); },
-                        onFailed: function (t) { handleTaskFailed(t); }
+                    YuJianVideoTask.recoverIncompleteTasks({
+                        onUpdate: function (t) { updateTaskStatusDisplay(t); refreshMyWorksIfActive(); },
+                        onSuccess: function (t) { handleTaskSuccess(t); refreshMyWorksIfActive(); },
+                        onFailed: function (t) { handleTaskFailed(t); refreshMyWorksIfActive(); }
                     });
                 }, 500);
             }
@@ -5056,7 +3769,7 @@
         var _originalNavigateTo = navigateTo;
         navigateTo = function (page) {
             // 创作类页面需要登录
-            var authPages = ['image2video', 'text2video', 'ref2video', 'digitalhuman', 'imageGen', 'assets'];
+            var authPages = ['studio', 'image2video', 'text2video', 'ref2video', 'digitalhuman', 'imageGen', 'assets'];
             if (authPages.indexOf(page) !== -1 && !YuJianAuth.isAuthenticated()) {
                 showLogin();
                 showToast('请先登录企业账号', 'warning');
@@ -7117,6 +5830,10 @@
         };
     </script>
 
+    <!-- Phase 0: UI Component Layer (兼容层，保持旧 API 可用) -->
+    <script src="js/components/toast.js"></script>
+    <script src="js/components/modal.js"></script>
+
     <!-- Sprint 4.5: Enterprise 模块化架构（依赖顺序，放在最后以覆盖内联函数） -->
     <script src="js/enterprise/state.js"></script>
     <script src="js/enterprise/utils.js"></script>
@@ -7129,6 +5846,7 @@
     <script src="js/enterprise/workspace.js"></script>
     <script src="js/enterprise/generation-panel.js"></script>
     <script src="js/enterprise/editor-state.js"></script>
+    <!-- Phase 2-D-2: Editor Components (loaded after editor-state, before app.js) -->
     <script src="js/enterprise/editor/editor-toolbar.js"></script>
     <script src="js/enterprise/editor/editor-player.js"></script>
     <script src="js/enterprise/editor/editor-timeline.js"></script>
