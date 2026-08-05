@@ -1,0 +1,820 @@
+/**
+ * YuJian Assets Page Styles — Phase 1-D
+ *
+ * 迁移自 enterprise.html 内联 <style>，包含：
+ *   素材网格 / 素材卡片 / 缩略图 / 悬停遮罩 / 更多菜单
+ *   素材信息区 / 状态标签 / AssetPicker 模态框
+ *   Asset Detail 模态框 / 图片预览 / AI 作品区域
+ *
+ * 选择器名称保持不变，确保 100% 兼容现有 JS/HTML。
+ */
+
+/* ─── 素材库（Sprint 4.1 资产中心）──────────────────────── */
+.asset-grid-new {
+    display: grid;
+    grid-template-columns: repeat(6, 1fr);
+    gap: 14px;
+}
+
+/* Sprint 4.1 Patch3: 素材卡片UI升级 */
+.asset-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border-glass);
+    border-radius: 20px;
+    overflow: hidden;
+    cursor: pointer;
+    transition: all 0.3s;
+    backdrop-filter: blur(10px);
+    position: relative;
+}
+.asset-card:hover {
+    border-color: rgba(255, 255, 255, 0.2);
+    transform: translateY(-4px);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+}
+
+/* ── 缩略图区域（16:9）── */
+.asset-card-thumb {
+    aspect-ratio: 16/9;
+    background: linear-gradient(135deg, rgba(99, 102, 241, 0.15), rgba(168, 85, 247, 0.1));
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    position: relative;
+}
+.asset-card-thumb img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transition: transform 0.4s ease;
+}
+.asset-card:hover .asset-card-thumb img {
+    transform: scale(1.05);
+}
+.asset-card-icon {
+    font-size: 36px;
+    color: rgba(255, 255, 255, 0.3);
+}
+
+/* ── 类型标签（缩略图右下角）── */
+.asset-type-badge {
+    position: absolute;
+    bottom: 8px;
+    right: 8px;
+    padding: 3px 8px;
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+    color: #fff;
+    background: rgba(0, 0, 0, 0.55);
+    backdrop-filter: blur(4px);
+    border-radius: 6px;
+    z-index: 2;
+    pointer-events: none;
+}
+
+/* ── Hover 遮罩层 ── */
+.asset-hover-overlay {
+    position: absolute;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    opacity: 0;
+    transition: opacity 0.25s ease;
+    z-index: 4;
+    pointer-events: none;
+    border-radius: 20px;
+}
+.asset-card:hover .asset-hover-overlay {
+    opacity: 1;
+    pointer-events: auto;
+}
+.asset-hover-btn {
+    padding: 8px 18px;
+    border-radius: 8px;
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    background: rgba(255, 255, 255, 0.12);
+    backdrop-filter: blur(6px);
+    color: #fff;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+    pointer-events: auto;
+}
+.asset-hover-btn:hover {
+    background: rgba(99, 102, 241, 0.7);
+    border-color: rgba(99, 102, 241, 0.8);
+    box-shadow: 0 2px 12px rgba(99, 102, 241, 0.4);
+}
+.asset-hover-delete:hover {
+    background: rgba(239, 68, 68, 0.75);
+    border-color: rgba(239, 68, 68, 0.8);
+    box-shadow: 0 2px 12px rgba(239, 68, 68, 0.4);
+}
+
+/* ── 更多按钮（⋮ 右上角）── */
+.asset-more-btn {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    width: 30px;
+    height: 30px;
+    border-radius: 8px;
+    background: rgba(0, 0, 0, 0.55);
+    backdrop-filter: blur(4px);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    color: rgba(255, 255, 255, 0.8);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    opacity: 0;
+    transition: all 0.2s;
+    z-index: 5;
+    pointer-events: auto;
+}
+.asset-card:hover .asset-more-btn {
+    opacity: 1;
+}
+.asset-more-btn:hover {
+    background: rgba(99, 102, 241, 0.6);
+    border-color: rgba(99, 102, 241, 0.7);
+    color: #fff;
+}
+
+/* ── 更多菜单 ── */
+.asset-more-menu {
+    position: absolute;
+    top: 44px;
+    right: 8px;
+    min-width: 120px;
+    background: rgba(30, 30, 50, 0.96);
+    backdrop-filter: blur(16px);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 12px;
+    padding: 6px;
+    z-index: 10;
+    display: none;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+}
+.asset-more-menu.show {
+    display: block;
+}
+.asset-menu-item {
+    padding: 9px 14px;
+    font-size: 13px;
+    color: var(--text-main);
+    cursor: pointer;
+    border-radius: 8px;
+    transition: background 0.15s;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+.asset-menu-item:hover {
+    background: rgba(99, 102, 241, 0.2);
+    color: var(--primary-light);
+}
+.asset-menu-delete {
+    color: #f87171;
+}
+.asset-menu-delete:hover {
+    background: rgba(239, 68, 68, 0.2);
+    color: #fca5a5;
+}
+
+/* ── 视频/音频缩略图 ── */
+.asset-thumb-video {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    background: #000;
+}
+.asset-thumb-video img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    opacity: 0.6;
+}
+.asset-play-icon {
+    position: absolute;
+    font-size: 40px;
+    color: rgba(255, 255, 255, 0.8);
+    text-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
+    pointer-events: none;
+}
+.asset-thumb-audio {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, rgba(16, 185, 129, 0.2), rgba(59, 130, 246, 0.15));
+}
+.asset-audio-icon {
+    font-size: 48px;
+    color: rgba(16, 185, 129, 0.6);
+}
+
+/* ── 信息区域 ── */
+.asset-card-info {
+    padding: 12px 14px;
+}
+.asset-card-name {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text-main);
+    margin-bottom: 6px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.asset-card-meta {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 11px;
+    color: var(--text-sub);
+    margin-bottom: 4px;
+}
+.asset-card-type {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    color: var(--primary-light);
+    font-size: 11px;
+}
+.asset-card-size {
+    font-size: 11px;
+    color: var(--text-muted);
+}
+.asset-card-date {
+    font-size: 11px;
+    color: var(--text-muted);
+}
+
+/* Asset Grid 响应式 */
+@media (max-width: 1400px) {
+    .asset-grid-new { grid-template-columns: repeat(4, 1fr); }
+}
+@media (max-width: 900px) {
+    .asset-grid-new { grid-template-columns: repeat(3, 1fr); }
+}
+@media (max-width: 600px) {
+    .asset-grid-new { grid-template-columns: repeat(2, 1fr); }
+}
+
+/* ─── Sprint 4.4: 资产状态标签 ────────────────────────── */
+.asset-status-tag {
+    display: inline-flex; align-items: center; gap: 4px;
+    padding: 2px 8px; border-radius: 10px;
+    font-size: 10px; font-weight: 600;
+    white-space: nowrap;
+    margin-top: 4px;
+}
+.asset-status-tag.raw { background: rgba(107, 114, 128, 0.2); color: #9ca3af; }
+.asset-status-tag.processing { background: rgba(245, 158, 11, 0.2); color: #fbbf24; animation: statusPulse 2s ease-in-out infinite; }
+.asset-status-tag.generated { background: rgba(16, 185, 129, 0.2); color: #34d399; }
+.asset-status-tag.archived { background: rgba(156, 163, 175, 0.15); color: #9ca3af; }
+
+@keyframes statusPulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.6; }
+}
+
+.asset-gen-count {
+    font-size: 10px; color: var(--text-muted);
+    margin-top: 2px;
+}
+.asset-gen-count strong { color: var(--primary-light); }
+
+/* ─── AssetPicker 模态框（Sprint 4.2）──────────────────────── */
+.asset-picker-overlay {
+    position: fixed; inset: 0;
+    background: rgba(0, 0, 0, 0.6);
+    display: none; align-items: center; justify-content: center;
+    z-index: var(--z-modal, 600);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+}
+.asset-picker-overlay.show { display: flex; }
+.asset-picker-modal {
+    background: rgba(20, 22, 30, 0.95);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 16px;
+    width: 720px; max-width: 92vw; max-height: 80vh;
+    display: flex; flex-direction: column;
+    box-shadow: 0 16px 48px rgba(0, 0, 0, 0.5);
+    backdrop-filter: blur(20px) saturate(180%);
+    -webkit-backdrop-filter: blur(20px) saturate(180%);
+}
+.asset-picker-header {
+    padding: 20px 24px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    display: flex; align-items: center; justify-content: space-between;
+}
+.asset-picker-header h3 {
+    font-size: 16px; font-weight: 600; color: #fff;
+}
+.asset-picker-close {
+    width: 32px; height: 32px; border-radius: 8px;
+    background: rgba(255, 255, 255, 0.06);
+    border: none; color: rgba(255, 255, 255, 0.7);
+    cursor: pointer; display: flex; align-items: center; justify-content: center;
+    font-size: 14px; transition: all 0.2s;
+}
+.asset-picker-close:hover {
+    background: rgba(255, 255, 255, 0.12);
+    color: #fff;
+}
+.asset-picker-toolbar {
+    padding: 14px 24px;
+    display: flex; gap: 12px; align-items: center;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+.asset-picker-filter {
+    padding: 8px 14px; border-radius: 8px;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    color: #fff; font-size: 13px; cursor: pointer;
+    transition: all 0.2s;
+}
+.asset-picker-filter:hover, .asset-picker-filter.active {
+    background: rgba(99, 102, 241, 0.15);
+    border-color: rgba(99, 102, 241, 0.3);
+}
+.asset-picker-filter.active {
+    color: #a5b4fc;
+    font-weight: 500;
+}
+.asset-picker-body {
+    flex: 1; overflow-y: auto; padding: 16px 24px;
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 12px;
+    min-height: 280px;
+    align-content: start;
+}
+.asset-picker-item {
+    border-radius: 10px; overflow: hidden;
+    border: 2px solid rgba(255, 255, 255, 0.06);
+    cursor: pointer; transition: all 0.2s;
+    background: rgba(255, 255, 255, 0.03);
+}
+.asset-picker-item:hover {
+    border-color: rgba(99, 102, 241, 0.4);
+    transform: translateY(-2px);
+}
+.asset-picker-item.selected {
+    border-color: #6366f1;
+    box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.3);
+}
+.asset-picker-item-thumb {
+    aspect-ratio: 16/10;
+    background: rgba(0, 0, 0, 0.3);
+    display: flex; align-items: center; justify-content: center;
+    overflow: hidden;
+}
+.asset-picker-item-thumb img {
+    width: 100%; height: 100%; object-fit: cover;
+}
+.asset-picker-item-thumb .no-thumb {
+    font-size: 28px; color: rgba(255, 255, 255, 0.2);
+}
+.asset-picker-item-info {
+    padding: 8px 10px;
+}
+.asset-picker-item-name {
+    font-size: 12px; color: rgba(255, 255, 255, 0.85);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.asset-picker-empty {
+    grid-column: 1 / -1;
+    text-align: center; padding: 60px 20px; color: rgba(255, 255, 255, 0.4);
+}
+.asset-picker-empty i {
+    font-size: 48px; display: block; margin-bottom: 12px; opacity: 0.4;
+}
+.asset-picker-loading {
+    grid-column: 1 / -1;
+    text-align: center; padding: 60px 20px; color: rgba(255, 255, 255, 0.5);
+}
+.asset-picker-loading .spinner {
+    width: 24px; height: 24px;
+    border: 2px solid rgba(255, 255, 255, 0.2);
+    border-top-color: #6366f1;
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+    margin: 0 auto 12px;
+}
+.asset-picker-footer {
+    padding: 16px 24px;
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+    display: flex; justify-content: space-between; align-items: center;
+}
+.asset-picker-selected-info {
+    font-size: 13px; color: rgba(255, 255, 255, 0.6);
+}
+.asset-picker-selected-name {
+    color: #a5b4fc; font-weight: 500;
+}
+.asset-picker-actions {
+    display: flex; gap: 10px;
+}
+.asset-picker-pagination {
+    display: flex; gap: 8px; align-items: center; font-size: 12px; color: rgba(255,255,255,0.5);
+}
+
+/* ─── Asset Detail 模态框（Sprint 4.2）──────────────────────── */
+.asset-detail-overlay {
+    position: fixed; inset: 0;
+    background: rgba(0, 0, 0, 0.6);
+    display: none; align-items: center; justify-content: center;
+    z-index: var(--z-modal, 600);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+}
+.asset-detail-overlay.show { display: flex; }
+.asset-detail-modal {
+    background: rgba(20, 22, 38, 0.92);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 20px;
+    width: 480px; max-width: 92vw;
+    max-height: 92vh; overflow-y: auto;
+    backdrop-filter: blur(30px) saturate(180%);
+    -webkit-backdrop-filter: blur(30px) saturate(180%);
+    box-shadow: 0 16px 64px rgba(0, 0, 0, 0.4),
+                0 0 0 1px rgba(255, 255, 255, 0.06) inset;
+    animation: detail-modal-in 0.25s ease-out;
+}
+@keyframes detail-modal-in {
+    from { opacity: 0; transform: scale(0.95) translateY(12px); }
+    to { opacity: 1; transform: scale(1) translateY(0); }
+}
+.asset-detail-header {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 20px 24px 0;
+}
+.asset-detail-header h3 {
+    font-size: 17px; font-weight: 600; color: #fff;
+    letter-spacing: 0.5px;
+}
+.asset-detail-close {
+    width: 32px; height: 32px; border-radius: 8px;
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    color: rgba(255, 255, 255, 0.7);
+    cursor: pointer; display: flex; align-items: center; justify-content: center;
+    font-size: 14px; transition: all 0.2s;
+}
+.asset-detail-close:hover {
+    background: rgba(255, 255, 255, 0.12);
+    color: #fff;
+}
+.asset-detail-preview {
+    margin: 16px 24px;
+    border-radius: 12px;
+    overflow: hidden;
+    background: rgba(0, 0, 0, 0.4);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    display: flex; align-items: center; justify-content: center;
+    min-height: 240px;
+    max-height: 360px;
+}
+.asset-detail-preview img {
+    width: 100%; max-height: 360px; object-fit: contain;
+    display: block;
+}
+.asset-detail-preview .preview-icon {
+    font-size: 72px; color: rgba(255, 255, 255, 0.15);
+}
+.asset-detail-body {
+    padding: 0 24px 20px;
+}
+.asset-detail-meta-grid {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 12px;
+    margin-bottom: 16px;
+}
+.asset-detail-meta-item {
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    border-radius: 10px; padding: 12px 14px;
+}
+.asset-detail-meta-item .meta-label {
+    font-size: 11px; color: rgba(255, 255, 255, 0.45);
+    margin-bottom: 6px; letter-spacing: 0.5px;
+    text-transform: uppercase;
+}
+.asset-detail-meta-item .meta-value {
+    font-size: 13px; color: rgba(255, 255, 255, 0.85);
+    font-weight: 500; word-break: break-all;
+}
+.asset-detail-name-row {
+    margin-bottom: 16px;
+    padding: 0 4px;
+}
+.asset-detail-name-row .meta-label {
+    font-size: 11px; color: rgba(255, 255, 255, 0.45);
+    margin-bottom: 4px; letter-spacing: 0.5px;
+}
+.asset-detail-name-row .meta-value {
+    font-size: 14px; color: #fff; font-weight: 500;
+    word-break: break-all;
+}
+.asset-detail-usage {
+    display: flex; align-items: center; gap: 10px;
+    padding: 14px 16px;
+    background: linear-gradient(135deg, rgba(99, 102, 241, 0.12), rgba(168, 85, 247, 0.08));
+    border: 1px solid rgba(99, 102, 241, 0.2);
+    border-radius: 12px; margin-bottom: 16px;
+}
+.asset-detail-usage-icon {
+    width: 40px; height: 40px; border-radius: 10px;
+    background: linear-gradient(135deg, var(--primary), var(--accent-purple));
+    display: flex; align-items: center; justify-content: center;
+    font-size: 18px; color: #fff; flex-shrink: 0;
+}
+.asset-detail-usage-text {
+    font-size: 13px; color: rgba(255, 255, 255, 0.75);
+}
+.asset-detail-usage-text strong {
+    color: #fff; font-size: 16px;
+}
+
+.asset-detail-actions {
+    display: flex; gap: 10px;
+}
+.asset-detail-actions .btn {
+    flex: 1; justify-content: center; padding: 10px 0;
+    font-size: 13px; border-radius: 10px;
+}
+.asset-detail-actions .btn-copy {
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    color: rgba(255, 255, 255, 0.8);
+}
+.asset-detail-actions .btn-copy:hover {
+    background: rgba(99, 102, 241, 0.15);
+    border-color: rgba(99, 102, 241, 0.3);
+    color: #a5b4fc;
+}
+.asset-detail-actions .btn-delete {
+    background: rgba(239, 68, 68, 0.12);
+    border: 1px solid rgba(239, 68, 68, 0.25);
+    color: #f87171;
+}
+.asset-detail-actions .btn-delete:hover {
+    background: rgba(239, 68, 68, 0.25);
+    border-color: rgba(239, 68, 68, 0.4);
+    color: #fca5a5;
+}
+.asset-detail-loading {
+    text-align: center; padding: 60px 20px;
+    color: rgba(255, 255, 255, 0.5);
+}
+.asset-detail-loading .spinner {
+    width: 32px; height: 32px;
+    border: 2px solid rgba(255, 255, 255, 0.15);
+    border-top-color: var(--primary-light);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+    margin: 0 auto 12px;
+}
+
+/* ─── Sprint 4.4 Patch6: 独立图片预览 Modal ──────────── */
+.image-preview-overlay {
+    position: fixed; inset: 0;
+    background: rgba(0, 0, 0, 0.78);
+    display: none; align-items: center; justify-content: center;
+    z-index: var(--z-modal, 600);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+}
+.image-preview-overlay.show { display: flex; }
+.image-preview-container {
+    position: relative;
+    display: flex; align-items: center; justify-content: center;
+    max-width: 94vw; max-height: 94vh;
+    animation: detail-modal-in 0.2s ease-out;
+}
+.image-preview-close {
+    position: absolute; top: -44px; right: -4px;
+    width: 36px; height: 36px; border-radius: 9px;
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    color: rgba(255, 255, 255, 0.75);
+    cursor: pointer; display: flex; align-items: center; justify-content: center;
+    font-size: 16px; transition: all 0.2s;
+    z-index: 10;
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+}
+.image-preview-close:hover {
+    background: rgba(255, 255, 255, 0.15);
+    color: #fff;
+}
+.image-preview-body {
+    display: flex; align-items: center; justify-content: center;
+    border-radius: 12px; overflow: hidden;
+}
+.image-preview-body img {
+    max-width: 90vw; max-height: 90vh;
+    object-fit: contain;
+    display: block;
+    border-radius: 8px;
+    box-shadow: 0 8px 48px rgba(0, 0, 0, 0.5);
+}
+.image-preview-error {
+    text-align: center; padding: 60px 40px;
+    color: rgba(255, 255, 255, 0.55);
+    background: rgba(20, 22, 38, 0.85);
+    border-radius: 12px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+}
+.image-preview-error i {
+    font-size: 48px; display: block; margin-bottom: 14px;
+    opacity: 0.35;
+}
+
+/* ─── Sprint 4.3: 创作历史 ─────────────────────────── */
+.asset-detail-history {
+    margin-top: 12px;
+    padding: 16px;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 14px;
+}
+.asset-detail-history-title {
+    display: flex; align-items: center; gap: 8px;
+    font-size: 14px; font-weight: 600;
+    color: rgba(255, 255, 255, 0.85);
+    margin-bottom: 4px;
+}
+.asset-detail-history-title i {
+    color: var(--primary-light);
+}
+.asset-detail-history-subtitle {
+    font-size: 12px; color: rgba(255, 255, 255, 0.5);
+    margin-bottom: 14px;
+}
+.asset-detail-history-subtitle strong {
+    color: #a5b4fc;
+}
+.history-item {
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    border-radius: 10px;
+    padding: 12px 14px;
+    margin-bottom: 10px;
+    transition: border-color 0.2s;
+}
+.history-item:last-child { margin-bottom: 0; }
+.history-item:hover {
+    border-color: rgba(99, 102, 241, 0.25);
+}
+.history-item-header {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 6px;
+}
+.history-item-name {
+    font-size: 14px; font-weight: 600;
+    color: rgba(255, 255, 255, 0.9);
+    display: flex; align-items: center; gap: 6px;
+}
+.history-item-name .task-icon {
+    font-size: 16px; color: var(--primary-light);
+}
+.history-item-status {
+    font-size: 11px; padding: 2px 8px; border-radius: 10px;
+    font-weight: 500;
+}
+.history-status-success {
+    background: rgba(16, 185, 129, 0.15);
+    color: #34d399;
+}
+.history-status-processing {
+    background: rgba(245, 158, 11, 0.15);
+    color: #fbbf24;
+}
+.history-status-pending {
+    background: rgba(148, 163, 184, 0.12);
+    color: #94a3b8;
+}
+.history-status-failed {
+    background: rgba(239, 68, 68, 0.12);
+    color: #f87171;
+}
+.history-item-meta {
+    font-size: 11px; color: rgba(255, 255, 255, 0.45);
+    margin-bottom: 4px;
+}
+.history-item-prompt {
+    font-size: 12px; color: rgba(255, 255, 255, 0.6);
+    background: rgba(0, 0, 0, 0.2);
+    padding: 8px 10px;
+    border-radius: 6px;
+    line-height: 1.5;
+    max-height: 48px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    margin-top: 6px;
+}
+.history-item-action {
+    margin-top: 8px;
+    text-align: right;
+}
+.history-item-action .btn-view-work {
+    font-size: 12px;
+    padding: 5px 12px;
+    border-radius: 6px;
+    background: rgba(99, 102, 241, 0.15);
+    border: 1px solid rgba(99, 102, 241, 0.25);
+    color: #a5b4fc;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+.history-item-action .btn-view-work:hover {
+    background: rgba(99, 102, 241, 0.25);
+    border-color: rgba(99, 102, 241, 0.4);
+    color: #c4b5fd;
+}
+.history-empty {
+    text-align: center; padding: 20px;
+    color: rgba(255, 255, 255, 0.4); font-size: 13px;
+}
+
+/* ─── Sprint 4.4: 资产详情 AI作品区域 ──────────────── */
+.asset-detail-ai-works {
+    margin-top: 16px; padding-top: 16px;
+    border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
+.asset-detail-ai-works-title {
+    font-size: 14px; font-weight: 600; margin-bottom: 12px;
+    display: flex; align-items: center; gap: 8px;
+}
+.asset-detail-ai-works-title i { color: var(--accent-purple); }
+.ai-work-card {
+    display: flex; gap: 12px; align-items: center;
+    padding: 12px; border-radius: 12px;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    margin-bottom: 8px; cursor: pointer;
+    transition: all 0.2s;
+}
+.ai-work-card:hover {
+    background: rgba(255, 255, 255, 0.06);
+    border-color: rgba(255, 255, 255, 0.12);
+}
+.ai-work-thumb {
+    width: 80px; height: 56px; border-radius: 8px;
+    object-fit: cover; flex-shrink: 0;
+    background: rgba(0, 0, 0, 0.3);
+}
+.ai-work-info { flex: 1; min-width: 0; }
+.ai-work-prompt {
+    font-size: 12px; color: rgba(255, 255, 255, 0.8);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    margin-bottom: 4px;
+}
+.ai-work-meta {
+    font-size: 11px; color: var(--text-muted);
+    display: flex; gap: 12px; flex-wrap: wrap;
+}
+.ai-work-status {
+    flex-shrink: 0;
+}
+
+/* ─── Sprint 4.4: 资产项内嵌时间线 ───────────────── */
+.gen-status-bar {
+    display: flex; align-items: center; gap: 6px;
+    padding: 8px 12px; border-radius: 8px;
+    font-size: 11px; font-weight: 500;
+    margin-top: 8px;
+}
+.gen-status-bar.gen-status-pending {
+    background: rgba(245, 158, 11, 0.1); color: #fbbf24;
+}
+.gen-status-bar.gen-status-processing {
+    background: rgba(59, 130, 246, 0.1); color: #60a5fa;
+}
+.gen-status-bar.gen-status-success {
+    background: rgba(16, 185, 129, 0.1); color: #34d399;
+}
+.gen-status-bar.gen-status-failed {
+    background: rgba(239, 68, 68, 0.1); color: #f87171;
+}
+.gen-status-spinner {
+    width: 14px; height: 14px; border: 2px solid currentColor;
+    border-top-color: transparent; border-radius: 50%;
+    animation: spin 0.8s linear infinite; flex-shrink: 0;
+}

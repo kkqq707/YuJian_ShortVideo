@@ -91,6 +91,11 @@ const GenerationTask = sequelize.define('GenerationTask', {
     defaultValue: 0,
     comment: '进度百分比 0-100'
   },
+  retry_count: {
+    type: DataTypes.INTEGER,
+    defaultValue: 0,
+    comment: '重试次数'
+  },
 
   // ─── Sprint 2.5 新增字段 ────────────────────────────────────
   source_asset_id: {

@@ -1,0 +1,173 @@
+/**
+ * YuJian Base Styles — Phase 0
+ *
+ * CSS Reset / Body 基础 / 滚动条 / 基础字体
+ *
+ * 注意：此文件在 enterprise.html 内联 <style> 之前加载。
+ * 内联样式中的同名规则会覆盖此处的定义，确保现有页面不受影响。
+ * 本文件为后续新页面提供了干净的基础层。
+ */
+
+/* ================================================================
+   1. CSS Reset（补充内联样式的 reset）
+   ================================================================ */
+
+*,
+*::before,
+*::after {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+/* 移除默认列表样式 */
+ul, ol {
+  list-style: none;
+}
+
+/* 链接重置 */
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+/* 图片重置 */
+img, video {
+  max-width: 100%;
+  height: auto;
+  display: block;
+}
+
+/* 按钮重置 */
+button {
+  border: none;
+  background: none;
+  cursor: pointer;
+  font: inherit;
+  color: inherit;
+}
+
+/* 输入框重置 */
+input, textarea, select {
+  font: inherit;
+  color: inherit;
+}
+
+/* 移除 Safari 默认外观 */
+input[type="search"]::-webkit-search-decoration,
+input[type="search"]::-webkit-search-cancel-button,
+input[type="search"]::-webkit-search-results-button,
+input[type="search"]::-webkit-search-results-decoration {
+  display: none;
+}
+
+/* ================================================================
+   2. Body 基础样式
+   ================================================================ */
+
+html {
+  font-size: 16px;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  font-family: var(--font-sans, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif);
+  font-size: var(--text-base, 0.875rem);
+  font-weight: var(--font-normal, 400);
+  line-height: var(--leading-normal, 1.5);
+  color: var(--text-primary, #ffffff);
+  background: var(--bg-base, #0a0a0a);
+  overflow-x: hidden;
+  min-height: 100vh;
+}
+
+/* ================================================================
+   3. 自定义滚动条（深色透明）
+   ================================================================ */
+
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 3px;
+  transition: background 0.2s;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+/* Firefox 滚动条 */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.15) transparent;
+}
+
+/* ================================================================
+   4. 基础排版
+   ================================================================ */
+
+h1, h2, h3, h4, h5, h6 {
+  font-weight: var(--font-semibold, 600);
+  line-height: var(--leading-tight, 1.25);
+}
+
+p {
+  line-height: var(--leading-normal, 1.5);
+}
+
+/* 代码块 */
+code, pre {
+  font-family: var(--font-mono, 'SF Mono', 'Cascadia Code', 'Fira Code', monospace);
+}
+
+/* ================================================================
+   5. 全局工具类
+   ================================================================ */
+
+/* 屏幕阅读器专用 */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border-width: 0;
+}
+
+/* 文本截断 */
+.truncate {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* 禁止选择 */
+.no-select {
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+/* ================================================================
+   6. Focus 可见样式（无障碍）
+   ================================================================ */
+
+:focus-visible {
+  outline: 2px solid var(--border-focus, rgba(99, 102, 241, 0.5));
+  outline-offset: 2px;
+}
+
+:focus:not(:focus-visible) {
+  outline: none;
+}

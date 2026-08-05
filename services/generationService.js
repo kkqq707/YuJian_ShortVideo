@@ -93,7 +93,7 @@ class GenerationService {
       provider,
       duration: duration || null,
       params: options ? JSON.stringify(options) : null,
-      progress: 0
+      progress: 5
     });
 
     // ── 5. 调用 AI Provider 创建远程任务 ───────────────────────
@@ -136,6 +136,7 @@ class GenerationService {
         provider: aiResult.provider,
         model: aiResult.model || model,
         status: aiResult.status,
+        progress: 30,
         started_at: new Date()
       });
 
@@ -173,6 +174,7 @@ class GenerationService {
       await localTask.update({
         status: 'failed',
         error_msg: errorInfo.message,
+        progress: 0,
         completed_at: new Date()
       });
 
@@ -265,7 +267,7 @@ class GenerationService {
       status: 'pending',
       provider,
       params: options ? JSON.stringify(options) : null,
-      progress: 0
+      progress: 5
     });
 
     // ── 4. 调用 aliyunProvider 创建远程任务 ────────────────────
@@ -282,6 +284,7 @@ class GenerationService {
         provider: aiResult.provider,
         model: aiResult.model || model,
         status: aiResult.status,
+        progress: 30,
         started_at: new Date()
       });
 
@@ -309,6 +312,7 @@ class GenerationService {
       await localTask.update({
         status: 'failed',
         error_msg: errorInfo.message,
+        progress: 0,
         completed_at: new Date()
       });
       this._logTaskFailed(localTask, errorInfo);
@@ -371,7 +375,7 @@ class GenerationService {
       provider,
       duration: duration || null,
       params: options ? JSON.stringify(options) : null,
-      progress: 0
+      progress: 5
     });
 
     // ── 4. 调用 aliyunProvider 创建远程任务 ────────────────────
@@ -391,6 +395,7 @@ class GenerationService {
         provider: aiResult.provider,
         model: aiResult.model || model,
         status: aiResult.status,
+        progress: 30,
         started_at: new Date()
       });
 
@@ -418,6 +423,7 @@ class GenerationService {
       await localTask.update({
         status: 'failed',
         error_msg: errorInfo.message,
+        progress: 0,
         completed_at: new Date()
       });
       this._logTaskFailed(localTask, errorInfo);

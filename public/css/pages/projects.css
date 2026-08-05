@@ -1,0 +1,793 @@
+/**
+ * YuJian Project Hub Styles — Phase 2-D-0
+ *
+ * 项目管理中心：项目首页 + 项目详情页
+ *
+ * 命名约定：所有新增 class 使用 yj-project-* 前缀
+ * 旧选择器（.project-grid / .project-card 等）保留兼容
+ *
+ * 设计语言：玻璃拟态 + 圆角卡片 + 暗色主题 + 靛蓝紫渐变
+ */
+
+/* ================================================================
+   1. 项目首页 — 页面容器
+   ================================================================ */
+
+.yj-project-page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+}
+
+/* ================================================================
+   2. 项目首页 — 顶部工具栏
+   ================================================================ */
+
+.yj-project-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  flex-wrap: wrap;
+}
+
+.yj-project-toolbar-left {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+  flex: 1;
+  min-width: 0;
+}
+
+.yj-project-toolbar-right {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-shrink: 0;
+}
+
+/* ── 搜索框 ── */
+.yj-project-search {
+  position: relative;
+  min-width: 200px;
+  max-width: 320px;
+}
+
+.yj-project-search i {
+  position: absolute;
+  left: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--text-muted);
+  font-size: 14px;
+  pointer-events: none;
+}
+
+.yj-project-search input {
+  width: 100%;
+  padding: 10px 14px 10px 38px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  font-size: var(--text-sm);
+  background: var(--bg-card);
+  color: var(--text-primary);
+  outline: none;
+  transition: all var(--duration-fast) var(--ease-out);
+  height: 40px;
+}
+
+.yj-project-search input::placeholder {
+  color: var(--text-muted);
+}
+
+.yj-project-search input:focus {
+  border-color: var(--primary-light);
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.12);
+}
+
+/* ── 筛选下拉 ── */
+.yj-project-filter {
+  padding: 8px 32px 8px 12px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  font-size: var(--text-sm);
+  background: var(--bg-card);
+  color: var(--text-primary);
+  outline: none;
+  cursor: pointer;
+  transition: all var(--duration-fast) var(--ease-out);
+  height: 40px;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%239ca3af' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+}
+
+.yj-project-filter:hover {
+  border-color: var(--border-default);
+}
+
+.yj-project-filter:focus {
+  border-color: var(--primary-light);
+}
+
+/* ── 新建项目按钮 ── */
+.yj-project-create-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 10px 20px;
+  background: linear-gradient(135deg, var(--primary), var(--accent-purple));
+  color: #fff;
+  border: none;
+  border-radius: var(--radius-md);
+  font-size: var(--text-sm);
+  font-weight: var(--font-semibold);
+  cursor: pointer;
+  transition: all var(--duration-fast) var(--ease-out);
+  white-space: nowrap;
+  box-shadow: 0 4px 20px rgba(99, 102, 241, 0.3);
+  height: 40px;
+}
+
+.yj-project-create-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 24px rgba(99, 102, 241, 0.4);
+}
+
+.yj-project-create-btn:active {
+  transform: translateY(0);
+}
+
+.yj-project-create-btn i {
+  font-size: 14px;
+}
+
+/* ================================================================
+   3. 项目卡片网格
+   ================================================================ */
+
+.yj-project-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: var(--space-4);
+}
+
+@media (max-width: 1400px) {
+  .yj-project-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+@media (max-width: 1024px) {
+  .yj-project-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 640px) {
+  .yj-project-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ================================================================
+   4. 项目卡片
+   ================================================================ */
+
+.yj-project-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  cursor: pointer;
+  transition: all var(--duration-normal) var(--ease-out);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  display: flex;
+  flex-direction: column;
+}
+
+.yj-project-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.35),
+              0 0 0 1px rgba(99, 102, 241, 0.15) inset;
+  border-color: rgba(99, 102, 241, 0.4);
+}
+
+.yj-project-card:active {
+  transform: translateY(-1px);
+}
+
+/* ── 卡片封面 ── */
+.yj-project-card-cover {
+  aspect-ratio: 16 / 9;
+  background: linear-gradient(135deg, rgba(99, 102, 241, 0.25), rgba(168, 85, 247, 0.15));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  overflow: hidden;
+}
+
+.yj-project-card-cover::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, transparent 50%, rgba(0, 0, 0, 0.3) 100%);
+  pointer-events: none;
+}
+
+.yj-project-card-cover i {
+  font-size: 36px;
+  color: rgba(255, 255, 255, 0.6);
+  transition: transform var(--duration-slow) var(--ease-out);
+}
+
+.yj-project-card:hover .yj-project-card-cover i {
+  transform: scale(1.1);
+  color: rgba(255, 255, 255, 0.85);
+}
+
+/* ── 封面上叠加状态标签 ── */
+.yj-project-card-status-badge {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  z-index: 1;
+}
+
+/* ── 卡片内容区 ── */
+.yj-project-card-body {
+  padding: var(--space-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  flex: 1;
+}
+
+.yj-project-card-title {
+  font-size: var(--text-base);
+  font-weight: var(--font-semibold);
+  color: var(--text-primary);
+  line-height: var(--leading-tight);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.yj-project-card-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.yj-project-card-type {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: var(--text-xs);
+  color: var(--text-secondary);
+  padding: 2px 8px;
+  background: rgba(255, 255, 255, 0.04);
+  border-radius: var(--radius-sm);
+}
+
+.yj-project-card-type i {
+  font-size: 11px;
+}
+
+/* ── 卡片底部统计 ── */
+.yj-project-card-stats {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding-top: var(--space-2);
+  border-top: 1px solid var(--border-subtle);
+  margin-top: auto;
+}
+
+.yj-project-card-stat {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}
+
+.yj-project-card-stat i {
+  font-size: 11px;
+}
+
+.yj-project-card-stat-value {
+  font-weight: var(--font-medium);
+  color: var(--text-secondary);
+}
+
+/* ── 卡片底部：创建时间 ── */
+.yj-project-card-time {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  margin-left: auto;
+}
+
+/* ================================================================
+   5. 项目状态徽章
+   ================================================================ */
+
+.yj-project-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 10px;
+  border-radius: var(--radius-full);
+  font-size: var(--text-xs);
+  font-weight: var(--font-medium);
+  line-height: 1.6;
+  white-space: nowrap;
+}
+
+/* 草稿 */
+.yj-project-status-draft {
+  background: rgba(107, 114, 128, 0.15);
+  color: #9ca3af;
+}
+
+/* 生成中 */
+.yj-project-status-generating {
+  background: rgba(59, 130, 246, 0.15);
+  color: #60a5fa;
+}
+
+.yj-project-status-generating::before {
+  content: '';
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #60a5fa;
+  animation: yj-project-pulse 1.5s ease-in-out infinite;
+}
+
+/* 处理中 */
+.yj-project-status-processing {
+  background: rgba(245, 158, 11, 0.15);
+  color: #fbbf24;
+}
+
+.yj-project-status-processing::before {
+  content: '';
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #fbbf24;
+  animation: yj-project-pulse 1.5s ease-in-out infinite;
+}
+
+/* 已完成 */
+.yj-project-status-completed {
+  background: rgba(16, 185, 129, 0.15);
+  color: #34d399;
+}
+
+/* 失败 */
+.yj-project-status-failed {
+  background: rgba(239, 68, 68, 0.15);
+  color: #f87171;
+}
+
+@keyframes yj-project-pulse {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0.4; }
+}
+
+/* ================================================================
+   6. 项目详情页
+   ================================================================ */
+
+.yj-project-detail {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+}
+
+/* ── 返回按钮行 ── */
+.yj-project-detail-back {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
+  cursor: pointer;
+  transition: color var(--duration-fast) var(--ease-out);
+  width: fit-content;
+  padding: 4px 0;
+}
+
+.yj-project-detail-back:hover {
+  color: var(--text-primary);
+}
+
+.yj-project-detail-back i {
+  font-size: 14px;
+}
+
+/* ── 详情头部 ── */
+.yj-project-detail-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-6);
+  flex-wrap: wrap;
+}
+
+.yj-project-detail-title-group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.yj-project-detail-title {
+  font-size: var(--text-2xl);
+  font-weight: var(--font-bold);
+  color: var(--text-primary);
+  line-height: var(--leading-tight);
+}
+
+.yj-project-detail-subtitle {
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+}
+
+.yj-project-detail-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-shrink: 0;
+}
+
+/* ── 概览卡片 ── */
+.yj-project-overview {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: var(--space-4);
+}
+
+@media (max-width: 768px) {
+  .yj-project-overview {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+.yj-project-overview-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  padding: var(--space-5);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  transition: all var(--duration-fast) var(--ease-out);
+}
+
+.yj-project-overview-card:hover {
+  border-color: var(--border-default);
+  background: var(--bg-card-hover);
+}
+
+.yj-project-overview-label {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  font-weight: var(--font-medium);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.yj-project-overview-value {
+  font-size: var(--text-2xl);
+  font-weight: var(--font-bold);
+  color: var(--text-primary);
+  line-height: 1;
+}
+
+.yj-project-overview-value-sm {
+  font-size: var(--text-lg);
+  font-weight: var(--font-semibold);
+  color: var(--text-primary);
+}
+
+.yj-project-overview-icon {
+  font-size: 20px;
+  color: var(--primary-light);
+  margin-bottom: 2px;
+}
+
+/* ── 快捷入口 ── */
+.yj-project-quick-actions {
+  display: flex;
+  gap: var(--space-4);
+  flex-wrap: wrap;
+}
+
+.yj-project-quick-action {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-3);
+  padding: var(--space-6) var(--space-8);
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  cursor: pointer;
+  transition: all var(--duration-normal) var(--ease-out);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  min-width: 160px;
+  flex: 1;
+  text-align: center;
+}
+
+.yj-project-quick-action:hover {
+  transform: translateY(-2px);
+  border-color: rgba(99, 102, 241, 0.4);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+  background: var(--bg-card-hover);
+}
+
+.yj-project-quick-action i {
+  font-size: 28px;
+  color: var(--primary-light);
+  transition: transform var(--duration-fast) var(--ease-out);
+}
+
+.yj-project-quick-action:hover i {
+  transform: scale(1.1);
+}
+
+.yj-project-quick-action-label {
+  font-size: var(--text-sm);
+  font-weight: var(--font-semibold);
+  color: var(--text-primary);
+}
+
+.yj-project-quick-action-desc {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}
+
+/* ── 信息区域（两栏）── */
+.yj-project-info-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-5);
+}
+
+@media (max-width: 768px) {
+  .yj-project-info-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.yj-project-info-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  padding: var(--space-5);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+.yj-project-info-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--space-4);
+  padding-bottom: var(--space-3);
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.yj-project-info-card-title {
+  font-size: var(--text-base);
+  font-weight: var(--font-semibold);
+  color: var(--text-primary);
+}
+
+.yj-project-info-card-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+/* ── 详情列表项 ── */
+.yj-project-info-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-2) 0;
+}
+
+.yj-project-info-row-label {
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+}
+
+.yj-project-info-row-value {
+  font-size: var(--text-sm);
+  color: var(--text-primary);
+  font-weight: var(--font-medium);
+}
+
+/* ================================================================
+   7. 空状态
+   ================================================================ */
+
+.yj-project-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-16) var(--space-6);
+  text-align: center;
+  gap: var(--space-4);
+}
+
+.yj-project-empty-icon {
+  font-size: 56px;
+  color: var(--text-muted);
+  opacity: 0.4;
+  margin-bottom: var(--space-2);
+}
+
+.yj-project-empty-title {
+  font-size: var(--text-lg);
+  font-weight: var(--font-semibold);
+  color: var(--text-primary);
+}
+
+.yj-project-empty-desc {
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+  max-width: 400px;
+  line-height: var(--leading-relaxed);
+}
+
+/* ================================================================
+   8. 加载状态
+   ================================================================ */
+
+.yj-project-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-12) var(--space-6);
+  gap: var(--space-4);
+}
+
+.yj-project-loading-spinner {
+  width: 36px;
+  height: 36px;
+  border: 3px solid var(--border-subtle);
+  border-top-color: var(--primary);
+  border-radius: 50%;
+  animation: yj-project-spin 0.8s linear infinite;
+}
+
+@keyframes yj-project-spin {
+  to { transform: rotate(360deg); }
+}
+
+.yj-project-loading-text {
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+}
+
+/* ================================================================
+   9. 项目类型标签色彩
+   ================================================================ */
+
+.yj-project-type-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 10px;
+  border-radius: var(--radius-full);
+  font-size: var(--text-xs);
+  font-weight: var(--font-medium);
+  white-space: nowrap;
+}
+
+.yj-project-type-text2video {
+  background: rgba(99, 102, 241, 0.15);
+  color: #818cf8;
+}
+
+.yj-project-type-image2video {
+  background: rgba(168, 85, 247, 0.15);
+  color: #a78bfa;
+}
+
+.yj-project-type-storyboard {
+  background: rgba(59, 130, 246, 0.15);
+  color: #60a5fa;
+}
+
+.yj-project-type-digitalhuman {
+  background: rgba(16, 185, 129, 0.15);
+  color: #34d399;
+}
+
+/* ================================================================
+   10. 向后兼容：保留旧选择器
+   ================================================================ */
+
+/* 旧选择器 .project-grid / .project-card 保留与旧代码兼容 */
+.project-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+}
+
+.project-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-glass);
+  border-radius: var(--radius);
+  overflow: hidden;
+  cursor: pointer;
+  transition: all 0.3s;
+  backdrop-filter: blur(10px);
+}
+
+.project-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+  border-color: var(--primary-glow);
+}
+
+.project-thumb {
+  aspect-ratio: 16/9;
+  background: linear-gradient(135deg, rgba(99, 102, 241, 0.3), rgba(168, 85, 247, 0.2));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-size: 32px;
+}
+
+.project-info {
+  padding: 14px;
+}
+
+.project-info h4 {
+  font-size: 14px;
+  margin-bottom: 6px;
+  color: var(--text-main);
+}
+
+.project-meta {
+  display: flex;
+  justify-content: space-between;
+  font-size: 12px;
+  color: var(--text-sub);
+}
+
+/* 响应式 - 旧选择器 */
+@media (max-width: 1024px) {
+  .project-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 640px) {
+  .project-grid {
+    grid-template-columns: 1fr;
+  }
+}

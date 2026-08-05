@@ -105,6 +105,67 @@
       'pending': '等待中',
       'failed': '失败',
       'draft': '草稿'
+    },
+
+    // ── Editor State (Phase 2-D-1-B) ─────────────────────
+    editor: {
+      project: {
+        id: null,
+        name: '未命名项目',
+        createdAt: null,
+        updatedAt: null,
+        duration: 0,
+        resolution: { width: 1920, height: 1080 },
+        fps: 30
+      },
+
+      mediaBin: {
+        items: [],
+        selectedIds: []
+      },
+
+      timeline: {
+        duration: 0,
+        fps: 30,
+        resolution: { width: 1920, height: 1080 },
+        tracks: [],
+        playheadPosition: 0,
+        zoom: 1,
+        scrollLeft: 0
+      },
+
+      preview: {
+        isPlaying: false,
+        currentTime: 0,
+        volume: 1,
+        isMuted: false,
+        quality: 'preview'
+      },
+
+      export: {
+        format: 'mp4',
+        resolution: { width: 1920, height: 1080 },
+        quality: 'high',
+        bitrate: 8000,
+        fps: 30,
+        progress: 0,
+        status: 'idle'
+      },
+
+      history: {
+        past: [],
+        future: [],
+        maxSteps: 50
+      },
+
+      ui: {
+        selectedClipId: null,
+        selectedTrackId: null,
+        isPlaying: false,
+        zoom: 1,
+        scrollLeft: 0,
+        panelOpen: null
+      }
     }
   };
 
@@ -163,6 +224,38 @@
     return APP_STATE.assets.cache[id] || null;
   }
 
+  /** Get the editor project state */
+  function getEditorProject() {
+    return APP_STATE.editor.project;
+  }
+
+  /** Set the editor project state */
+  function setEditorProject(project) {
+    APP_STATE.editor.project = Object.assign(APP_STATE.editor.project, project);
+  }
+
+  /** Get the editor timeline state */
+  function getEditorTimeline() {
+    return APP_STATE.editor.timeline;
+  }
+
+  /** Reset editor state to defaults */
+  function resetEditorState() {
+    APP_STATE.editor.project = {
+      id: null, name: '未命名项目', createdAt: null, updatedAt: null,
+      duration: 0, resolution: { width: 1920, height: 1080 }, fps: 30
+    };
+    APP_STATE.editor.mediaBin = { items: [], selectedIds: [] };
+    APP_STATE.editor.timeline = {
+      duration: 0, fps: 30, resolution: { width: 1920, height: 1080 },
+      tracks: [], playheadPosition: 0, zoom: 1, scrollLeft: 0
+    };
+    APP_STATE.editor.preview = { isPlaying: false, currentTime: 0, volume: 1, isMuted: false, quality: 'preview' };
+    APP_STATE.editor.export = { format: 'mp4', resolution: { width: 1920, height: 1080 }, quality: 'high', bitrate: 8000, fps: 30, progress: 0, status: 'idle' };
+    APP_STATE.editor.history = { past: [], future: [], maxSteps: 50 };
+    APP_STATE.editor.ui = { selectedClipId: null, selectedTrackId: null, isPlaying: false, zoom: 1, scrollLeft: 0, panelOpen: null };
+  }
+
   /** Reset generation panel state */
   function resetGenerationState() {
     APP_STATE.generation.assetId = null;
@@ -192,6 +285,10 @@
   YJ.state.cacheAsset = cacheAsset;
   YJ.state.getCachedAsset = getCachedAsset;
   YJ.state.resetGenerationState = resetGenerationState;
+  YJ.state.getEditorProject = getEditorProject;
+  YJ.state.setEditorProject = setEditorProject;
+  YJ.state.getEditorTimeline = getEditorTimeline;
+  YJ.state.resetEditorState = resetEditorState;
 
   // Constants exposed for convenience
   YJ.state.PAGE_STATE = PAGE_STATE;

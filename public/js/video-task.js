@@ -315,7 +315,7 @@
   }
 
   /**
-   * 检查并恢复未完成任务
+   * 检查并恢复未完成任务（从 sessionStorage）
    * @param {{onUpdate, onSuccess, onFailed}} callbacks
    * @returns {boolean} — 是否有待恢复的任务
    */
@@ -340,6 +340,53 @@
     return false;
   }
 
+  /**
+   * 从数据库恢复所有未完成任务（pending / processing）
+   *
+   * 刷新页面后自动调用，查询数据库中所有未完成的任务并恢复轮询。
+   * 相比 sessionStorage 方案，此方法能恢复多个任务且不依赖浏览器存储。
+   *
+   * @param {{
+   *   onUpdate?: Function,   // (task) — 每次状态更新
+   *   onSuccess?: Function,  // (task) — 任务成功
+   *   onFailed?: Function,   // (task) — 任务失败
+   *   onTimeout?: Function,  // ()    — 轮询超时
+   *   onError?: Function     // (error)— 查询出错
+   * }} callbacks
+   * @returns {Promise<Array>} 恢复的任务 ID 列表
+   */
+  async function recoverIncompleteTasks(callbacks = {}) {
+    if (!api.isAuthenticated()) {
+      console.log('[VideoTask] 未登录，跳过任务恢复');
+      return [];
+    }
+
+    try {
+      const data = await api.get('/enterprise/video-generation/tasks?status=pending,processing&pageSize=50');
+      const tasks = data.items || [];
+
+      if (tasks.length === 0) {
+        console.log('[VideoTask] 没有需要恢复的未完成任务');
+        return [];
+      }
+
+      console.log('[VideoTask] 从数据库恢复 ' + tasks.length + ' 个未完成任务');
+      tasks.forEach(function (task) {
+        console.log('[VideoTask] 恢复任务:', task.id, 'status:', task.status, 'progress:', task.progress);
+        pollTaskStatus(task.id, callbacks);
+      });
+
+      return tasks;
+    } catch (err) {
+      console.error('[VideoTask] 恢复未完成任务失败:', err);
+      // 降级：尝试 sessionStorage 恢复
+      if (resumePendingTask(callbacks)) {
+        return ['sessionStorage'];
+      }
+      return [];
+    }
+  }
+
   // ─── 暴露到全局 ──────────────────────────────────────────
   window.YuJianVideoTask = {
     // 创建与查询
@@ -358,6 +405,7 @@
     savePendingTask,
     clearPendingTask,
     resumePendingTask,
+    recoverIncompleteTasks,
 
     // 常量
     STATUS_MAP,

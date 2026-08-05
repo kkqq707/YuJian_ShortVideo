@@ -1,0 +1,53 @@
+/**
+ * YuJian Storyboard Page Styles — Phase 1-D
+ *
+ * 迁移自 enterprise.html 内联 <style>，包含：
+ *   故事板编辑器 / 分镜列表 / 分镜项 / 故事板编辑侧栏
+ *
+ * 选择器名称保持不变，确保 100% 兼容现有 JS/HTML。
+ */
+
+/* 故事板编辑器 */
+.storyboard-editor {
+    background: var(--storyboard-bg); border-radius: var(--radius); padding: 20px;
+    min-height: 500px; color: #fff;
+}
+.storyboard-header {
+    display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;
+    padding-bottom: 16px; border-bottom: 1px solid rgba(255,255,255,0.1);
+}
+.storyboard-title { font-size: 18px; font-weight: 600; }
+.storyboard-actions { display: flex; gap: 10px; }
+
+.shot-list { display: flex; flex-direction: column; gap: 12px; }
+.shot-item {
+    background: rgba(255,255,255,0.05); border-radius: 10px; padding: 16px;
+    display: grid; grid-template-columns: 60px 1fr 120px 100px 80px; gap: 16px; align-items: center;
+    border: 1px solid rgba(255,255,255,0.08); transition: all 0.2s;
+}
+.shot-item:hover { background: rgba(255,255,255,0.08); border-color: rgba(59,127,224,0.5); }
+.shot-num {
+    width: 40px; height: 40px; border-radius: 8px; background: var(--primary);
+    display: flex; align-items: center; justify-content: center; font-weight: 700;
+}
+.shot-desc { font-size: 14px; line-height: 1.6; }
+.shot-desc .shot-line { color: #94a3b8; font-size: 12px; margin-top: 4px; }
+.shot-style { font-size: 12px; color: #94a3b8; }
+.shot-duration { font-size: 14px; text-align: center; color: #f59e0b; font-weight: 600; }
+.shot-actions { display: flex; gap: 6px; justify-content: flex-end; }
+.shot-actions button {
+    width: 32px; height: 32px; border-radius: 6px; border: none; cursor: pointer;
+    background: rgba(255,255,255,0.1); color: #fff; display: flex; align-items: center; justify-content: center;
+}
+.shot-actions button:hover { background: var(--primary); }
+
+/* 故事板编辑侧栏 */
+.storyboard-drawer {
+    position: fixed; right: -420px; top: 0; width: 420px; height: 100vh;
+    background: #fff; box-shadow: -4px 0 20px rgba(0,0,0,0.1); z-index: var(--z-drawer, 400);
+    transition: right 0.3s; display: flex; flex-direction: column;
+}
+.storyboard-drawer.show { right: 0; }
+.drawer-header { padding: 20px 24px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
+.drawer-body { flex: 1; padding: 24px; overflow-y: auto; }
+.drawer-footer { padding: 16px 24px; border-top: 1px solid var(--border); display: flex; gap: 12px; justify-content: flex-end; }

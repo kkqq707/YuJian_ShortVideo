@@ -32,14 +32,14 @@
       ]
     },
     projects: [
-      { id: 1, name: '618促销视频', type: '文生视频', time: '2026-07-14', status: '已完成' },
-      { id: 2, name: '品牌宣传片', type: '故事板', time: '2026-07-12', status: '进行中' },
-      { id: 3, name: '产品介绍口播', type: '数字人', time: '2026-07-10', status: '已完成' },
-      { id: 4, name: '新品开箱视频', type: '图生视频', time: '2026-07-08', status: '已完成' },
-      { id: 5, name: '节日祝福视频', type: '文生视频', time: '2026-07-05', status: '已完成' },
-      { id: 6, name: '团队介绍短片', type: '故事板', time: '2026-07-01', status: '草稿' },
-      { id: 7, name: '客户 testimonial', type: '数字人', time: '2026-06-28', status: '已完成' },
-      { id: 8, name: '教程系列第一集', type: '文生视频', time: '2026-06-25', status: '进行中' }
+      { id: 1, name: '618促销视频', type: 'text2video', typeLabel: '文生视频', typeIcon: 'fa-video', time: '2026-07-14', status: 'completed', statusLabel: '已完成', materialCount: 12, shotCount: 8, generatedVideos: 3, description: '618电商大促宣传视频，突出产品优惠力度' },
+      { id: 2, name: '品牌宣传片', type: 'storyboard', typeLabel: '故事板', typeIcon: 'fa-clapperboard', time: '2026-07-12', status: 'processing', statusLabel: '处理中', materialCount: 25, shotCount: 15, generatedVideos: 5, description: '企业品牌形象宣传短片，展示企业文化与实力' },
+      { id: 3, name: '产品介绍口播', type: 'digitalhuman', typeLabel: '数字人', typeIcon: 'fa-user-circle', time: '2026-07-10', status: 'completed', statusLabel: '已完成', materialCount: 8, shotCount: 3, generatedVideos: 1, description: '数字人产品功能演示与介绍' },
+      { id: 4, name: '新品开箱视频', type: 'image2video', typeLabel: '图生视频', typeIcon: 'fa-images', time: '2026-07-08', status: 'completed', statusLabel: '已完成', materialCount: 18, shotCount: 6, generatedVideos: 2, description: '新产品开箱评测与使用演示' },
+      { id: 5, name: '节日祝福视频', type: 'text2video', typeLabel: '文生视频', typeIcon: 'fa-video', time: '2026-07-05', status: 'completed', statusLabel: '已完成', materialCount: 5, shotCount: 4, generatedVideos: 1, description: '节日祝福短视频，温馨感人' },
+      { id: 6, name: '团队介绍短片', type: 'storyboard', typeLabel: '故事板', typeIcon: 'fa-clapperboard', time: '2026-07-01', status: 'draft', statusLabel: '草稿', materialCount: 10, shotCount: 0, generatedVideos: 0, description: '团队风采展示短片策划' },
+      { id: 7, name: '客户见证视频', type: 'digitalhuman', typeLabel: '数字人', typeIcon: 'fa-user-circle', time: '2026-06-28', status: 'completed', statusLabel: '已完成', materialCount: 6, shotCount: 5, generatedVideos: 3, description: '客户使用体验分享与推荐' },
+      { id: 8, name: '教程系列第一集', type: 'text2video', typeLabel: '文生视频', typeIcon: 'fa-video', time: '2026-06-25', status: 'generating', statusLabel: '生成中', materialCount: 15, shotCount: 10, generatedVideos: 2, description: '产品使用教程系列第一集' }
     ],
     members: [
       { id: 1, name: '王磊', role: '管理员', joined: '2026-02-10', status: 'active' },
@@ -83,11 +83,11 @@
       '<span class="sans-text">生辉</span>' +
       '</div>' +
       '</div>' +
-      '<button class="hero-btn" onclick="navigateTo(\'ref2video\')">使用 YuanjianGuang 1.1<i class="fas fa-arrow-right"></i></button>' +
+      '<button class="hero-btn" onclick="navigateTo(\'studio\')">开始AI创作<i class="fas fa-arrow-right"></i></button>' +
       '</div>' +
       '</div>' +
       '<div class="feature-cards">' +
-      '<div class="feature-card" onclick="navigateTo(\'ref2video\')"><div class="feature-card-info"><div style="display:flex;align-items:center;gap:8px;margin-bottom:6px"><h4>YuanjianGuang 1.1</h4><span class="feature-card-badge">NEW</span></div><p>影视级视频生成</p></div><i class="fas fa-arrow-up-right-from-square feature-card-arrow"></i></div>' +
+      '<div class="feature-card" onclick="navigateTo(\'studio\')"><div class="feature-card-info"><div style="display:flex;align-items:center;gap:8px;margin-bottom:6px"><h4>AI创作中心</h4><span class="feature-card-badge">NEW</span></div><p>统一创作入口，一站式生成</p></div><i class="fas fa-arrow-up-right-from-square feature-card-arrow"></i></div>' +
       '<div class="feature-card" onclick="navigateTo(\'storyboard\')"><div class="feature-card-info"><h4>故事板创作</h4><p>剧本拆分，批量生成</p></div><i class="fas fa-arrow-up-right-from-square feature-card-arrow"></i></div>' +
       '<div class="feature-card" onclick="navigateTo(\'digitalhuman\')"><div class="feature-card-info"><h4>数字人创作</h4><p>真人形象，智能口播</p></div><i class="fas fa-arrow-up-right-from-square feature-card-arrow"></i></div>' +
       '<div class="feature-card" onclick="navigateTo(\'assets\')"><div class="feature-card-info"><h4>资产管理</h4><p>素材统一管理</p></div><i class="fas fa-arrow-up-right-from-square feature-card-arrow"></i></div>' +
@@ -122,10 +122,15 @@
       case 'storyboard': container.innerHTML = renderStoryboardPage(); break;
       case 'text2video': container.innerHTML = (typeof renderText2Video === 'function' ? renderText2Video() : '<div class="card"><div class="card-body">页面开发中</div></div>'); initTemplateSelector('#t2vTemplateContainer', 't2vPrompt'); break;
       case 'image2video': container.innerHTML = (typeof renderImage2Video === 'function' ? renderImage2Video() : '<div class="card"><div class="card-body">页面开发中</div></div>'); initTemplateSelector('#i2vTemplateContainer', 'i2vPrompt'); break;
-      case 'ref2video': container.innerHTML = (typeof renderRef2Video === 'function' ? renderRef2Video() : '<div class="card"><div class="card-body">页面开发中</div></div>'); break;
+      case 'studio': container.innerHTML = (typeof renderStudio === 'function' ? renderStudio() : renderFallback('AI创作中心')); initTemplateSelector('#studioTemplateContainer', 'studioPrompt'); break;
       case 'digitalhuman': container.innerHTML = (typeof renderDigitalHuman === 'function' ? renderDigitalHuman() : '<div class="card"><div class="card-body">页面开发中</div></div>'); break;
       case 'imageGen': container.innerHTML = (typeof renderImageGen === 'function' ? renderImageGen() : '<div class="card"><div class="card-body">页面开发中</div></div>'); initTemplateSelector('#imgGenTemplateContainer', 'imgGenPrompt'); break;
       case 'projects': container.innerHTML = (typeof renderProjects === 'function' ? renderProjects() : '<div class="card"><div class="card-body">页面开发中</div></div>'); break;
+      case 'project-detail': {
+        var pid = APP.currentProjectId;
+        container.innerHTML = (typeof renderProjectDetail === 'function' ? renderProjectDetail(pid) : '<div class="card"><div class="card-body">页面开发中</div></div>');
+        break;
+      }
       case 'myworks': container.innerHTML = (typeof renderMyWorks === 'function' ? renderMyWorks() : '<div class="card"><div class="card-body">页面开发中</div></div>'); setTimeout(function () { if (typeof loadMyWorks === 'function') loadMyWorks(1); }, 0); break;
       case 'assets': container.innerHTML = (typeof renderAssets === 'function' ? renderAssets() : '<div class="card"><div class="card-body">页面开发中</div></div>'); break;
       case 'editor': container.innerHTML = (typeof renderEditor === 'function' ? renderEditor() : '<div class="card"><div class="card-body">页面开发中</div></div>'); break;
@@ -183,7 +188,7 @@
   // ─── Auth Interceptor ─────────────────────────────────────
   var _originalNavigateTo = navigateTo;
   navigateTo = function (page) {
-    var authPages = ['image2video', 'text2video', 'ref2video', 'digitalhuman', 'imageGen', 'assets'];
+    var authPages = ['studio', 'image2video', 'text2video', 'ref2video', 'digitalhuman', 'imageGen', 'assets'];
     if (authPages.indexOf(page) !== -1 && typeof YuJianAuth !== 'undefined' && !YuJianAuth.isAuthenticated()) {
       if (typeof showLogin === 'function') showLogin();
       if (typeof showToast === 'function') showToast('请先登录企业账号', 'warning');
@@ -219,6 +224,7 @@
       state: !!(window.YJ && window.YJ.state),
       utils: !!(window.YJ && window.YJ.utils),
       api: !!(window.EnterpriseAPI),
+      editorState: !!(window.YJ && window.YJ.Editor),
       assetList: !!(window.YJ && window.YJ.modules && window.YJ.modules.assetList),
       assetDetail: !!(window.YJ && window.YJ.modules && window.YJ.modules.assetDetail),
       assetPreview: !!(window.YJ && window.YJ.modules && window.YJ.modules.assetPreview),

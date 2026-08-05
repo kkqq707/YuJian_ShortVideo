@@ -1,0 +1,293 @@
+/**
+ * YuJian Layout Styles — Phase 0
+ *
+ * 未来页面布局：AppShell / Sidebar / TopBar / PageContainer
+ *
+ * 注意：这些样式目前不会替换现有侧边栏和布局。
+ * 旧代码继续使用 enterprise.html 内联样式中的 .sidebar / .main-content 等类名。
+ * 新页面（Phase 2+）可以逐步采用下面的布局类名。
+ */
+
+/* ================================================================
+   1. AppShell — 应用外壳
+   ================================================================ */
+
+.yj-app-shell {
+  display: flex;
+  min-height: 100vh;
+  background: var(--bg-base);
+}
+
+/* 有侧边栏时，主内容区偏移 */
+.yj-app-shell--sidebar {
+  padding-left: var(--sidebar-width, 90px);
+}
+
+/* ================================================================
+   2. Sidebar — 侧边栏导航
+   ================================================================ */
+
+.yj-sidebar {
+  position: fixed;
+  left: 0;
+  top: 0;
+  width: var(--sidebar-width, 90px);
+  height: 100vh;
+  background: transparent;
+  display: flex;
+  flex-direction: column;
+  z-index: 100;
+  overflow: hidden;
+  transition: width var(--duration-normal) var(--ease-out);
+}
+
+/* 侧边栏展开状态 */
+.yj-sidebar--expanded {
+  width: var(--sidebar-expanded, 220px);
+}
+
+/* Logo 区域 */
+.yj-sidebar-logo {
+  height: 64px;
+  display: flex;
+  align-items: center;
+  padding: 0 20px;
+  border-bottom: 1px solid var(--border-subtle);
+  font-size: 18px;
+  font-weight: var(--font-bold);
+  gap: 12px;
+  flex-shrink: 0;
+}
+
+.yj-sidebar-logo-icon {
+  width: 32px;
+  height: 32px;
+  background: linear-gradient(135deg, var(--primary), var(--accent-purple));
+  border-radius: var(--radius-md);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-size: 16px;
+  flex-shrink: 0;
+}
+
+.yj-sidebar-logo-text {
+  background: linear-gradient(135deg, #fff, var(--text-secondary));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  letter-spacing: 1px;
+  white-space: nowrap;
+}
+
+/* 导航菜单区域 */
+.yj-sidebar-nav {
+  flex: 1;
+  padding: 12px 6px;
+  overflow: hidden auto;
+}
+
+/* 导航分组标题 */
+.yj-sidebar-section {
+  padding: 16px 14px 8px;
+  font-size: 11px;
+  color: var(--text-muted);
+  font-weight: var(--font-medium);
+  white-space: nowrap;
+}
+
+/* 导航项 */
+.yj-sidebar-item {
+  padding: 10px 6px;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  color: rgba(255, 255, 255, 0.7);
+  transition: all var(--duration-fast) var(--ease-out);
+  border-radius: var(--radius-md);
+  margin-bottom: 4px;
+  gap: 4px;
+  font-size: 11px;
+  font-weight: var(--font-medium);
+  text-align: center;
+}
+
+.yj-sidebar-item:hover {
+  background: var(--bg-card-hover);
+  color: #fff;
+}
+
+.yj-sidebar-item.yj-active {
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+}
+
+.yj-sidebar-item i {
+  font-size: 20px;
+  width: 24px;
+  text-align: center;
+  color: rgba(255, 255, 255, 0.85);
+}
+
+.yj-sidebar-item.yj-active i,
+.yj-sidebar-item:hover i {
+  color: #fff;
+}
+
+/* 导航分组标题（Phase 2-B: 创作 / 资源 / 账户） */
+.yj-sidebar-section {
+  padding: 16px 14px 8px;
+  font-size: 11px;
+  color: var(--text-muted);
+  font-weight: var(--font-medium);
+  white-space: nowrap;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+}
+
+/* 侧边栏底部分隔 */
+.yj-sidebar-divider {
+  height: 1px;
+  background: var(--border-subtle);
+  margin: 8px 12px;
+}
+
+/* 侧边栏底部 */
+.yj-sidebar-footer {
+  padding: 8px 0 16px;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+/* ================================================================
+   3. TopBar — 顶部操作栏
+   ================================================================ */
+
+.yj-topbar {
+  height: var(--header-height, 56px);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 var(--space-6);
+  border-bottom: 1px solid var(--border-subtle);
+  background: var(--bg-base);
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  backdrop-filter: blur(12px);
+}
+
+.yj-topbar-left {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+}
+
+.yj-topbar-right {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+/* ================================================================
+   4. PageContainer — 页面容器
+   ================================================================ */
+
+.yj-page-container {
+  flex: 1;
+  padding: var(--space-6);
+  max-width: 1440px;
+  margin: 0 auto;
+  width: 100%;
+}
+
+.yj-page-container--fluid {
+  max-width: none;
+}
+
+.yj-page-container--narrow {
+  max-width: 800px;
+}
+
+/* 页面标题区 */
+.yj-page-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--space-6);
+  gap: var(--space-4);
+}
+
+.yj-page-title {
+  font-size: var(--text-xl);
+  font-weight: var(--font-bold);
+}
+
+.yj-page-subtitle {
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+  margin-top: var(--space-1);
+}
+
+/* ================================================================
+   5. 两栏 / 三栏布局工具
+   ================================================================ */
+
+.yj-layout-two-col {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-6);
+}
+
+.yj-layout-three-col {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--space-6);
+}
+
+.yj-layout-sidebar {
+  display: grid;
+  grid-template-columns: 280px 1fr;
+  gap: var(--space-6);
+}
+
+/* ================================================================
+   6. 响应式布局
+   ================================================================ */
+
+/* 侧边栏折叠 */
+@media (max-width: 1024px) {
+  .yj-sidebar {
+    width: 72px;
+  }
+  .yj-sidebar--expanded {
+    width: 220px;
+  }
+}
+
+/* 平板：单栏 */
+@media (max-width: 768px) {
+  .yj-layout-two-col,
+  .yj-layout-three-col,
+  .yj-layout-sidebar {
+    grid-template-columns: 1fr;
+  }
+
+  .yj-page-container {
+    padding: var(--space-4);
+  }
+}
+
+/* 手机 */
+@media (max-width: 375px) {
+  .yj-page-container {
+    padding: var(--space-3);
+  }
+}

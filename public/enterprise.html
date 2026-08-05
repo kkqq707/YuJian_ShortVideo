@@ -7,6 +7,7 @@
     <!-- Sprint 4.7 Patch1: Prevent favicon.ico 404 -->
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎬</text></svg>">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <link rel="stylesheet" href="css/pages/editor.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
     <style>
         :root {
@@ -2795,48 +2796,53 @@
         </video>
         <div class="fullscreen-overlay"></div>
     </div>
-    <!-- 侧边栏 -->
+    <!-- 侧边栏 — Phase 2-B 结构：首页 / 创作 / 资源 / 账户 -->
     <div class="sidebar" id="sidebar">
         <div class="nav-menu">
             <div class="nav-item active" data-page="dashboard" onclick="navigateTo('dashboard')">
-                <i class="fas fa-home nav-icon-home"></i><span>首页</span>
+                <i class="fas fa-home"></i><span>首页</span>
             </div>
-            <div class="nav-item" data-page="assets" onclick="navigateTo('assets')">
-                <i class="fas fa-folder-open nav-icon-assets"></i><span>资产</span>
-            </div>
+
+            <div class="nav-section">创作</div>
             <div class="nav-item" data-page="ref2video" onclick="navigateTo('ref2video')">
-                <i class="fas fa-wand-magic-sparkles nav-icon-ai"></i><span>AI生成</span>
-            </div>
-            <div class="nav-item" data-page="digitalhuman" onclick="navigateTo('digitalhuman')">
-                <i class="fas fa-user nav-icon-avatar"></i><span>主体</span>
+                <i class="fas fa-wand-magic-sparkles"></i><span>AI创作</span>
             </div>
             <div class="nav-item" data-page="storyboard" onclick="navigateTo('storyboard')">
-                <i class="fas fa-clapperboard nav-icon-story"></i><span>故事板</span>
+                <i class="fas fa-clapperboard"></i><span>故事板</span>
             </div>
             <div class="nav-item" data-page="editor" onclick="navigateTo('editor')">
-                <i class="fas fa-scissors nav-icon-edit"></i><span>在线剪辑</span>
+                <i class="fas fa-scissors"></i><span>视频剪辑</span>
+            </div>
+
+            <div class="nav-section">资源</div>
+            <div class="nav-item" data-page="assets" onclick="navigateTo('assets')">
+                <i class="fas fa-folder-open"></i><span>素材库</span>
             </div>
             <div class="nav-item" data-page="projects" onclick="navigateTo('projects')">
-                <i class="fas fa-folder nav-icon-folder"></i><span>我的项目</span>
+                <i class="fas fa-diagram-project"></i><span>项目管理</span>
             </div>
             <div class="nav-item" data-page="myworks" onclick="navigateTo('myworks')">
-                <i class="fas fa-film nav-icon-video"></i><span>我的作品</span>
+                <i class="fas fa-film"></i><span>作品库</span>
+            </div>
+
+            <div class="nav-section">账户</div>
+            <div class="nav-item" data-page="billing" onclick="navigateTo('billing')">
+                <i class="fas fa-coins"></i><span>积分中心</span>
+            </div>
+            <div class="nav-item" data-page="settings" onclick="navigateTo('settings')">
+                <i class="fas fa-cog"></i><span>系统设置</span>
             </div>
         </div>
-        
+
         <!-- 侧边栏底部 -->
         <div class="sidebar-footer">
             <div class="footer-links">
-                <div class="footer-link" onclick="navigateTo('billing')">
-                    <i class="fas fa-coins"></i>
-                    <span>购买积分</span>
-                </div>
                 <div class="footer-link">
                     <i class="fas fa-circle-question"></i>
                     <span>帮助</span>
                 </div>
             </div>
-            <div class="user-mini" onclick="navigateTo('settings')">
+            <div class="user-mini">
                 <div class="avatar-sm">王</div>
             </div>
         </div>
@@ -4011,45 +4017,18 @@
             `;
         }
 
+        // Phase 2-D-2: renderEditor() is now provided by YJ.EditorApp.renderEditor
+        // (loaded via js/enterprise/editor/editor-app.js)
         function renderEditor() {
-            return `
-                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
-                    <h3 style="font-size:18px">🎬 视频剪辑工作台</h3>
-                    <div style="display:flex;gap:8px">
-                        <button class="btn btn-outline btn-sm"><i class="fas fa-folder-open"></i> 导入素材</button>
-                        <button class="btn btn-primary btn-sm"><i class="fas fa-download"></i> 导出视频</button>
-                    </div>
-                </div>
-                <div class="timeline-editor">
-                    <div class="timeline-preview">
-                        <i class="fas fa-play-circle" style="font-size:48px;color:var(--primary)"></i>
-                        <div>预览区域</div>
-                    </div>
-                    <div style="margin-bottom:12px;color:#94a3b8;font-size:13px">视频轨道</div>
-                    <div class="timeline-track">
-                        <div class="timeline-clip">片段1 · 5s</div>
-                        <div class="timeline-clip">片段2 · 4s</div>
-                        <div class="timeline-clip">片段3 · 6s</div>
-                        <div style="color:#6b7280;font-size:12px">+ 添加片段</div>
-                    </div>
-                    <div style="margin-bottom:12px;color:#94a3b8;font-size:13px">音频轨道</div>
-                    <div class="timeline-track">
-                        <div class="timeline-clip audio">背景音乐 · 15s</div>
-                    </div>
-                    <div style="margin-bottom:12px;color:#94a3b8;font-size:13px">字幕轨道</div>
-                    <div class="timeline-track">
-                        <div class="timeline-clip text">字幕1</div>
-                        <div class="timeline-clip text">字幕2</div>
-                        <div class="timeline-clip text">字幕3</div>
-                    </div>
-                    <div class="timeline-controls">
-                        <button class="btn btn-outline btn-sm" style="background:rgba(255,255,255,0.1);border-color:rgba(255,255,255,0.2);color:#fff"><i class="fas fa-cut"></i> 切割</button>
-                        <button class="btn btn-outline btn-sm" style="background:rgba(255,255,255,0.1);border-color:rgba(255,255,255,0.2);color:#fff"><i class="fas fa-magic"></i> 转场效果</button>
-                        <button class="btn btn-outline btn-sm" style="background:rgba(255,255,255,0.1);border-color:rgba(255,255,255,0.2);color:#fff"><i class="fas fa-font"></i> 添加字幕</button>
-                        <button class="btn btn-outline btn-sm" style="background:rgba(255,255,255,0.1);border-color:rgba(255,255,255,0.2);color:#fff"><i class="fas fa-music"></i> 背景音乐</button>
-                    </div>
-                </div>
-            `;
+            if (window.YJ && window.YJ.EditorApp && window.YJ.EditorApp.renderEditor) {
+                var html = YJ.EditorApp.renderEditor();
+                // Schedule init after DOM is rendered
+                setTimeout(function () {
+                    if (YJ.EditorApp.initEditor) YJ.EditorApp.initEditor();
+                }, 0);
+                return html;
+            }
+            return '<div class="card"><div class="card-body" style="text-align:center;padding:40px">编辑器加载中…</div></div>';
         }
 
         function renderTeam() {
@@ -7149,6 +7128,13 @@
     <script src="js/enterprise/asset-history.js"></script>
     <script src="js/enterprise/workspace.js"></script>
     <script src="js/enterprise/generation-panel.js"></script>
+    <script src="js/enterprise/editor-state.js"></script>
+    <script src="js/enterprise/editor/editor-toolbar.js"></script>
+    <script src="js/enterprise/editor/editor-player.js"></script>
+    <script src="js/enterprise/editor/editor-timeline.js"></script>
+    <script src="js/enterprise/editor/editor-media.js"></script>
+    <script src="js/enterprise/editor/editor-inspector.js"></script>
+    <script src="js/enterprise/editor/editor-app.js"></script>
     <script src="js/enterprise/app.js"></script>
 </body>
 </html>

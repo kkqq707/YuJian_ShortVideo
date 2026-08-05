@@ -67,6 +67,7 @@ function toListItem(task) {
     playUrl: playUrl || task.output_url || null,
     duration: task.duration || null,
     progress: task.progress || 0,
+    errorMsg: task.error_msg || null,
     createdAt: task.created_at,
     outputAsset: outputAsset ? {
       id: outputAsset.id,
@@ -499,9 +500,14 @@ exports.listTasks = async (req, res) => {
     const status = req.query.status || null;
     const taskType = req.query.task_type || null;
 
-    // 校验 status 合法值
-    if (status && !['pending', 'processing', 'success', 'failed'].includes(status)) {
-      return res.fail('无效的状态筛选参数', 400);
+    // 校验 status 合法值（支持逗号分隔的多状态查询，如 ?status=pending,processing）
+    const VALID_STATUSES = ['pending', 'processing', 'success', 'failed'];
+    let statusFilter = null;
+    if (status) {
+      statusFilter = status.split(',').map(s => s.trim()).filter(s => VALID_STATUSES.includes(s));
+      if (statusFilter.length === 0) {
+        return res.fail('无效的状态筛选参数', 400);
+      }
     }
 
     // ── 3. 构建查询条件 ────────────────────────────────────────
@@ -510,8 +516,8 @@ exports.listTasks = async (req, res) => {
       ...notDeleted()
     };
 
-    if (status) {
-      where.status = status;
+    if (statusFilter) {
+      where.status = statusFilter.length === 1 ? statusFilter[0] : { [Op.in]: statusFilter };
     }
 
     if (taskType) {

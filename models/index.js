@@ -10,6 +10,11 @@ const ApiConfig = require('./ApiConfig');
 const OperationLog = require('./OperationLog');
 const GenerationTask = require('./GenerationTask');
 const Asset = require('./Asset');
+const DramaProject = require('./DramaProject');
+const DramaEpisode = require('./DramaEpisode');
+const DramaScene = require('./DramaScene');
+const DramaCharacter = require('./DramaCharacter');
+const DramaShot = require('./DramaShot');
 
 // 关联关系
 Agent.hasMany(Enterprise, { foreignKey: 'agent_id' });
@@ -48,6 +53,76 @@ Asset.hasMany(GenerationTask, {
   constraints: false
 });
 
+// ─── DramaPipeline 关联（Sprint 1） ────────────────────────────────
+
+// Enterprise → DramaProject
+Enterprise.hasMany(DramaProject, { foreignKey: 'enterprise_id' });
+DramaProject.belongsTo(Enterprise, { foreignKey: 'enterprise_id' });
+
+// DramaProject → DramaEpisode
+DramaProject.hasMany(DramaEpisode, { foreignKey: 'project_id' });
+DramaEpisode.belongsTo(DramaProject, { foreignKey: 'project_id' });
+
+// DramaEpisode → DramaScene
+DramaEpisode.hasMany(DramaScene, { foreignKey: 'episode_id' });
+DramaScene.belongsTo(DramaEpisode, { foreignKey: 'episode_id' });
+
+// DramaScene → DramaShot
+DramaScene.hasMany(DramaShot, { foreignKey: 'scene_id' });
+DramaShot.belongsTo(DramaScene, { foreignKey: 'scene_id' });
+
+// DramaShot → GenerationTask（复用现有生成任务）
+DramaShot.belongsTo(GenerationTask, {
+  as: 'generationTask',
+  foreignKey: 'task_id',
+  constraints: false
+});
+GenerationTask.hasMany(DramaShot, {
+  as: 'dramaShots',
+  foreignKey: 'task_id',
+  constraints: false
+});
+
+// DramaShot → Asset（输出结果）
+DramaShot.belongsTo(Asset, {
+  as: 'outputAsset',
+  foreignKey: 'output_asset_id',
+  constraints: false
+});
+Asset.hasMany(DramaShot, {
+  as: 'dramaOutputShots',
+  foreignKey: 'output_asset_id',
+  constraints: false
+});
+
+// DramaShot 自引用（版本追溯）
+DramaShot.belongsTo(DramaShot, {
+  as: 'parentShot',
+  foreignKey: 'parent_shot_id',
+  constraints: false
+});
+DramaShot.hasMany(DramaShot, {
+  as: 'childShots',
+  foreignKey: 'parent_shot_id',
+  constraints: false
+});
+
+// DramaCharacter → Asset（角色头像）
+DramaCharacter.belongsTo(Asset, {
+  as: 'avatarAsset',
+  foreignKey: 'avatar_asset_id',
+  constraints: false
+});
+Asset.hasMany(DramaCharacter, {
+  as: 'dramaCharacters',
+  foreignKey: 'avatar_asset_id',
+  constraints: false
+});
+
+// DramaProject → DramaCharacter
+DramaProject.hasMany(DramaCharacter, { foreignKey: 'project_id' });
+DramaCharacter.belongsTo(DramaProject, { foreignKey: 'project_id' });
+
 module.exports = {
   sequelize,
   Admin,
@@ -60,5 +135,10 @@ module.exports = {
   ApiConfig,
   OperationLog,
   GenerationTask,
-  Asset
+  Asset,
+  DramaProject,
+  DramaEpisode,
+  DramaScene,
+  DramaCharacter,
+  DramaShot
 };
