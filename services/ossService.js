@@ -103,15 +103,17 @@ class OssService {
   }
 
   /**
-   * 生成带签名的临时访问URL（Sprint 5.6: Private OSS Video Playback）
+   * 生成带签名的临时访问URL
    *
-   * 与 getSignedUrl 的区别：支持 response 参数设置强制响应头，
-   * 确保浏览器能正确识别视频 MIME 类型进行播放。
+   * 与 getSignedUrl 相同，均生成普通 OSS 签名 URL。
+   * 保留此方法用于向后兼容，调用方无需修改。
+   *
+   * Content-Type 在上传时已通过 putFile 正确设置，无需通过
+   * response-content-type 覆盖（OSS 驳回此操作并返回 400）。
    *
    * @param {string} keyOrUrl  - OSS object key 或完整OSS URL
    * @param {number} [expires=3600] - 签名有效期（秒），默认1小时
-   * @param {Object} [options] - 额外选项
-   * @param {string} [options.contentType] - 强制响应 Content-Type（如 'video/mp4'）
+   * @param {Object} [options] - 额外选项（保留参数兼容性，contentType 不再使用）
    * @returns {Promise<string|null>} 签名后的临时访问URL
    */
   async generateSignedUrl(keyOrUrl, expires = 3600, options = {}) {
@@ -119,16 +121,7 @@ class OssService {
     const key = this.extractKeyFromUrl(keyOrUrl);
     if (!key) return null;
 
-    const signOptions = { expires };
-
-    // 支持强制设置响应 Content-Type（解决浏览器视频播放 MIME 识别问题）
-    if (options.contentType) {
-      signOptions.response = {
-        'content-type': options.contentType
-      };
-    }
-
-    return this.client.signatureUrl(key, signOptions);
+    return this.client.signatureUrl(key, { expires });
   }
 
   // 服务端上传文件（视频存储等场景）
