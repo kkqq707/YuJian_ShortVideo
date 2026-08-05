@@ -4402,17 +4402,17 @@
             if (hasVideo) {
                 // Sprint 5.8: 延迟解析播放URL，点击时才调用 getPlayUrl
                 actionsHtml += '<button class="btn btn-outline btn-sm-icon" onclick="event.stopPropagation();playWorkVideo(\'' +
-                    item.id + '\', \'' + escapeHtml(promptText || 'AI视频') + '\')" title="播放">' +
+                    item.id + '\', \'' + escapeJsString(promptText || 'AI视频') + '\')" title="播放">' +
                     '<i class="fas fa-play"></i></button>';
             }
             actionsHtml += '<button class="btn btn-outline btn-sm-icon" onclick="event.stopPropagation();showWorkDetail(\'' +
                 item.id + '\')" title="详情"><i class="fas fa-info-circle"></i></button>';
             actionsHtml += '<button class="btn btn-outline btn-sm-icon" onclick="event.stopPropagation();deleteWork(\'' +
-                item.id + '\', \'' + escapeHtml(promptText || 'AI视频') + '\')" title="删除" style="color:var(--danger)">' +
+                item.id + '\', \'' + escapeJsString(promptText || 'AI视频') + '\')" title="删除" style="color:var(--danger)">' +
                 '<i class="fas fa-trash"></i></button>';
 
             var thumbClickAttr = hasVideo
-                ? ' onclick="playWorkVideo(\'' + item.id + '\', \'' + escapeHtml(promptText || 'AI视频') + '\')"'
+                ? ' onclick="playWorkVideo(\'' + item.id + '\', \'' + escapeJsString(promptText || 'AI视频') + '\')"'
                 : '';
 
             return '<div class="work-card">' +
@@ -4510,7 +4510,7 @@
                     '<div style="background:rgba(255,255,255,0.04);padding:10px;border-radius:6px;line-height:1.6;max-height:120px;overflow-y:auto">' +
                     escapeHtml(promptText) + '</div>' +
                     (videoPlayUrl ? '<div style="margin-top:4px"><button class="btn btn-primary btn-sm" onclick="closeModal();playWorkVideo(\'' +
-                        taskId + '\', \'' + escapeHtml(promptText) + '\')"><i class="fas fa-play"></i> 播放视频</button></div>' : '') +
+                        taskId + '\', \'' + escapeJsString(promptText) + '\')"><i class="fas fa-play"></i> 播放视频</button></div>' : '') +
                     '</div>';
 
                 openModal('作品详情', encodeURIComponent(content));
@@ -4985,6 +4985,19 @@
             var div = document.createElement('div');
             div.appendChild(document.createTextNode(str));
             return div.innerHTML;
+        }
+
+        // 专用于 onclick 属性中 JS 字符串上下文的转义
+        // 区别于 escapeHtml：HTML 转义解决的是 < > & " 等 HTML 实体问题，
+        // 而 JS 字符串中转义需处理 \ ' " 换行等破坏 JS 语法的字符
+        function escapeJsString(str) {
+            if (!str) return '';
+            return str
+                .replace(/\\/g, '\\\\')   // 反斜杠必须最先处理，否则会破坏后续转义
+                .replace(/'/g, "\\'")     // 单引号 — 破坏 JS 字符串
+                .replace(/"/g, '&quot;')  // 双引号 — 破坏外层 HTML 属性
+                .replace(/\n/g, '\\n')    // 换行符 — 破坏 JS 字符串
+                .replace(/\r/g, '\\r');   // 回车符 — 破坏 JS 字符串
         }
 
         // ─── 登录逻辑 ──────────────────────────────────────
