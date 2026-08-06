@@ -3327,19 +3327,13 @@
             }
         }
 
-        // 导航事件 & 启动
-        document.querySelectorAll('.nav-item').forEach(el => {
-            el.addEventListener('click', function() {
-                const page = this.dataset.page;
-                if (page) navigateTo(page);
-            });
-        });
-
         // Sprint Stable: 页面状态持久化 — 恢复上次访问的页面，而非总是返回首页
         var restoredPage = (typeof PageState !== 'undefined' && PageState.restore) ? PageState.restore() : 'dashboard';
-        render(restoredPage);
-        // Phase 2-B: 初始化 Header 显示
-        updateHeaderForPage(restoredPage);
+        // 🔧 Phase Fix: 仅标记初始页面，暂不渲染。
+        // 渲染统一由 app.js 在所有外部模块加载完成后执行，
+        // 避免使用尚未被 editor-app.js 覆盖的旧 renderEditor。
+        APP._initialPage = restoredPage;
+        // 导航事件由 HTML onclick 属性处理，不再重复绑定 addEventListener
 
         // 响应式侧栏
         window.addEventListener('resize', () => {
