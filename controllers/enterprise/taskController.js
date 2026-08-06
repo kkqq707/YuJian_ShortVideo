@@ -2,7 +2,8 @@ const { Op } = require('sequelize');
 const { GenerationTask, Enterprise } = require('../../models');
 const dashscopeService = require('../../services/dashscopeService');
 const { adjustEnterpriseQuota } = require('../../utils/quota');
-const { getTemplateByCapability } = require('../../config/creativeTemplates');
+const registry = require('../../config/ai-model-registry');
+const { getModelsByCapability } = registry;
 
 /**
  * Sprint 4.4 Patch3: 统一使用阿里云百炼 provider
@@ -14,9 +15,9 @@ exports.text2Video = async (req, res) => {
   const { prompt, model, size, duration } = req.body;
   if (!prompt) return res.fail('提示词不能为空');
 
-  // Sprint 4.4 Patch3: 使用创作模板获取模型
-  const template = getTemplateByCapability('text_to_video');
-  const resolvedModel = model || (template ? template.model : 'happyhorse-t2v');
+  // 使用 ai-model-registry 获取模型
+  const textModels = getModelsByCapability('text_to_video');
+  const resolvedModel = model || (textModels.length > 0 ? textModels[0].apiModelName : registry.getApiModelName('wan2.1-t2v'));
 
   const enterprise = await Enterprise.findByPk(req.user.enterpriseId);
   const pointsPerSecond = await dashscopeService.getPointsPerSecond(resolvedModel);
@@ -61,12 +62,12 @@ exports.image2Video = async (req, res) => {
   if (!prompt || !prompt.trim()) return res.fail('提示词不能为空');
   if (prompt.trim().length > 2000) return res.fail('提示词不能超过2000字');
 
-  // Sprint 4.4 Patch3: 统一阿里云模型列表
-  const ALLOWED_MODELS = ['happyhorse-i2v', 'wan2.1-i2v'];
-  const template = getTemplateByCapability('image_to_video');
-  const defaultModel = template ? template.model : 'happyhorse-i2v';
+  // 动态从 registry 获取图生视频模型列表（Phase 2-C-1-E-5）
+  const imgModels = getModelsByCapability('image_to_video');
+  const validApiModelNames = imgModels.map(m => m.apiModelName);
+  const defaultModel = imgModels.length > 0 ? imgModels[0].apiModelName : registry.getApiModelName('wan2.1-i2v');
   const selectedModel = model || defaultModel;
-  if (!ALLOWED_MODELS.includes(selectedModel)) {
+  if (!validApiModelNames.includes(selectedModel)) {
     return res.fail('不支持的模型，仅支持阿里云百炼模型');
   }
 
@@ -126,8 +127,8 @@ exports.ref2Video = async (req, res) => {
   const { images, prompt, model, duration } = req.body;
   if (!images || !images.length) return res.fail('参考图不能为空');
 
-  const template = getTemplateByCapability('image_to_video');
-  const resolvedModel = model || (template ? template.model : 'happyhorse-i2v');
+  const refModels = getModelsByCapability('image_to_video');
+  const resolvedModel = model || (refModels.length > 0 ? refModels[0].apiModelName : registry.getApiModelName('wan2.1-i2v'));
 
   const result = await dashscopeService.submitRef2Video({
     images,
@@ -176,7 +177,7 @@ exports.digitalHuman = async (req, res) => {
     user_id: req.user.userId,
     task_id: result.output.task_id,
     task_type: 'digital_human',
-    model: 'qwen-image-3.0-pro',
+    model: registry.getApiModelName('wanx-digital-human'),
     prompt: text,
     input_url: image_url,
     status: 'pending',

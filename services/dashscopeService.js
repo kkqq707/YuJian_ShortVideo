@@ -2,6 +2,7 @@ const https = require('https');
 const { URL } = require('url');
 const { ApiConfig } = require('../models');
 const apiKeys = require('../config/api-keys');
+const registry = require('../config/ai-model-registry');
 
 // ─── 状态映射表 ────────────────────────────────────────────────
 const STATUS_MAP = {
@@ -327,8 +328,9 @@ class DashScopeService {
     }
 
     // ── 组装请求体 ───────────────────────────────────────────
-    // happyhorse-1.1-i2v 使用 input.media 格式，其他模型使用 input.img_url
-    const isHappyhorse = resolvedModel === 'happyhorse-1.1-i2v';
+    // happyhorse 系列模型使用 input.media 格式，其他模型使用 input.img_url
+    const happyhorseI2vModelName = registry.getApiModelName('wan2.1-i2v');
+    const isHappyhorse = resolvedModel === happyhorseI2vModelName;
 
     const requestBody = {
       model: resolvedModel,
@@ -578,7 +580,7 @@ class DashScopeService {
    * @deprecated Sprint 3.2 将迁移至统一 createTask 接口
    */
   async submitText2Video({ prompt, model, size, duration } = {}) {
-    const resolvedModel = model || 'happyhorse-t2v';
+    const resolvedModel = model || registry.getApiModelName('wan2.1-t2v');
     const body = {
       model: resolvedModel,
       input: { prompt: prompt || '' },
@@ -627,7 +629,7 @@ class DashScopeService {
    * @deprecated Sprint 3.2 将迁移
    */
   async submitRef2Video({ images, prompt, model, duration } = {}) {
-    const resolvedModel = model || 'happyhorse-1.1-i2v';
+    const resolvedModel = model || registry.getApiModelName('wan2.1-i2v');
     const body = {
       model: resolvedModel,
       input: { prompt: prompt || '', images },
@@ -652,7 +654,7 @@ class DashScopeService {
    */
   async submitDigitalHuman({ imageUrl, text, voice } = {}) {
     const body = {
-      model: 'qwen-image-3.0-pro',
+      model: registry.getApiModelName('wanx-digital-human'),
       input: {
         image_url: imageUrl,
         text: text || '',
@@ -678,7 +680,7 @@ class DashScopeService {
    */
   async text2Image({ prompt, model, size, n } = {}) {
     const body = {
-      model: model || 'qwen-image-3.0-pro',
+      model: model || registry.getApiModelName('qwen-image'),
       input: { prompt: prompt || '' },
       parameters: {
         size: size || '1024*1024',
@@ -718,13 +720,13 @@ class DashScopeService {
    */
   resolveModelFromTemplate(templateId) {
     try {
-      const { getTemplateById } = require('../config/creativeTemplates');
-      const template = getTemplateById(templateId);
-      if (!template) return null;
+      const { getTemplateModelConfig } = require('../config/ai-model-registry');
+      const modelCfg = getTemplateModelConfig(templateId);
+      if (!modelCfg) return null;
       return {
-        model: template.model,
-        provider: template.provider,
-        capability: template.capability
+        model: modelCfg.apiModelName,
+        provider: modelCfg.provider,
+        capability: modelCfg.capability
       };
     } catch (_) {
       return null;

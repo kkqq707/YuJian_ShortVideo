@@ -173,8 +173,8 @@
      * @returns {Promise<Object>}
      */
     createTextToVideoTask: function (taskInput) {
-      // TODO: Phase 2-C-1-B 接入后端文生视频接口
-      return YuJianAPI.post('/enterprise/video-generation/text-to-video', taskInput);
+      // Phase 2-C-1-D: 接入后端文生视频接口
+      return YuJianAPI.post('/enterprise/tasks/text2video', taskInput);
     },
 
     /**

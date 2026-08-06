@@ -32,10 +32,10 @@
 
 const { GenerationTask } = require('../models');
 const { providerRouter, aliyunProvider, ProviderError } = require('../providers');
-const { resolveModelForTemplate } = require('../config/ai-models');
 const {
-  getTemplateById
-} = require('../config/creativeTemplates');
+  resolveModelForTemplate,
+  getTemplateModelConfig
+} = require('../config/ai-model-registry');
 
 class GenerationService {
   /**
@@ -455,12 +455,12 @@ class GenerationService {
   /**
    * 解析创作模板
    *
-   * Sprint 5.1: 使用 ai-models 配置中心解析
+   * 使用 ai-model-registry 统一配置中心解析
    *
    * 优先级：
-   *   1. config/ai-models.js（Sprint 5.1 新配置中心）
+   *   1. config/ai-model-registry.js（Phase 2-C-1-E 统一注册中心）
    *   2. provider-router 的 resolveTemplateToModel（基于 aliyun/config.js）
-   *   3. creativeTemplates 配置（兜底）
+   *   3. ai-model-registry 模板兜底
    *
    * @returns {{ provider: string, model: string, modelId: string, capability: string, outputType: string }}
    */
@@ -480,26 +480,26 @@ class GenerationService {
     // ── 回退到 provider-router 映射 ──────────────────────────
     const modelInfo = providerRouter.resolveTemplateToModel(templateId);
     if (modelInfo) {
-      const template = getTemplateById(templateId);
-      const capability = template ? template.capability : templateId;
+      const modelCfg = getTemplateModelConfig(templateId);
+      const capability = modelCfg ? modelCfg.capability : templateId;
       return {
         provider: modelInfo.provider,
         model: modelInfo.model,
         modelId: templateId,
         capability,
-        outputType: template ? template.outputType : 'video'
+        outputType: modelCfg ? modelCfg.outputType : 'video'
       };
     }
 
-    // ── 最后回退到 creativeTemplates ─────────────────────────
-    const template = getTemplateById(templateId);
-    if (template) {
+    // ── 最后回退到 ai-model-registry ─────────────────────────
+    const modelCfg = getTemplateModelConfig(templateId);
+    if (modelCfg) {
       return {
-        provider: template.provider,
-        model: template.model,
+        provider: modelCfg.provider,
+        model: modelCfg.apiModelName,
         modelId: templateId,
-        capability: template.capability,
-        outputType: template.outputType
+        capability: modelCfg.capability,
+        outputType: modelCfg.outputType
       };
     }
 

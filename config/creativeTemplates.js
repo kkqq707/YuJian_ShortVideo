@@ -12,75 +12,55 @@
  *   image_edit        — 图片编辑
  *   image_to_video    — 图片生成视频
  *   text_to_video     — 文字生成视频
+ *
+ * ⚠️  @deprecated  Phase 2-C-1-E-2: 本文件已迁移为兼容层。
+ *    请改用 config/ai-model-registry.js 作为唯一数据源。
+ *    所有导出均委托给 registry，保持旧 API 签名兼容。
  */
 
-const CREATIVE_TEMPLATES = [
-  // ═══════════════════════════════════════════════════════════
-  //  图片类
-  // ═══════════════════════════════════════════════════════════
+const registry = require('./ai-model-registry');
 
-  {
-    id: 'image_generation',
-    name: '商业图片生成',
-    description: '通过文字描述生成高质量商业图片，适合产品展示、营销素材',
-    capability: 'image_generation',
-    provider: 'aliyun',
-    model: 'qwen-image-3.0-pro',
-    category: 'image',
-    categoryLabel: '图片生成',
-    icon: '🎨',
-    outputType: 'image',
-    sort: 1
-  },
+// ═══════════════════════════════════════════════════════════════════════
+//  CREATIVE_TEMPLATES — 向后兼容旧格式
+//
+//  旧格式将 template 与 model 字段合并到一个对象中。
+//  现在通过 template.modelId → models[modelId] 动态生成。
+// ═══════════════════════════════════════════════════════════════════════
 
-  {
-    id: 'image_edit',
-    name: '图片智能编辑',
-    description: '对现有图片进行智能编辑、优化和风格转换',
-    capability: 'image_edit',
-    provider: 'aliyun',
-    model: 'qwen-image-edit',
-    category: 'image',
-    categoryLabel: '图片编辑',
-    icon: '✏️',
-    outputType: 'image',
-    sort: 2
-  },
+/**
+ * 将 registry template + model 合并为旧版 CREATIVE_TEMPLATES 格式
+ *
+ * @param {Object} template — registry template 条目
+ * @param {Object} model    — registry model 条目
+ * @returns {Object} 旧格式模板对象
+ */
+function buildLegacyTemplate(template, model) {
+  return {
+    id: template.id,
+    name: template.name,
+    description: template.description,
+    capability: model.capability,
+    provider: model.provider,
+    model: model.apiModelName,         // 旧字段名：model = API 模型名
+    category: model.category,
+    categoryLabel: model.categoryLabel,
+    icon: template.icon,
+    outputType: model.outputType,
+    sort: template.sort,
+  };
+}
 
-  // ═══════════════════════════════════════════════════════════
-  //  视频类
-  // ═══════════════════════════════════════════════════════════
+/**
+ * @deprecated 请使用 registry.templates + registry.models
+ */
+const CREATIVE_TEMPLATES = Object.freeze(
+  registry.templates.map(t => {
+    const model = registry.models[t.modelId];
+    return buildLegacyTemplate(t, model);
+  })
+);
 
-  {
-    id: 'image_to_video',
-    name: '图片动态化',
-    description: '将静态图片转换为动态视频，赋予画面生命力',
-    capability: 'image_to_video',
-    provider: 'aliyun',
-    model: 'happyhorse-i2v',
-    category: 'video',
-    categoryLabel: '视频生成',
-    icon: '🎬',
-    outputType: 'video',
-    sort: 3
-  },
-
-  {
-    id: 'text_to_video',
-    name: '宣传视频生成',
-    description: '通过文字描述直接生成宣传视频，零素材创作',
-    capability: 'text_to_video',
-    provider: 'aliyun',
-    model: 'happyhorse-t2v',
-    category: 'video',
-    categoryLabel: '视频生成',
-    icon: '📽️',
-    outputType: 'video',
-    sort: 4
-  }
-];
-
-// ─── 工具函数 ────────────────────────────────────────────────
+// ─── 工具函数（全部委托给 registry）─────────────────────────────────
 
 /**
  * 根据模板 ID 查找模板配置
@@ -88,16 +68,29 @@ const CREATIVE_TEMPLATES = [
  * @returns {object|undefined}
  */
 function getTemplateById(templateId) {
-  return CREATIVE_TEMPLATES.find(t => t.id === templateId);
+  const template = registry.getTemplate(templateId);
+  if (!template) return undefined;
+  const model = registry.models[template.modelId];
+  return buildLegacyTemplate(template, model);
 }
 
 /**
- * 根据 capability 查找模板
+ * 根据 capability 查找模板（返回第一个匹配项，保持旧行为）
  * @param {string} capability - image_generation | image_edit | image_to_video | text_to_video
  * @returns {object|undefined}
  */
 function getTemplateByCapability(capability) {
-  return CREATIVE_TEMPLATES.find(t => t.capability === capability);
+  if (!capability || typeof capability !== 'string') {
+    return undefined;
+  }
+  // 旧行为：返回第一个匹配的 template（非数组）
+  const template = registry.templates.find(t => {
+    const model = registry.models[t.modelId];
+    return model && model.capability === capability;
+  });
+  if (!template) return undefined;
+  const model = registry.models[template.modelId];
+  return buildLegacyTemplate(template, model);
 }
 
 /**
@@ -106,8 +99,11 @@ function getTemplateByCapability(capability) {
  * @returns {object[]}
  */
 function getTemplatesByCategory(category) {
-  if (!category) return [...CREATIVE_TEMPLATES];
-  return CREATIVE_TEMPLATES.filter(t => t.category === category);
+  const templates = registry.getTemplatesByCategory(category);
+  return templates.map(t => {
+    const model = registry.models[t.modelId];
+    return buildLegacyTemplate(t, model);
+  });
 }
 
 /**
@@ -116,8 +112,11 @@ function getTemplatesByCategory(category) {
  * @returns {object[]}
  */
 function getTemplatesByOutput(outputType) {
-  if (!outputType) return [...CREATIVE_TEMPLATES];
-  return CREATIVE_TEMPLATES.filter(t => t.outputType === outputType);
+  const templates = registry.getTemplatesByOutput(outputType);
+  return templates.map(t => {
+    const model = registry.models[t.modelId];
+    return buildLegacyTemplate(t, model);
+  });
 }
 
 /**
@@ -125,17 +124,13 @@ function getTemplatesByOutput(outputType) {
  * @param {string} provider
  * @returns {boolean}
  */
-function isAliyunProvider(provider) {
-  return provider === 'aliyun';
-}
+const isAliyunProvider = registry.isAliyunProvider;
 
 /**
  * 获取所有支持的 capability 列表
  * @returns {string[]}
  */
-function getAllCapabilities() {
-  return CREATIVE_TEMPLATES.map(t => t.capability);
-}
+const getAllCapabilities = registry.getAllCapabilities;
 
 module.exports = {
   CREATIVE_TEMPLATES,

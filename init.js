@@ -1,5 +1,6 @@
 require('dotenv').config();
 const { sequelize, Admin, Plan, Agent, ApiConfig, Enterprise, EnterpriseUser } = require('./models');
+const registry = require('./config/ai-model-registry');
 
 async function init() {
   console.log('正在初始化数据库...');
@@ -83,17 +84,16 @@ async function init() {
         endpoint: 'https://dashscope.aliyuncs.com',
         workspace_id: ''
       },
-      model_pricing: {
-        // Sprint 4.4 Patch3: 阿里云百炼统一模型定价
-        'qwen-image-3.0-pro': 1,
-        'qwen-image-edit': 1,
-        'happyhorse-i2v': 12,
-        'happyhorse-t2v': 12,
-        // 历史模型（向后兼容）
-        'wan2.1-t2v': 8,
-        'wan2.1-i2v': 8,
-        'wanx-v1': 1
-      },
+      model_pricing: (() => {
+        // Phase 2-C-1-E-5: 从 registry 动态生成定价配置
+        const pricing = {};
+        for (const m of registry.getAllModels()) {
+          if (m.apiModelName && m.pricing) {
+            pricing[m.apiModelName] = m.pricing.pointsPerUnit;
+          }
+        }
+        return pricing;
+      })(),
       oss: {
         access_key_id: '',
         access_key_secret: '',

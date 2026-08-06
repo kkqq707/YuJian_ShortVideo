@@ -6,7 +6,10 @@
  * 统一管理：
  *   - endpoint
  *   - apiKey 来源（仅从项目 .env 文件，禁止 Windows 系统环境变量）
- *   - model mapping（templateId → model）
+ *   - timeout / paths
+ *
+ * Phase 2-C-1-E-2: ALIYUN_MODELS 已迁移至 config/ai-model-registry.js。
+ *   模型解析函数（resolveModel 等）委托给 registry。
  *
  * 禁止：
  *   业务代码直接读取 process.env.DASHSCOPE_*
@@ -14,45 +17,7 @@
  */
 
 const apiKeys = require('../../config/api-keys');
-
-// ─── Aliyun 模型映射表 ────────────────────────────────────────────
-//
-// 前端只传 templateId，后端通过此映射表解析实际模型。
-//
-// 映射关系：
-//   templateId         → capability          → model
-//   ───────────────────────────────────────────────────────
-//   image_generation   → image_generation    → qwen-image-3.0-pro
-//   image_edit         → image_edit          → qwen-image-edit
-//   image_to_video     → image_to_video      → happyhorse-i2v
-//   text_to_video      → text_to_video       → happyhorse-t2v
-
-const ALIYUN_MODELS = {
-  image_generation: {
-    provider: 'aliyun',
-    model: 'qwen-image-3.0-pro',
-    capability: 'image_generation',
-    outputType: 'image'
-  },
-  image_edit: {
-    provider: 'aliyun',
-    model: 'qwen-image-edit',
-    capability: 'image_edit',
-    outputType: 'image'
-  },
-  image_to_video: {
-    provider: 'aliyun',
-    model: 'happyhorse-1.1-i2v',   // 图生视频模型
-    capability: 'image_to_video',
-    outputType: 'video'
-  },
-  text_to_video: {
-    provider: 'aliyun',
-    model: 'happyhorse-t2v',
-    capability: 'text_to_video',
-    outputType: 'video'
-  }
-};
+const registry = require('../../config/ai-model-registry');
 
 // ─── Aliyun Provider 配置 ─────────────────────────────────────────
 
@@ -71,7 +36,7 @@ const ALIYUN_CONFIG = {
 
   // 默认视频模型（仅从 .env 文件读取）
   get defaultVideoModel() {
-    return apiKeys.DASHSCOPE_VIDEO_MODEL || 'happyhorse-1.1-i2v';
+    return apiKeys.DASHSCOPE_VIDEO_MODEL || registry.getApiModelName('wan2.1-i2v');
   },
 
   // 请求超时（毫秒）
@@ -92,7 +57,7 @@ const ALIYUN_CONFIG = {
   }
 };
 
-// ─── 工具函数 ─────────────────────────────────────────────────────
+// ─── 工具函数（委托给 registry）────────────────────────────────────
 
 /**
  * 根据 templateId 解析模型配置
@@ -101,10 +66,14 @@ const ALIYUN_CONFIG = {
  * @returns {{ provider: string, model: string, capability: string, outputType: string }|null}
  */
 function resolveModel(templateId) {
-  if (!templateId || typeof templateId !== 'string') {
-    return null;
-  }
-  return ALIYUN_MODELS[templateId] || null;
+  const modelConfig = registry.resolveTemplate(templateId);
+  if (!modelConfig) return null;
+  return {
+    provider: modelConfig.provider,
+    model: modelConfig.apiModelName,
+    capability: modelConfig.capability,
+    outputType: modelConfig.outputType,
+  };
 }
 
 /**
@@ -114,36 +83,31 @@ function resolveModel(templateId) {
  * @returns {{ provider: string, model: string, capability: string, outputType: string }|null}
  */
 function resolveModelByCapability(capability) {
-  if (!capability || typeof capability !== 'string') {
-    return null;
-  }
-  for (const [, config] of Object.entries(ALIYUN_MODELS)) {
-    if (config.capability === capability) {
-      return config;
-    }
-  }
-  return null;
+  const models = registry.getModelsByCapability(capability);
+  if (!models || models.length === 0) return null;
+  const modelConfig = models[0];
+  return {
+    provider: modelConfig.provider,
+    model: modelConfig.apiModelName,
+    capability: modelConfig.capability,
+    outputType: modelConfig.outputType,
+  };
 }
 
 /**
  * 获取所有支持的 templateId 列表
  * @returns {string[]}
  */
-function getSupportedTemplateIds() {
-  return Object.keys(ALIYUN_MODELS);
-}
+const getSupportedTemplateIds = registry.getSupportedTemplateIds;
 
 /**
  * 检查 templateId 是否受阿里云支持
  * @param {string} templateId
  * @returns {boolean}
  */
-function isSupportedTemplate(templateId) {
-  return templateId in ALIYUN_MODELS;
-}
+const isSupportedTemplate = registry.isTemplateSupported;
 
 module.exports = {
-  ALIYUN_MODELS,
   ALIYUN_CONFIG,
   resolveModel,
   resolveModelByCapability,

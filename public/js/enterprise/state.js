@@ -95,6 +95,8 @@
       currentTaskId: null,          // 当前任务 ID
       isUploading: false,           // 上传中标志
       isGenerating: false,          // 生成中标志
+      // Phase 2-C-1-D: 文生视频专用字段
+      textPrompt: '',               // 文生视频提示词
       // Phase 2-C-1-C: 统一图生视频参数
       params: {
         aspectRatio: '16:9',        // 画面比例: 16:9 | 9:16 | 1:1
@@ -333,6 +335,7 @@
     ac.currentTaskId = null;
     ac.isUploading = false;
     ac.isGenerating = false;
+    ac.textPrompt = '';
     // Phase 2-C-1-C: Reset unified params to defaults
     ac.params = {
       aspectRatio: '16:9',

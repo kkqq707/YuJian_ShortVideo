@@ -4,7 +4,7 @@ const dashscopeService = require('../../services/dashscopeService');
 const generationService = require('../../services/generationService');
 const videoStorageService = require('../../services/videoStorageService');
 const ossService = require('../../services/ossService');
-const { CREATIVE_TEMPLATES, getTemplateById, getTemplatesByOutput } = require('../../config/creativeTemplates');
+const { getTemplatesByOutput, getModelConfig } = require('../../config/ai-model-registry');
 
 /**
  * 视频生成任务控制器
@@ -879,18 +879,21 @@ exports.getTemplates = async (req, res) => {
     const templates = getTemplatesByOutput(outputType);
 
     // 返回安全字段（不暴露内部实现细节）
-    const safeTemplates = templates.map(t => ({
-      id: t.id,
-      name: t.name,
-      description: t.description,
-      capability: t.capability,
-      category: t.category,
-      categoryLabel: t.categoryLabel,
-      icon: t.icon,
-      outputType: t.outputType,
-      sort: t.sort,
-      providerLabel: '阿里云百炼'
-    }));
+    const safeTemplates = templates.map(t => {
+      const model = getModelConfig(t.modelId);
+      return {
+        id: t.id,
+        name: t.name,
+        description: t.description,
+        capability: model ? model.capability : null,
+        category: model ? model.category : null,
+        categoryLabel: model ? model.categoryLabel : null,
+        icon: t.icon,
+        outputType: model ? model.outputType : null,
+        sort: t.sort,
+        providerLabel: '阿里云百炼'
+      };
+    });
 
     return res.success(safeTemplates);
   } catch (error) {

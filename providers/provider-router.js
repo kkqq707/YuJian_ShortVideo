@@ -20,8 +20,8 @@
 const aliyunProvider = require('./aliyun');
 const ProviderError = require('../utils/ProviderError');
 const {
-  getTemplateById
-} = require('../config/creativeTemplates');
+  getTemplateModelConfig
+} = require('../config/ai-model-registry');
 const {
   resolveModel
 } = require('./aliyun/config');
@@ -109,16 +109,16 @@ async function createTask(params) {
     providerName = aliyunModelConfig.provider;
     model = aliyunModelConfig.model;
   } else {
-    // 回退到 creativeTemplates 配置
-    const template = getTemplateById(templateId);
-    if (!template) {
+    // 回退到 ai-model-registry 配置
+    const modelCfg = getTemplateModelConfig(templateId);
+    if (!modelCfg) {
       throw new ProviderError(
         'unknown', 'UNSUPPORTED_TEMPLATE',
         `No provider found for template: ${templateId}`, false
       );
     }
-    providerName = template.provider;
-    model = template.model;
+    providerName = modelCfg.provider;
+    model = modelCfg.apiModelName;
   }
 
   // ── 2. 获取 Provider 实例 ───────────────────────────────────
@@ -174,10 +174,10 @@ function resolveTemplateToModel(templateId) {
     return { provider: config.provider, model: config.model };
   }
 
-  // 回退到 creativeTemplates
-  const template = getTemplateById(templateId);
-  if (template) {
-    return { provider: template.provider, model: template.model };
+  // 回退到 ai-model-registry
+  const modelCfg = getTemplateModelConfig(templateId);
+  if (modelCfg) {
+    return { provider: modelCfg.provider, model: modelCfg.apiModelName };
   }
 
   return null;

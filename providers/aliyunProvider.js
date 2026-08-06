@@ -39,7 +39,7 @@
  *   const status = await aliyunProvider.checkTaskStatus(taskId);
  */
 
-const { resolveModelForTemplate, getModelConfig } = require('../config/ai-models');
+const { resolveModelForTemplate, getModelConfig } = require('../config/ai-model-registry');
 const ProviderError = require('../utils/ProviderError');
 
 // 委托给现有 aliyun/ 子 Provider（复用已验证的 HTTP 客户端能力）
