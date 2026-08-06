@@ -144,6 +144,57 @@
      */
     deleteTask: function (taskId) {
       return YuJianAPI.request('/enterprise/video-generation/tasks/' + taskId, { method: 'DELETE' });
+    },
+
+    // ── Phase 2-C-1-A: Unified Creation Methods ──────────────
+    // 统一各创作类型的 API 入口，暂建立接口结构，后续接入后端
+
+    /**
+     * 图生视频任务
+     * Phase 2-C-1-C: 统一参数通过 params 传入
+     * @param {Object} taskInput - {
+     *   sourceAssetId, prompt, imageUrl, duration, templateId,
+     *   params: { aspectRatio, motionStrength, cameraMovement, quality }
+     * }
+     * @returns {Promise<Object>}
+     */
+    createImageToVideoTask: function (taskInput) {
+      // 当前委托给现有实现，后续统一到此方法
+      if (typeof YuJianVideoTask !== 'undefined' && YuJianVideoTask.createImageToVideoTask) {
+        return YuJianVideoTask.createImageToVideoTask(taskInput);
+      }
+      // Fallback: 直接调用后端
+      return YuJianAPI.post('/enterprise/video-generation/image-to-video', taskInput);
+    },
+
+    /**
+     * 文生视频任务
+     * @param {Object} taskInput - { prompt, duration, style, ... }
+     * @returns {Promise<Object>}
+     */
+    createTextToVideoTask: function (taskInput) {
+      // TODO: Phase 2-C-1-B 接入后端文生视频接口
+      return YuJianAPI.post('/enterprise/video-generation/text-to-video', taskInput);
+    },
+
+    /**
+     * 图片生成任务
+     * @param {Object} taskInput - { prompt, size, style, count, ... }
+     * @returns {Promise<Object>}
+     */
+    createImageGenerationTask: function (taskInput) {
+      // TODO: Phase 2-C-1-B 接入后端图片生成接口
+      return YuJianAPI.post('/enterprise/video-generation/text-to-image', taskInput);
+    },
+
+    /**
+     * 数字人任务
+     * @param {Object} taskInput - { script, voice, avatarId, ... }
+     * @returns {Promise<Object>}
+     */
+    createDigitalHumanTask: function (taskInput) {
+      // TODO: Phase 2-C-1-B 接入后端数字人接口
+      return YuJianAPI.post('/enterprise/video-generation/digital-human', taskInput);
     }
   };
 
@@ -183,5 +234,5 @@
     Workspace: WorkspaceAPI
   };
 
-  console.log('[Enterprise/API] API layer initialized');
+  console.log('[Enterprise/API] API layer initialized (Phase 2-C-1-A: unified creation methods, Phase 2-C-1-C: image2video params)');
 })();

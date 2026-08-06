@@ -81,6 +81,30 @@
       selectedOutput: 'video'
     },
 
+    // ── AI Creation Center State (Phase 2-C-1-A) ─────────
+    // 统一 Studio 创作状态，与 STUDIO_STATE / generation 并行存在
+    // 后续逐步将 Studio inline 代码迁移到此处
+    aiCreation: {
+      creationType: 'image2video',  // imageGen | image2video | text2video | digitalhuman
+      selectedFile: null,           // 用户上传的 File 对象
+      previewUrl: null,             // 本地预览 ObjectURL
+      uploadedImageUrl: null,       // OSS 上传后的 URL
+      assetId: null,                // 资产记录 ID
+      selectedAsset: null,          // 选中的资产对象
+      sourceMode: 'upload',         // 'upload' | 'asset'
+      currentTaskId: null,          // 当前任务 ID
+      isUploading: false,           // 上传中标志
+      isGenerating: false,          // 生成中标志
+      // Phase 2-C-1-C: 统一图生视频参数
+      params: {
+        aspectRatio: '16:9',        // 画面比例: 16:9 | 9:16 | 1:1
+        duration: 5,                // 视频时长: 5 | 10
+        motionStrength: 'medium',   // 动态强度: low | medium | high
+        cameraMovement: 'static',   // 运镜方式: static | push | zoom | orbit
+        quality: 'standard'         // 画质: standard | high
+      }
+    },
+
     // ── Works State ──────────────────────────────────────
     works: {
       currentPage: 1,
@@ -290,6 +314,106 @@
     APP_STATE.currentGenerationAsset = null;
   }
 
+  // ── AI Creation State Accessors (Phase 2-C-1-A) ────────────
+
+  /** Reset AI Creation state to defaults */
+  function resetAiCreationState() {
+    var ac = APP_STATE.aiCreation;
+    // Revoke preview URL if present
+    if (ac.previewUrl) {
+      try { URL.revokeObjectURL(ac.previewUrl); } catch (e) { /* ignore */ }
+    }
+    ac.creationType = 'image2video';
+    ac.selectedFile = null;
+    ac.previewUrl = null;
+    ac.uploadedImageUrl = null;
+    ac.assetId = null;
+    ac.selectedAsset = null;
+    ac.sourceMode = 'upload';
+    ac.currentTaskId = null;
+    ac.isUploading = false;
+    ac.isGenerating = false;
+    // Phase 2-C-1-C: Reset unified params to defaults
+    ac.params = {
+      aspectRatio: '16:9',
+      duration: 5,
+      motionStrength: 'medium',
+      cameraMovement: 'static',
+      quality: 'standard'
+    };
+  }
+
+  /** Set AI Creation state fields (partial update) */
+  function setAiCreationState(updates) {
+    if (!updates) return;
+    var ac = APP_STATE.aiCreation;
+    var keys = Object.keys(updates);
+    for (var i = 0; i < keys.length; i++) {
+      var k = keys[i];
+      if (k === 'params' && ac.params && typeof updates.params === 'object') {
+        // Phase 2-C-1-C: 深度合并 params，避免覆盖未传入的字段
+        var paramKeys = Object.keys(updates.params);
+        for (var j = 0; j < paramKeys.length; j++) {
+          var pk = paramKeys[j];
+          if (ac.params.hasOwnProperty(pk)) {
+            ac.params[pk] = updates.params[pk];
+          }
+        }
+      } else if (ac.hasOwnProperty(k)) {
+        ac[k] = updates[k];
+      }
+    }
+  }
+
+  /** Get the current AI Creation state (returns a shallow copy) */
+  function getAiCreationState() {
+    return Object.assign({}, APP_STATE.aiCreation);
+  }
+
+  /** Phase 2-C-1-C: Set AI Creation generation params (partial merge) */
+  function setAiCreationParams(paramUpdates) {
+    if (!paramUpdates) return;
+    var ac = APP_STATE.aiCreation;
+    if (!ac.params) {
+      ac.params = {
+        aspectRatio: '16:9',
+        duration: 5,
+        motionStrength: 'medium',
+        cameraMovement: 'static',
+        quality: 'standard'
+      };
+    }
+    var keys = Object.keys(paramUpdates);
+    for (var i = 0; i < keys.length; i++) {
+      var k = keys[i];
+      if (ac.params.hasOwnProperty(k)) {
+        ac.params[k] = paramUpdates[k];
+      }
+    }
+  }
+
+  /** Phase 2-C-1-C: Get current AI Creation generation params (shallow copy) */
+  function getAiCreationParams() {
+    var ac = APP_STATE.aiCreation;
+    return ac.params ? Object.assign({}, ac.params) : {
+      aspectRatio: '16:9',
+      duration: 5,
+      motionStrength: 'medium',
+      cameraMovement: 'static',
+      quality: 'standard'
+    };
+  }
+
+  /** Set creation type for AI Creation */
+  function setAiCreationType(type) {
+    APP_STATE.aiCreation.creationType = type;
+  }
+
+  /** Get creation type */
+  function getAiCreationType() {
+    return APP_STATE.aiCreation.creationType;
+  }
+
   // ─── Expose to Global ─────────────────────────────────────
   var YJ = window.YJ || {};
   YJ.state = APP_STATE;
@@ -307,6 +431,13 @@
   YJ.state.cacheAsset = cacheAsset;
   YJ.state.getCachedAsset = getCachedAsset;
   YJ.state.resetGenerationState = resetGenerationState;
+  YJ.state.resetAiCreationState = resetAiCreationState;
+  YJ.state.setAiCreationState = setAiCreationState;
+  YJ.state.getAiCreationState = getAiCreationState;
+  YJ.state.setAiCreationType = setAiCreationType;
+  YJ.state.getAiCreationType = getAiCreationType;
+  YJ.state.setAiCreationParams = setAiCreationParams;
+  YJ.state.getAiCreationParams = getAiCreationParams;
   YJ.state.getEditorProject = getEditorProject;
   YJ.state.setEditorProject = setEditorProject;
   YJ.state.getEditorTimeline = getEditorTimeline;
@@ -333,5 +464,5 @@
   window.CURRENT_IMAGE_PREVIEW = APP_STATE.currentPreviewAsset;
   window.SELECTED_ASSET = APP_STATE.selectedAsset;
 
-  console.log('[Enterprise/State] Unified state management initialized (Phase 2-D-4.6: selectedAsset bridge)');
+  console.log('[Enterprise/State] Unified state management initialized (Phase 2-D-4.6: selectedAsset bridge, Phase 2-C-1-A: aiCreation state, Phase 2-C-1-C: aiCreation.params)');
 })();

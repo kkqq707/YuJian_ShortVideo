@@ -914,6 +914,25 @@
             isGenerating: false
         };
 
+        // ─── Phase 2-C-1-B: 双写同步 → YJ.state.aiCreation ───
+        // 将 STUDIO_STATE 的关键字段同步到统一状态层，保持向后兼容
+        function syncStudioToAiCreation() {
+            if (window.YJ && YJ.state && YJ.state.setAiCreationState) {
+                YJ.state.setAiCreationState({
+                    creationType: STUDIO_STATE.creationType,
+                    selectedFile: STUDIO_STATE.selectedFile,
+                    previewUrl: STUDIO_STATE.previewUrl,
+                    uploadedImageUrl: STUDIO_STATE.uploadedImageUrl,
+                    assetId: STUDIO_STATE.assetId,
+                    selectedAsset: STUDIO_STATE.selectedAsset,
+                    sourceMode: STUDIO_STATE.sourceMode,
+                    currentTaskId: STUDIO_STATE.currentTaskId,
+                    isUploading: STUDIO_STATE.isUploading,
+                    isGenerating: STUDIO_STATE.isGenerating
+                });
+            }
+        }
+
         function renderStudio() {
             return ''
                 + '<div class="yj-studio-container">'
@@ -994,6 +1013,7 @@
                 + '    <label>参数配置</label>'
                 + '  </div>'
                 + '  <div class="yj-studio-params">'
+                // Phase 2-C-1-C: 统一图生视频参数绑定
                 + '    <div class="yj-studio-param-row">'
                 + '      <div class="yj-studio-param-item">'
                 + '        <label>模型</label>'
@@ -1003,8 +1023,7 @@
                 + '      </div>'
                 + '      <div class="yj-studio-param-item">'
                 + '        <label>视频时长</label>'
-                + '        <select id="studioDuration" class="yj-studio-select">'
-                + '          <option value="2">2 秒</option>'
+                + '        <select id="studioDuration" class="yj-studio-select" onchange="studioOnParamChange()">'
                 + '          <option value="5" selected>5 秒</option>'
                 + '          <option value="10">10 秒</option>'
                 + '        </select>'
@@ -1012,19 +1031,16 @@
                 + '    </div>'
                 + '    <div class="yj-studio-param-row">'
                 + '      <div class="yj-studio-param-item">'
-                + '        <label>画面风格</label>'
-                + '        <select id="studioStyle" class="yj-studio-select">'
-                + '          <option value="realistic" selected>真实感</option>'
-                + '          <option value="anime">动漫风格</option>'
-                + '          <option value="cyberpunk">赛博朋克</option>'
-                + '          <option value="watercolor">水彩画</option>'
-                + '          <option value="3d">3D渲染</option>'
-                + '          <option value="cinematic">电影感</option>'
+                + '        <label>动态强度</label>'
+                + '        <select id="studioMotionStrength" class="yj-studio-select" onchange="studioOnParamChange()">'
+                + '          <option value="low">低 — 微动</option>'
+                + '          <option value="medium" selected>中 — 适中</option>'
+                + '          <option value="high">高 — 强烈</option>'
                 + '        </select>'
                 + '      </div>'
                 + '      <div class="yj-studio-param-item">'
                 + '        <label>画面比例</label>'
-                + '        <select id="studioRatio" class="yj-studio-select">'
+                + '        <select id="studioAspectRatio" class="yj-studio-select" onchange="studioOnParamChange()">'
                 + '          <option value="16:9" selected>16:9 横屏</option>'
                 + '          <option value="9:16">9:16 竖屏</option>'
                 + '          <option value="1:1">1:1 方形</option>'
@@ -1033,10 +1049,19 @@
                 + '    </div>'
                 + '    <div class="yj-studio-param-row">'
                 + '      <div class="yj-studio-param-item">'
-                + '        <label>分辨率</label>'
-                + '        <select id="studioResolution" class="yj-studio-select">'
-                + '          <option value="720p">720P（HD）</option>'
-                + '          <option value="1080p" selected>1080P（FHD）</option>'
+                + '        <label>运镜方式</label>'
+                + '        <select id="studioCameraMovement" class="yj-studio-select" onchange="studioOnParamChange()">'
+                + '          <option value="static" selected>固定镜头</option>'
+                + '          <option value="push">推镜</option>'
+                + '          <option value="zoom">变焦</option>'
+                + '          <option value="orbit">环绕</option>'
+                + '        </select>'
+                + '      </div>'
+                + '      <div class="yj-studio-param-item">'
+                + '        <label>画质</label>'
+                + '        <select id="studioQuality" class="yj-studio-select" onchange="studioOnParamChange()">'
+                + '          <option value="standard" selected>标准</option>'
+                + '          <option value="high">高质量</option>'
                 + '        </select>'
                 + '      </div>'
                 + '    </div>'
@@ -1100,6 +1125,7 @@
         // ─── 创作类型切换 ───────────────────────────────
         function studioSelectType(el, type) {
             STUDIO_STATE.creationType = type;
+            syncStudioToAiCreation();
             document.querySelectorAll('.yj-studio-type-card').forEach(function(c) {
                 c.classList.remove('active');
             });
@@ -1144,6 +1170,10 @@
                     }
                 }
                 if (durationSelect) { durationSelect.parentElement.parentElement.style.display = 'block'; }
+                // Phase 2-C-1-C: 切换类型时同步新参数到 state
+                if (type === 'image2video') {
+                    studioReadParamsToState();
+                }
                 if (costEstimate) {
                     costEstimate.textContent = (type === 'text2video') ? '~ 80 积分' : '~ 80 积分';
                 }
@@ -1177,6 +1207,7 @@
             STUDIO_STATE.uploadedImageUrl = null;
             STUDIO_STATE.assetId = null;
             STUDIO_STATE.sourceMode = 'upload';
+            syncStudioToAiCreation();
 
             studioShowPreview(preview.url, meta);
         }
@@ -1188,6 +1219,7 @@
             STUDIO_STATE.assetId = asset.id;
             STUDIO_STATE.selectedFile = null;
             STUDIO_STATE.uploadedImageUrl = asset.url;
+            syncStudioToAiCreation();
 
             var thumbUrl = asset.thumbnailUrl || asset.url || '';
             studioShowPreview(thumbUrl, {
@@ -1238,6 +1270,7 @@
             STUDIO_STATE.assetId = null;
             STUDIO_STATE.selectedAsset = null;
             STUDIO_STATE.sourceMode = 'upload';
+            syncStudioToAiCreation();
 
             var thumbContainer = document.getElementById('studioPreviewThumb');
             var uploadZone = document.getElementById('studioUploadZone');
@@ -1262,6 +1295,31 @@
             }
         }
 
+        // ─── Phase 2-C-1-C: 参数变更同步到统一状态层 ─────
+        function studioOnParamChange() {
+            studioReadParamsToState();
+        }
+
+        /** 从 UI 控件读取参数并写入 YJ.state.aiCreation.params */
+        function studioReadParamsToState() {
+            if (!window.YJ || !YJ.state || !YJ.state.setAiCreationParams) return;
+
+            var durationEl = document.getElementById('studioDuration');
+            var aspectRatioEl = document.getElementById('studioAspectRatio');
+            var motionStrengthEl = document.getElementById('studioMotionStrength');
+            var cameraMovementEl = document.getElementById('studioCameraMovement');
+            var qualityEl = document.getElementById('studioQuality');
+
+            var params = {};
+            if (durationEl) params.duration = parseInt(durationEl.value) || 5;
+            if (aspectRatioEl) params.aspectRatio = aspectRatioEl.value;
+            if (motionStrengthEl) params.motionStrength = motionStrengthEl.value;
+            if (cameraMovementEl) params.cameraMovement = cameraMovementEl.value;
+            if (qualityEl) params.quality = qualityEl.value;
+
+            YJ.state.setAiCreationParams(params);
+        }
+
         // ─── 开始生成 ────────────────────────────────────
         async function studioStartGenerate() {
             if (STUDIO_STATE.isGenerating) return;
@@ -1277,6 +1335,7 @@
             }
 
             STUDIO_STATE.isGenerating = true;
+            syncStudioToAiCreation();
             var generateBtn = document.getElementById('studioGenerateBtn');
             var generateText = document.getElementById('studioGenerateText');
             var statusArea = document.getElementById('studioStatus');
@@ -1306,39 +1365,52 @@
                 if (progressBar) progressBar.style.width = '0%';
                 if (generateText) generateText.textContent = '生成中...';
 
-                // 根据类型选择生成方式
+                // 根据类型选择生成方式（Phase 2-C-1-B: 统一使用 EnterpriseAPI.Generation）
                 var task = null;
                 if (creationType === 'imageGen') {
-                    // 图片生成 — 直接使用 API
-                    task = await YuJianAPI.request('/enterprise/video-generation/text-to-image', {
-                        method: 'POST',
-                        body: JSON.stringify({
-                            prompt: prompt,
-                            style: document.getElementById('studioStyle').value,
-                            ratio: document.getElementById('studioRatio').value,
-                            count: 4
-                        })
+                    // 图片生成 — 使用统一 API
+                    // Phase 2-C-1-C: studioStyle → 默认值（该控件已替换为统一参数）
+                    var imgGenStyle = (document.getElementById('studioStyle') || {}).value || 'realistic';
+                    var imgGenRatio = (document.getElementById('studioAspectRatio') || {}).value || '16:9';
+                    task = await EnterpriseAPI.Generation.createImageGenerationTask({
+                        prompt: prompt,
+                        style: imgGenStyle,
+                        ratio: imgGenRatio,
+                        count: 4
                     });
                 } else if (creationType === 'digitalhuman') {
-                    // 数字人口播
-                    task = await YuJianAPI.request('/enterprise/video-generation/digital-human', {
-                        method: 'POST',
-                        body: JSON.stringify({
-                            prompt: prompt,
-                            avatar: '职场女性-小雅',
-                            voice: '温柔女声-小雅',
-                            duration: parseInt(document.getElementById('studioDuration').value) || 5,
-                            resolution: document.getElementById('studioResolution').value,
-                            ratio: document.getElementById('studioRatio').value
-                        })
+                    // 数字人口播 — 使用统一 API
+                    // Phase 2-C-1-C: studioResolution → 默认值（该控件已替换为统一参数）
+                    var dhResolution = (document.getElementById('studioResolution') || {}).value || '1080p';
+                    var dhRatio = (document.getElementById('studioAspectRatio') || {}).value || '16:9';
+                    task = await EnterpriseAPI.Generation.createDigitalHumanTask({
+                        prompt: prompt,
+                        avatar: '职场女性-小雅',
+                        voice: '温柔女声-小雅',
+                        duration: parseInt(document.getElementById('studioDuration').value) || 5,
+                        resolution: dhResolution,
+                        ratio: dhRatio
                     });
                 } else {
-                    // image2video / text2video — 使用 video-task 模块
+                    // image2video / text2video — 使用统一 API
+                    // Phase 2-C-1-C: 读取统一参数
+                    var durationVal = parseInt(document.getElementById('studioDuration').value) || 5;
+                    var aspectRatioVal = (document.getElementById('studioAspectRatio') || {}).value || '16:9';
+                    var motionStrengthVal = (document.getElementById('studioMotionStrength') || {}).value || 'medium';
+                    var cameraMovementVal = (document.getElementById('studioCameraMovement') || {}).value || 'static';
+                    var qualityVal = (document.getElementById('studioQuality') || {}).value || 'standard';
+
+                    var unifiedParams = {
+                        aspectRatio: aspectRatioVal,
+                        motionStrength: motionStrengthVal,
+                        cameraMovement: cameraMovementVal,
+                        quality: qualityVal
+                    };
+
                     var taskInput = {
                         prompt: prompt,
-                        duration: parseInt(document.getElementById('studioDuration').value) || 5,
-                        resolution: document.getElementById('studioResolution').value,
-                        ratio: document.getElementById('studioRatio').value
+                        duration: durationVal,
+                        params: unifiedParams
                     };
 
                     if (creationType === 'image2video') {
@@ -1358,16 +1430,18 @@
                             STUDIO_STATE.assetId = uploadResult.id;
                             taskInput.imageUrl = uploadResult.url;
                             taskInput.sourceAssetId = uploadResult.id;
+                            syncStudioToAiCreation();
                         }
                         taskInput.templateId = 'image_to_video';
+                        task = await EnterpriseAPI.Generation.createImageToVideoTask(taskInput);
                     } else {
                         taskInput.templateId = 'text_to_video';
+                        task = await EnterpriseAPI.Generation.createTextToVideoTask(taskInput);
                     }
-
-                    task = await YuJianVideoTask.createImageToVideoTask(taskInput);
                 }
 
                 STUDIO_STATE.currentTaskId = task.id || task.task_id;
+                syncStudioToAiCreation();
                 console.log('[Studio] 任务创建成功, taskId:', STUDIO_STATE.currentTaskId);
 
                 // 开始轮询
@@ -1412,6 +1486,7 @@
         // ─── 生成成功 ────────────────────────────────────
         function studioOnSuccess(task) {
             STUDIO_STATE.isGenerating = false;
+            syncStudioToAiCreation();
             var generateBtn = document.getElementById('studioGenerateBtn');
             var generateText = document.getElementById('studioGenerateText');
             var statusText = document.getElementById('studioStatusText');
@@ -1511,6 +1586,7 @@
         // ─── 生成失败 ────────────────────────────────────
         function studioOnFailed(task) {
             STUDIO_STATE.isGenerating = false;
+            syncStudioToAiCreation();
             var generateBtn = document.getElementById('studioGenerateBtn');
             var generateText = document.getElementById('studioGenerateText');
             var statusText = document.getElementById('studioStatusText');
@@ -1537,6 +1613,7 @@
         // ─── 生成超时 ────────────────────────────────────
         function studioOnTimeout() {
             STUDIO_STATE.isGenerating = false;
+            syncStudioToAiCreation();
             var generateBtn = document.getElementById('studioGenerateBtn');
             var generateText = document.getElementById('studioGenerateText');
             var statusText = document.getElementById('studioStatusText');
@@ -1573,6 +1650,7 @@
         function studioReset() {
             STUDIO_STATE.isGenerating = false;
             STUDIO_STATE.currentTaskId = null;
+            syncStudioToAiCreation();
 
             var generateBtn = document.getElementById('studioGenerateBtn');
             var generateText = document.getElementById('studioGenerateText');
