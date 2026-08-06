@@ -379,6 +379,9 @@
             <div class="nav-item" data-page="storyboard" onclick="navigateTo('storyboard')">
                 <i class="fas fa-clapperboard"></i><span>故事板</span>
             </div>
+            <div class="nav-item" data-page="digitalhuman" onclick="navigateTo('digitalhuman')">
+                <i class="fas fa-user-tie"></i><span>数字人口播</span>
+            </div>
             <div class="nav-item" data-page="editor" onclick="navigateTo('editor')">
                 <i class="fas fa-scissors"></i><span>视频剪辑</span>
             </div>
@@ -783,7 +786,7 @@
                 case 'text2video': container.innerHTML = renderText2Video(); initTemplateSelector('#t2vTemplateContainer', 't2vPrompt'); break;
                 case 'image2video': container.innerHTML = renderImage2Video(); initTemplateSelector('#i2vTemplateContainer', 'i2vPrompt'); break;
                 case 'ref2video': container.innerHTML = renderRef2Video(); break;
-                case 'digitalhuman': container.innerHTML = renderDigitalHuman(); break;
+                case 'digitalhuman': renderDigitalHumanAsync(container); break;
                 case 'imageGen': container.innerHTML = renderImageGen(); initTemplateSelector('#imgGenTemplateContainer', 'imgGenPrompt'); break;
                 case 'projects': container.innerHTML = renderProjects(); break;
                 case 'myworks': container.innerHTML = renderMyWorks(); setTimeout(() => loadMyWorks(1), 0); break;
@@ -1983,7 +1986,63 @@
             `;
         }
 
+        /**
+         * 格式化语音ID为显示名称
+         * 将 technical ID (如 'zhiyan_emo') 转为可读标签
+         */
+        function formatVoiceLabel(voiceId) {
+            return voiceId
+                .replace(/_/g, ' ')
+                .replace(/\b\w/g, function (c) { return c.toUpperCase(); });
+        }
+
+        /**
+         * 渲染数字人页面
+         *
+         * Phase 2-C-2-4-B-2-B-2: 使用 Registry + APP_STATE.digitalHuman 动态渲染
+         *
+         * 数据来源：
+         *   - 模型名称/描述: APP_STATE.digitalHuman.modelConfig (Registry → wanx-digital-human)
+         *   - 音色选项: modelConfig.supportedVoices
+         *   - 分辨率选项: modelConfig.supportedSizes
+         */
         function renderDigitalHuman() {
+            var dh = (window.YJ && YJ.state && YJ.state.digitalHuman) || {};
+            var config = dh.modelConfig || {};
+
+            // ── 模型显示信息（从 Registry 动态获取，禁止硬编码）──
+            var modelName = config.name || '数字人';
+            var modelDesc = config.description || '数字人口播生成';
+            var modelIcon = config.icon || '👤';
+
+            // ── 音色选项（从 modelConfig.supportedVoices 动态生成）──
+            var voices = config.supportedVoices || [];
+            var defaultVoice = dh.voice || config.defaultVoice || (voices[0] || '');
+            var voiceOptions = voices.map(function (v) {
+                var label = formatVoiceLabel(v);
+                var selected = v === defaultVoice ? ' selected' : '';
+                return '<option value="' + v + '"' + selected + '>' + label + '</option>';
+            }).join('');
+            // 如果 Registry 未加载，显示占位选项
+            if (!voiceOptions) {
+                voiceOptions = '<option value="">加载中...</option>';
+            }
+
+            // ── 分辨率选项（从 modelConfig.supportedSizes 动态生成，4K 已移除）──
+            var sizes = config.supportedSizes || [];
+            var defaultSize = dh.resolution || config.defaultSize || (sizes[0] || '1080P');
+            var sizeOptions = sizes.map(function (s) {
+                var selected = s === defaultSize ? ' selected' : '';
+                return '<option value="' + s + '"' + selected + '>' + s + '</option>';
+            }).join('');
+            // 如果 Registry 未加载，显示占位选项
+            if (!sizeOptions) {
+                sizeOptions = '<option value="">加载中...</option>';
+            }
+
+            // ── 成本估算标签 ──
+            var costLabel = modelName + ' · ' + defaultSize + ' · 30秒';
+
             return `
                 <div class="sub-tabs">
                     <div class="sub-tab active">🎙️ 数字人口播</div>
@@ -1996,15 +2055,15 @@
                     <div class="creation-panel">
                         <div class="model-bar">
                             <div class="model-bar-left">
-                                <div class="model-bar-icon">👤</div>
+                                <div class="model-bar-icon">${modelIcon}</div>
                                 <div>
-                                    <div class="model-bar-name">万相数字人 Pro</div>
-                                    <div style="font-size:11px;color:var(--text-sub)">高清数字人口播生成</div>
+                                    <div class="model-bar-name">${modelName}</div>
+                                    <div style="font-size:11px;color:var(--text-sub)">${modelDesc}</div>
                                 </div>
                             </div>
                             <i class="fas fa-chevron-right" style="color:var(--text-sub);font-size:12px"></i>
                         </div>
-                        
+
                         <div class="form-group">
                             <label>选择数字人形象</label>
                             <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px">
@@ -2019,33 +2078,28 @@
                                 <button class="btn btn-outline btn-sm" style="width:100%;justify-content:center"><i class="fas fa-plus"></i> 上传自定义形象</button>
                             </div>
                         </div>
-                        
+
                         <div class="form-group">
                             <label>口播文案</label>
-                            <textarea rows="5" placeholder="输入需要数字人播报的文字内容...">欢迎来到煜见光影AI创作平台，我们致力于用人工智能技术，帮助每一位创作者轻松制作专业级视频内容。无需复杂的拍摄设备，只需输入文字，即可生成精美视频。</textarea>
+                            <textarea id="dhScript" rows="5" placeholder="输入需要数字人播报的文字内容...">欢迎来到煜见光影AI创作平台，我们致力于用人工智能技术，帮助每一位创作者轻松制作专业级视频内容。无需复杂的拍摄设备，只需输入文字，即可生成精美视频。</textarea>
                             <div style="text-align:right;font-size:11px;color:var(--text-muted);margin-top:6px">约 120 字 · 预计 30 秒</div>
                         </div>
-                        
+
                         <div class="form-row">
                             <div class="form-group">
                                 <label>音色选择</label>
-                                <select>
-                                    <option>温柔女声 - 小雅</option>
-                                    <option>沉稳男声 - 大伟</option>
-                                    <option>活力少女 - 甜甜</option>
-                                    <option>知性御姐 - 林老师</option>
-                                </select>
+                                <select id="dhVoice">${voiceOptions}</select>
                             </div>
                             <div class="form-group">
                                 <label>语速</label>
-                                <select>
-                                    <option>慢速</option>
-                                    <option selected>正常</option>
-                                    <option>快速</option>
+                                <select id="dhSpeed">
+                                    <option value="0.8">慢速</option>
+                                    <option value="1.0" selected>正常</option>
+                                    <option value="1.5">快速</option>
                                 </select>
                             </div>
                         </div>
-                        
+
                         <div class="form-group">
                             <label>背景设置</label>
                             <div class="param-tags">
@@ -2054,33 +2108,29 @@
                                 `).join('')}
                             </div>
                         </div>
-                        
+
                         <div class="form-row">
                             <div class="form-group">
                                 <label>分辨率</label>
-                                <select>
-                                    <option>720P</option>
-                                    <option selected>1080P</option>
-                                    <option>4K</option>
-                                </select>
+                                <select id="dhResolution">${sizeOptions}</select>
                             </div>
                             <div class="form-group">
                                 <label>画面比例</label>
-                                <select>
-                                    <option selected>16:9 横屏</option>
-                                    <option>9:16 竖屏</option>
-                                    <option>3:4 竖版</option>
+                                <select id="dhAspectRatio">
+                                    <option value="16:9" selected>16:9 横屏</option>
+                                    <option value="9:16">9:16 竖屏</option>
+                                    <option value="3:4">3:4 竖版</option>
                                 </select>
                             </div>
                         </div>
-                        
-                        <button class="generate-btn" onclick="alert('开始生成数字人口播视频，预计消耗120积分')">
+
+                        <button id="dhGenerateBtn" class="generate-btn" onclick="handleDigitalHumanGenerate()">
                             <i class="fas fa-magic"></i> 生成口播视频
                         </button>
-                        
+
                         <div class="cost-estimate">
                             <div class="cost-estimate-row">
-                                <span class="label">数字人Pro · 1080P · 30秒</span>
+                                <span class="label">${costLabel}</span>
                                 <span class="value">~ 120 积分</span>
                             </div>
                             <div class="cost-estimate-row">
@@ -2089,7 +2139,7 @@
                             </div>
                         </div>
                     </div>
-                    
+
                     <div class="preview-panel">
                         <div class="preview-content">
                             <i class="fas fa-user-circle"></i>
@@ -2099,6 +2149,200 @@
                     </div>
                 </div>
             `;
+        }
+
+        /**
+         * 数字人页面异步初始化
+         *
+         * Phase 2-C-2-4-B-2-B-2:
+         *   1. 确保 Registry 数据已加载 (YJ.modules.modelData.ensureLoaded)
+         *   2. 从 Registry 解析数字人模型配置 (YJ.state.resolveDigitalHumanFromRegistry)
+         *   3. 使用动态数据渲染页面
+         */
+        async function renderDigitalHumanAsync(container) {
+            // 显示加载状态
+            container.innerHTML = '<div class="card"><div class="card-body" style="text-align:center;padding:60px"><i class="fas fa-spinner fa-spin"></i> 加载数字人模型...</div></div>';
+
+            try {
+                // Step 1: 确保 Registry 数据已加载
+                if (window.YJ && YJ.modules && YJ.modules.modelData) {
+                    await YJ.modules.modelData.ensureLoaded();
+                }
+            } catch (e) {
+                console.warn('[DigitalHuman] Model data load failed:', e.message || e);
+            }
+
+            // Step 2: 从 Registry 解析数字人模型配置
+            if (window.YJ && YJ.state && YJ.state.resolveDigitalHumanFromRegistry) {
+                YJ.state.resolveDigitalHumanFromRegistry();
+            }
+
+            // Step 3: 使用动态数据渲染页面
+            container.innerHTML = renderDigitalHuman();
+        }
+
+        /**
+         * 数字人生成任务创建与轮询
+         *
+         * Phase 2-C-2-4-B-2-B-3: 从 alert 占位改为真实任务创建
+         *
+         * 流程：
+         *   1. 读取 YJ.state.getDigitalHumanState()
+         *   2. 同步 DOM 表单值到 state
+         *   3. 组装任务参数 → 调用 GenerationAPI.createDigitalHumanTask()
+         *   4. 复用 YuJianVideoTask.pollTaskStatus() 轮询机制
+         */
+        async function handleDigitalHumanGenerate() {
+            var YJ = window.YJ || {};
+            var dh = (YJ.state && YJ.state.getDigitalHumanState) ? YJ.state.getDigitalHumanState() : {};
+            var btn = document.getElementById('dhGenerateBtn');
+            var originalHTML = btn ? btn.innerHTML : '';
+
+            // ── 读取 DOM 表单最新值 ──
+            var scriptEl = document.getElementById('dhScript');
+            var voiceEl = document.getElementById('dhVoice');
+            var speedEl = document.getElementById('dhSpeed');
+            var resolutionEl = document.getElementById('dhResolution');
+            var aspectRatioEl = document.getElementById('dhAspectRatio');
+
+            var script = scriptEl ? scriptEl.value.trim() : (dh.script || '');
+            var voice = voiceEl ? voiceEl.value : dh.voice;
+            var speed = speedEl ? parseFloat(speedEl.value) : (dh.speed || 1.0);
+            var resolution = resolutionEl ? resolutionEl.value : dh.resolution;
+            var aspectRatio = aspectRatioEl ? aspectRatioEl.value : dh.aspectRatio;
+
+            // ── 校验必填项 ──
+            if (!script) {
+                if (typeof showToast === 'function') showToast('请输入口播文案', 'warning');
+                return;
+            }
+
+            // ── 同步表单值到 state ──
+            if (YJ.state && YJ.state.setDigitalHumanState) {
+                YJ.state.setDigitalHumanState({
+                    script: script,
+                    voice: voice,
+                    speed: speed,
+                    resolution: resolution,
+                    aspectRatio: aspectRatio
+                });
+            }
+
+            // ── 组装任务参数 ──
+            var taskInput = {
+                templateId: dh.templateId || 'digital_human',
+                modelId: dh.modelId || null,
+                imageUrl: dh.imageUrl || null,
+                avatarId: dh.avatarId || null,
+                script: script,
+                voice: voice,
+                speed: speed,
+                resolution: resolution,
+                aspectRatio: aspectRatio
+            };
+
+            // ── 设置生成中状态 ──
+            if (YJ.state && YJ.state.setDigitalHumanState) {
+                YJ.state.setDigitalHumanState({ isGenerating: true });
+            }
+
+            // ── 更新按钮 UI ──
+            if (btn) {
+                btn.disabled = true;
+                btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 生成中...';
+            }
+
+            try {
+                // ── 调用任务创建接口 ──
+                var task;
+                if (window.EnterpriseAPI && window.EnterpriseAPI.Generation && window.EnterpriseAPI.Generation.createDigitalHumanTask) {
+                    task = await window.EnterpriseAPI.Generation.createDigitalHumanTask(taskInput);
+                } else {
+                    throw new Error('createDigitalHumanTask API 不可用');
+                }
+
+                var taskId = task.id || task.task_id;
+                console.log('[DigitalHuman] 任务创建成功, taskId:', taskId);
+
+                // ── 保存 currentTaskId ──
+                if (YJ.state && YJ.state.setDigitalHumanState) {
+                    YJ.state.setDigitalHumanState({ currentTaskId: taskId });
+                }
+
+                // ── 复用已有轮询机制 ──
+                if (typeof YuJianVideoTask !== 'undefined' && YuJianVideoTask.pollTaskStatus) {
+                    YuJianVideoTask.pollTaskStatus(taskId, {
+                        onUpdate: function (t) {
+                            console.log('[DigitalHuman] 任务进度更新:', t.status, t.progress);
+                        },
+                        onSuccess: function (t) {
+                            console.log('[DigitalHuman] 任务完成:', t);
+                            if (YJ.state && YJ.state.setDigitalHumanState) {
+                                YJ.state.setDigitalHumanState({ isGenerating: false });
+                            }
+                            if (btn) {
+                                btn.disabled = false;
+                                btn.innerHTML = '<i class="fas fa-check"></i> 生成完成';
+                            }
+                            if (typeof showToast === 'function') {
+                                showToast('数字人视频生成成功！', 'success');
+                            }
+                            // 恢复按钮文案
+                            setTimeout(function () {
+                                if (btn) btn.innerHTML = originalHTML;
+                            }, 2000);
+                        },
+                        onFailed: function (t) {
+                            console.error('[DigitalHuman] 任务失败:', t);
+                            if (YJ.state && YJ.state.setDigitalHumanState) {
+                                YJ.state.setDigitalHumanState({ isGenerating: false });
+                            }
+                            if (btn) {
+                                btn.disabled = false;
+                                btn.innerHTML = '<i class="fas fa-redo"></i> 重新生成';
+                            }
+                            if (typeof showToast === 'function') {
+                                showToast(t.error_msg || '数字人视频生成失败，请重试', 'error');
+                            }
+                        },
+                        onTimeout: function () {
+                            console.warn('[DigitalHuman] 轮询超时');
+                            if (YJ.state && YJ.state.setDigitalHumanState) {
+                                YJ.state.setDigitalHumanState({ isGenerating: false });
+                            }
+                            if (btn) {
+                                btn.disabled = false;
+                                btn.innerHTML = originalHTML;
+                            }
+                            if (typeof showToast === 'function') {
+                                showToast('任务状态确认超时，可稍后在任务记录中查看', 'warning');
+                            }
+                        },
+                        onError: function (err) {
+                            console.error('[DigitalHuman] 轮询出错:', err);
+                        }
+                    });
+                }
+
+            } catch (err) {
+                console.error('[DigitalHuman] 任务创建失败:', err);
+
+                // ── 恢复状态 ──
+                if (YJ.state && YJ.state.setDigitalHumanState) {
+                    YJ.state.setDigitalHumanState({ isGenerating: false, currentTaskId: null });
+                }
+                if (btn) {
+                    btn.disabled = false;
+                    btn.innerHTML = '<i class="fas fa-redo"></i> 重试';
+                }
+                if (typeof showToast === 'function') {
+                    if (err.name === 'AbortError' || (err.code && err.code === 'ABORTED')) {
+                        showToast('操作已取消', 'info');
+                    } else {
+                        showToast(err.message || '任务创建失败，请重试', 'error');
+                    }
+                }
+            }
         }
 
         function renderRef2Video() {

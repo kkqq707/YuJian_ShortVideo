@@ -156,7 +156,15 @@
       case 'text2video': container.innerHTML = (typeof renderText2Video === 'function' ? renderText2Video() : '<div class="card"><div class="card-body">页面开发中</div></div>'); initTemplateSelector('#t2vTemplateContainer', 't2vPrompt'); break;
       case 'image2video': container.innerHTML = (typeof renderImage2Video === 'function' ? renderImage2Video() : '<div class="card"><div class="card-body">页面开发中</div></div>'); initTemplateSelector('#i2vTemplateContainer', 'i2vPrompt'); break;
       case 'studio': container.innerHTML = (typeof renderStudio === 'function' ? renderStudio() : renderFallback('AI创作中心')); initTemplateSelector('#studioTemplateContainer', 'studioPrompt'); break;
-      case 'digitalhuman': container.innerHTML = (typeof renderDigitalHuman === 'function' ? renderDigitalHuman() : '<div class="card"><div class="card-body">页面开发中</div></div>'); break;
+      case 'digitalhuman':
+        if (typeof renderDigitalHumanAsync === 'function') {
+          renderDigitalHumanAsync(container);
+        } else if (typeof renderDigitalHuman === 'function') {
+          container.innerHTML = renderDigitalHuman();
+        } else {
+          container.innerHTML = '<div class="card"><div class="card-body">页面开发中</div></div>';
+        }
+        break;
       case 'imageGen': container.innerHTML = (typeof renderImageGen === 'function' ? renderImageGen() : '<div class="card"><div class="card-body">页面开发中</div></div>'); initTemplateSelector('#imgGenTemplateContainer', 'imgGenPrompt'); break;
       case 'projects': container.innerHTML = (typeof renderProjects === 'function' ? renderProjects() : '<div class="card"><div class="card-body">页面开发中</div></div>'); break;
       case 'project-detail': {
@@ -217,12 +225,17 @@
     _renderLock = true;
 
     // Clean up previous page polling
-    if (APP.currentPage === 'image2video' && page !== 'image2video') {
+    var generatingPages = ['image2video', 'digitalhuman'];
+    if (generatingPages.indexOf(APP.currentPage) !== -1 && generatingPages.indexOf(page) === -1) {
       if (typeof YuJianVideoTask !== 'undefined' && YuJianVideoTask.stopPolling) {
         YuJianVideoTask.stopPolling();
       }
-      if (typeof clearImageSelection === 'function') {
+      if (APP.currentPage === 'image2video' && typeof clearImageSelection === 'function') {
         clearImageSelection();
+      }
+      // Phase 2-C-2-4-B-2-B-3: 离开数字人页面时重置生成状态
+      if (APP.currentPage === 'digitalhuman' && window.YJ && window.YJ.state && window.YJ.state.setDigitalHumanState) {
+        window.YJ.state.setDigitalHumanState({ isGenerating: false });
       }
     }
     _originalRender(page);
