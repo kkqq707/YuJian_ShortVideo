@@ -57,7 +57,7 @@ const models = {
   'wan2.1-t2v': {
     id: 'wan2.1-t2v',
     name: 'Wan2.1 文生视频',
-    displayName: 'Wan2.1 T2V',
+    displayName: 'happyhorse-t2v',
     family: 'wan2.1',
     provider: 'aliyun',
     capability: CAPABILITY.TEXT_TO_VIDEO,
@@ -88,7 +88,7 @@ const models = {
   'wan2.1-i2v': {
     id: 'wan2.1-i2v',
     name: 'Wan2.1 图生视频',
-    displayName: 'Wan2.1 I2V',
+    displayName: 'happyhorse-1.1-i2v',
     family: 'wan2.1',
     provider: 'aliyun',
     capability: CAPABILITY.IMAGE_TO_VIDEO,
@@ -121,7 +121,7 @@ const models = {
   'wan2.1-ref2video': {
     id: 'wan2.1-ref2video',
     name: 'Wan2.1 参考生视频',
-    displayName: 'Wan2.1 Ref2Video',
+    displayName: 'happyhorse-1.1-i2v',
     family: 'wan2.1',
     provider: 'aliyun',
     capability: CAPABILITY.REFERENCE_TO_VIDEO,
@@ -156,7 +156,7 @@ const models = {
   'qwen-image': {
     id: 'qwen-image',
     name: 'Qwen-Image 商业图片生成',
-    displayName: 'Qwen-Image',
+    displayName: 'qwen-image-3.0-pro',
     family: 'qwen-image',
     provider: 'aliyun',
     capability: CAPABILITY.IMAGE_GENERATION,
@@ -185,7 +185,7 @@ const models = {
   'qwen-image-edit': {
     id: 'qwen-image-edit',
     name: 'Qwen-Image 图片智能编辑',
-    displayName: 'Qwen-Image-Edit',
+    displayName: 'qwen-image-edit',
     family: 'qwen-image',
     provider: 'aliyun',
     capability: CAPABILITY.IMAGE_EDIT,
@@ -216,7 +216,7 @@ const models = {
   'wanx-digital-human': {
     id: 'wanx-digital-human',
     name: '万相数字人',
-    displayName: '数字人Pro',
+    displayName: 'wanx-digital-human',
     family: 'wanx',
     provider: 'aliyun',
     capability: CAPABILITY.DIGITAL_HUMAN,

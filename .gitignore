@@ -13,5 +13,8 @@ yarn-error.log*
 coverage/
 logs/
 *.log
+
 reports/
 tests/
+.agents
+.claude

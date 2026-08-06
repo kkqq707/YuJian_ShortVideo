@@ -778,7 +778,7 @@
             const container = document.getElementById('mainContent');
             switch (page) {
                 case 'dashboard': container.innerHTML = renderDashboard(); break;
-                case 'studio': container.innerHTML = renderStudio(); initTemplateSelector('#studioTemplateContainer', 'studioPrompt'); break;
+                case 'studio': container.innerHTML = renderStudio(); initTemplateSelector('#studioTemplateContainer', 'studioPrompt'); studioInitModelSelect('image2video'); break;
                 case 'storyboard': container.innerHTML = renderStoryboardPage(); break;
                 case 'text2video': container.innerHTML = renderText2Video(); initTemplateSelector('#t2vTemplateContainer', 't2vPrompt'); break;
                 case 'image2video': container.innerHTML = renderImage2Video(); initTemplateSelector('#i2vTemplateContainer', 'i2vPrompt'); break;
@@ -902,7 +902,7 @@
         //  Phase 2-C: AI创作中心 — 统一创作页面
         // ===================================================
         var STUDIO_STATE = {
-            creationType: 'image2video',  // 当前创作类型: imageGen | image2video | text2video | digitalhuman
+            creationType: 'image2video',  // 当前创作类型: imageGen | image2video | text2video
             selectedFile: null,
             previewUrl: null,
             uploadedImageUrl: null,
@@ -935,6 +935,70 @@
             }
         }
 
+        // ─── Phase 2-C-2-3-B: 动态模型选择器 ─────────────────
+        // 根据 capability 从 Registry 数据动态生成模型 option 列表
+        // capability 映射:
+        //   image2video  → image_to_video
+        //   text2video   → text_to_video
+        //   imageGen     → image_generation
+
+        /** 创作类型 → Registry capability 映射 */
+        var STUDIO_CAPABILITY_MAP = {
+            image2video: 'image_to_video',
+            text2video: 'text_to_video',
+            imageGen: 'image_generation'
+        };
+
+        /**
+         * 根据 capability 动态刷新模型 select 选项
+         * @param {string} capability — Registry capability (e.g. 'image_to_video')
+         */
+        async function studioRefreshModelSelect(capability) {
+            var modelSelect = document.getElementById('studioModel');
+            if (!modelSelect) return;
+
+            // 确保 Registry 数据已加载
+            try {
+                if (window.YJ && YJ.modules && YJ.modules.modelData) {
+                    await YJ.modules.modelData.ensureLoaded();
+                }
+            } catch (e) {
+                console.warn('[Studio] Model data not available:', e.message);
+                modelSelect.innerHTML = '<option value="">模型数据加载失败</option>';
+                return;
+            }
+
+            if (!YJ.state.isAiModelsReady || !YJ.state.isAiModelsReady()) {
+                modelSelect.innerHTML = '<option value="">模型数据未就绪</option>';
+                return;
+            }
+
+            var models = YJ.state.getModelsByCapability(capability);
+            if (!models || !models.length) {
+                modelSelect.innerHTML = '<option value="">暂无可用模型</option>';
+                return;
+            }
+
+            var html = '';
+            for (var i = 0; i < models.length; i++) {
+                var m = models[i];
+                var selected = (i === 0) ? ' selected' : '';
+                html += '<option value="' + escapeHtml(m.id) + '"' + selected + '>'
+                    + escapeHtml(m.displayName || m.name || m.id) + '</option>';
+            }
+            modelSelect.innerHTML = html;
+            console.log('[Studio] Model select refreshed for capability:', capability, '—', models.length, 'models');
+        }
+
+        /**
+         * 初始加载时根据创作类型填充模型列表
+         * @param {string} creationType — 创作类型 (e.g. 'image2video')
+         */
+        function studioInitModelSelect(creationType) {
+            var capability = STUDIO_CAPABILITY_MAP[creationType] || 'image_to_video';
+            studioRefreshModelSelect(capability);
+        }
+
         function renderStudio() {
             return ''
                 + '<div class="yj-studio-container">'
@@ -954,11 +1018,6 @@
                 + '    <div class="yj-studio-type-icon"><i class="fas fa-image"></i></div>'
                 + '    <div class="yj-studio-type-label">图片生成</div>'
                 + '    <div class="yj-studio-type-desc">文字描述 → 图片</div>'
-                + '  </div>'
-                + '  <div class="yj-studio-type-card" data-type="digitalhuman" onclick="studioSelectType(this, \'digitalhuman\')">'
-                + '    <div class="yj-studio-type-icon"><i class="fas fa-user-tie"></i></div>'
-                + '    <div class="yj-studio-type-label">数字人口播</div>'
-                + '    <div class="yj-studio-type-desc">真人形象，智能口播</div>'
                 + '  </div>'
                 + '</div>'
                 // ── Main layout: left panel + right preview ──
@@ -1020,7 +1079,7 @@
                 + '      <div class="yj-studio-param-item">'
                 + '        <label>模型</label>'
                 + '        <select id="studioModel" class="yj-studio-select">'
-                + '          <option value="happyhorse-i2v" selected>HappyHorse 图片转视频</option>'
+                + '          <option value="">加载中...</option>'
                 + '        </select>'
                 + '      </div>'
                 + '      <div class="yj-studio-param-item">'
@@ -1141,36 +1200,24 @@
             var durationSelect = document.getElementById('studioDuration');
             var costEstimate = document.getElementById('studioCostEstimate');
 
+            // Phase 2-C-2-3-B: 动态刷新模型选择器（从 Registry 数据获取）
+            var capability = STUDIO_CAPABILITY_MAP[type];
+            if (capability) {
+                studioRefreshModelSelect(capability);
+            }
+
             // 图片生成不需要素材输入
             if (type === 'imageGen') {
                 if (materialSection) materialSection.style.display = 'none';
                 if (promptSection) promptSection.querySelector('.yj-studio-section-header label').textContent = '图片描述';
-                if (modelSelect) {
-                    modelSelect.innerHTML = '<option value="wanx-image" selected>通义万相 图片生成</option>';
-                }
                 if (durationSelect) { durationSelect.parentElement.parentElement.style.display = 'none'; }
                 if (costEstimate) costEstimate.textContent = '~ 4 积分';
-            } else if (type === 'digitalhuman') {
-                if (materialSection) materialSection.style.display = 'block';
-                if (promptSection) promptSection.querySelector('.yj-studio-section-header label').textContent = '口播文案';
-                if (modelSelect) {
-                    modelSelect.innerHTML = '<option value="wanx-digitalhuman" selected>万相数字人 Pro</option>';
-                }
-                if (durationSelect) { durationSelect.parentElement.parentElement.style.display = 'block'; }
-                if (costEstimate) costEstimate.textContent = '~ 120 积分';
             } else {
                 // image2video, text2video
                 if (materialSection) {
                     materialSection.style.display = (type === 'text2video') ? 'none' : 'block';
                 }
                 if (promptSection) promptSection.querySelector('.yj-studio-section-header label').textContent = '提示词';
-                if (modelSelect) {
-                    if (type === 'image2video') {
-                        modelSelect.innerHTML = '<option value="happyhorse-i2v" selected>HappyHorse 图片转视频</option>';
-                    } else {
-                        modelSelect.innerHTML = '<option value="yuanjianguang" selected>YuanjianGuang 1.1</option>';
-                    }
-                }
                 if (durationSelect) { durationSelect.parentElement.parentElement.style.display = 'block'; }
                 // Phase 2-C-1-C: 切换类型时同步新参数到 state
                 // Phase 2-C-1-D: text2video 也复用统一参数
@@ -1364,6 +1411,19 @@
 
             var creationType = STUDIO_STATE.creationType;
 
+            // Phase 2-C-2-3-B: 读取用户选择的模型 ID
+            var modelSelectEl = document.getElementById('studioModel');
+            var selectedModelId = (modelSelectEl && modelSelectEl.value) || '';
+            // 如果未选择有效模型（如 placeholder），使用 capability 对应的默认模型
+            if (!selectedModelId) {
+                var capability = STUDIO_CAPABILITY_MAP[creationType];
+                if (capability) {
+                    var models = (YJ.state && YJ.state.getModelsByCapability)
+                        ? YJ.state.getModelsByCapability(capability) : [];
+                    selectedModelId = (models && models.length > 0) ? models[0].id : '';
+                }
+            }
+
             try {
                 // 设置 Processing 状态
                 if (statusText) statusText.textContent = '正在生成，请耐心等待...';
@@ -1382,20 +1442,8 @@
                         prompt: prompt,
                         style: imgGenStyle,
                         ratio: imgGenRatio,
-                        count: 4
-                    });
-                } else if (creationType === 'digitalhuman') {
-                    // 数字人口播 — 使用统一 API
-                    // Phase 2-C-1-C: studioResolution → 默认值（该控件已替换为统一参数）
-                    var dhResolution = (document.getElementById('studioResolution') || {}).value || '1080p';
-                    var dhRatio = (document.getElementById('studioAspectRatio') || {}).value || '16:9';
-                    task = await EnterpriseAPI.Generation.createDigitalHumanTask({
-                        prompt: prompt,
-                        avatar: '职场女性-小雅',
-                        voice: '温柔女声-小雅',
-                        duration: parseInt(document.getElementById('studioDuration').value) || 5,
-                        resolution: dhResolution,
-                        ratio: dhRatio
+                        count: 4,
+                        modelId: selectedModelId
                     });
                 } else {
                     // image2video / text2video — 使用统一 API
@@ -1416,7 +1464,8 @@
                     var taskInput = {
                         prompt: prompt,
                         duration: durationVal,
-                        params: unifiedParams
+                        params: unifiedParams,
+                        modelId: selectedModelId
                     };
 
                     if (creationType === 'image2video') {
@@ -2903,7 +2952,7 @@
             'text2video':   { title: '文生视频',    section: '创作', parent: 'studio' },
             'image2video':  { title: '图生视频',    section: '创作', parent: 'studio' },
             'imageGen':     { title: '图片生成',    section: '创作', parent: 'studio' },
-            'digitalhuman': { title: '数字人口播',  section: '创作', parent: 'studio' },
+            'digitalhuman': { title: '数字人口播',  section: '创作', icon: 'fa-user-tie' },
             'storyboard':   { title: '故事板',      section: '创作', icon: 'fa-clapperboard' },
             'editor':       { title: '视频剪辑',    section: '创作', icon: 'fa-scissors' },
             'assets':       { title: '素材库',      section: '资源', icon: 'fa-folder-open' },
@@ -5916,6 +5965,7 @@
     <script src="js/enterprise/state.js"></script>
     <script src="js/enterprise/utils.js"></script>
     <script src="js/enterprise/api.js"></script>
+    <script src="js/enterprise/model-data.js"></script>
     <script src="js/enterprise/asset-list.js"></script>
     <script src="js/enterprise/asset-detail.js"></script>
     <script src="js/enterprise/asset-preview.js"></script>

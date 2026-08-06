@@ -218,12 +218,42 @@
     }
   };
 
+  // ─── Registry API (Phase 2-C-2-3-A) ───────────────────────
+  var RegistryAPI = {
+    /**
+     * 获取所有 template 列表（含关联 model 完整信息）
+     * @returns {Promise<Array>}
+     */
+    getTemplates: function () {
+      return safeFetch('/enterprise/registry/templates');
+    },
+
+    /**
+     * 获取模型列表
+     * @param {string} [capability] — 能力类型，可选；不传返回全部模型
+     * @returns {Promise<Array>}
+     */
+    getModels: function (capability) {
+      var query = capability ? '?capability=' + encodeURIComponent(capability) : '';
+      return safeFetch('/enterprise/registry/models' + query);
+    },
+
+    /**
+     * 获取所有 capability 列表
+     * @returns {Promise<Array>}
+     */
+    getCapabilities: function () {
+      return safeFetch('/enterprise/registry/capabilities');
+    }
+  };
+
   // ─── Expose to Global ─────────────────────────────────────
   var YJ = window.YJ || {};
   YJ.api = {
     Asset: AssetAPI,
     Generation: GenerationAPI,
-    Workspace: WorkspaceAPI
+    Workspace: WorkspaceAPI,
+    Registry: RegistryAPI
   };
   window.YJ = YJ;
 
@@ -231,8 +261,9 @@
   window.EnterpriseAPI = {
     Asset: AssetAPI,
     Generation: GenerationAPI,
-    Workspace: WorkspaceAPI
+    Workspace: WorkspaceAPI,
+    Registry: RegistryAPI
   };
 
-  console.log('[Enterprise/API] API layer initialized (Phase 2-C-1-A: unified creation methods, Phase 2-C-1-C: image2video params)');
+  console.log('[Enterprise/API] API layer initialized (Phase 2-C-1-A: unified creation methods, Phase 2-C-1-C: image2video params, Phase 2-C-2-3-A: registry API)');
 })();
