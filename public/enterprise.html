@@ -4581,15 +4581,9 @@
                 var templateId = GEN_PANEL_STATE.selectedTemplate;
                 var outputType = GEN_PANEL_STATE.selectedOutput;
 
-                // 创作模板映射（前端不展示具体模型名称）
-                var TEMPLATE_MAP = {
-                    'image_to_video': { model: 'happyhorse-i2v', provider: 'aliyun' },
-                    'text_to_video': { model: 'happyhorse-t2v', provider: 'aliyun' },
-                    'image_generation': { model: 'qwen-image-3.0-pro', provider: 'aliyun' },
-                    'image_edit': { model: 'qwen-image-edit', provider: 'aliyun' }
-                };
-
-                var templateConfig = TEMPLATE_MAP[templateId] || TEMPLATE_MAP['image_to_video'];
+                // Phase 2-C-2-2: 前端仅传 templateId，模型由后端 Registry 解析
+                // 禁止前端硬编码 model / provider / apiModelName
+                // modelId 可选，不传则由后端根据 templateId 自动匹配默认模型
 
                 // 创建生成任务
                 updateGenTimeline('process');
@@ -4599,7 +4593,6 @@
                     sourceAssetId: GEN_PANEL_STATE.assetId || GEN_PANEL_STATE.sourceAssetId,
                     prompt: prompt,
                     templateId: templateId,
-                    model: templateConfig.model,
                     duration: 5
                 };
 

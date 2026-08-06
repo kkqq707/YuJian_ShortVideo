@@ -10,6 +10,7 @@ const quotaRouter = require('./quota');
 const settingRouter = require('./setting');
 const videoGenerationRouter = require('./videoGeneration');
 const workspaceRouter = require('./workspace');
+const registryRouter = require('./registry');
 
 router.use(enterpriseAuth);
 
@@ -21,5 +22,6 @@ router.use('/quota', quotaRouter);
 router.use('/settings', settingRouter);
 router.use('/video-generation', videoGenerationRouter);
 router.use('/workspace', workspaceRouter);
+router.use('/registry', registryRouter);
 
 module.exports = router;
