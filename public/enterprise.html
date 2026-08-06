@@ -376,11 +376,11 @@
             <div class="nav-item" data-page="studio" onclick="navigateTo('studio')">
                 <i class="fas fa-wand-magic-sparkles"></i><span>AI创作</span>
             </div>
-            <div class="nav-item" data-page="storyboard" onclick="navigateTo('storyboard')">
-                <i class="fas fa-clapperboard"></i><span>故事板</span>
-            </div>
             <div class="nav-item" data-page="digitalhuman" onclick="navigateTo('digitalhuman')">
                 <i class="fas fa-user-tie"></i><span>数字人口播</span>
+            </div>
+            <div class="nav-item" data-page="storyboard" onclick="navigateTo('storyboard')">
+                <i class="fas fa-clapperboard"></i><span>故事板</span>
             </div>
             <div class="nav-item" data-page="editor" onclick="navigateTo('editor')">
                 <i class="fas fa-scissors"></i><span>视频剪辑</span>
@@ -1987,13 +1987,158 @@
         }
 
         /**
+         * 音色中文显示名称映射
+         * Phase 2-C-2-4-B-4-C-3: technical ID → 中文用户名称
+         * 仅影响前端显示，提交给 API 的值仍为 technical ID
+         */
+        var VOICE_LABEL_MAP = {
+            'zhiyan_emo': '智言情感',
+            'zhiyan_cute': '智言可爱',
+            'zhiyan_pro': '智言专业'
+        };
+
+        /**
          * 格式化语音ID为显示名称
          * 将 technical ID (如 'zhiyan_emo') 转为可读标签
+         * 优先使用中文映射，未识别时回退到英文格式化
          */
         function formatVoiceLabel(voiceId) {
+            if (VOICE_LABEL_MAP[voiceId]) {
+                return VOICE_LABEL_MAP[voiceId];
+            }
             return voiceId
                 .replace(/_/g, ' ')
                 .replace(/\b\w/g, function (c) { return c.toUpperCase(); });
+        }
+
+        /**
+         * 音色选择 change 事件处理
+         * Phase 2-C-2-4-B-4-C-1: 同步 DOM 选择到 APP_STATE.digitalHuman.voice
+         */
+        function onDhVoiceChange(newVoice) {
+            if (window.YJ && YJ.state && YJ.state.setDigitalHumanState) {
+                YJ.state.setDigitalHumanState({ voice: newVoice });
+                console.log('[DigitalHuman] Voice changed to:', newVoice);
+            }
+        }
+
+        /**
+         * 触发自定义形象上传 — 代理点击到隐藏的 file input
+         * Phase 2-C-2-4-B-4-C-5: 自定义形象上传前端闭环
+         */
+        function triggerCustomAvatarUpload() {
+            var fileInput = document.getElementById('dhCustomAvatarFile');
+            if (fileInput) {
+                fileInput.click();
+            }
+        }
+
+        /**
+         * 处理自定义形象文件选择
+         * Phase 2-C-2-4-B-4-C-5: 完整上传链路 — 校验 → 预览 → OSS上传 → 状态更新
+         * @param {HTMLInputElement} input — file input 元素
+         */
+        async function handleCustomAvatarFile(input) {
+            var file = input.files && input.files[0];
+            if (!file) return;
+
+            var YJ = window.YJ || {};
+            var btn = document.getElementById('dhCustomAvatarBtn');
+            var previewIcon = document.getElementById('dhPreviewIcon');
+            var previewImg = document.getElementById('dhPreviewImg');
+            var previewName = document.getElementById('dhPreviewName');
+            var originalBtnHTML = btn ? btn.innerHTML : '';
+
+            // ── 校验 ──
+            if (typeof YuJianUpload === 'undefined' || !YuJianUpload.validateImage) {
+                if (typeof showToast === 'function') showToast('上传模块未加载，请刷新页面后重试', 'error');
+                return;
+            }
+
+            var validation = await YuJianUpload.validateImage(file);
+            if (!validation.valid) {
+                if (typeof showToast === 'function') showToast(validation.error, 'error');
+                input.value = '';
+                return;
+            }
+
+            // ── 本地预览 ──
+            var preview = YuJianUpload.createPreview(file);
+
+            if (previewIcon) previewIcon.style.display = 'none';
+            if (previewImg) {
+                previewImg.src = preview.url;
+                previewImg.style.display = 'block';
+            }
+            if (previewName) {
+                previewName.textContent = file.name;
+            }
+
+            // ── 上传中状态 ──
+            if (btn) {
+                btn.disabled = true;
+                btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 上传中...';
+            }
+
+            try {
+                // ── 完整上传流程: OSS直传 → Asset记录 ──
+                var result = await YuJianUpload.uploadImage(file);
+
+                // ── 切换到 OSS 真实 URL（释放本地 blob） ──
+                if (previewImg) {
+                    previewImg.src = result.url;
+                }
+                preview.revoke();
+
+                // ── 写入状态 ──
+                if (YJ.state && YJ.state.setDigitalHumanState) {
+                    YJ.state.setDigitalHumanState({
+                        imageUrl: result.url,
+                        avatarId: null
+                    });
+                    console.log('[DigitalHuman] 自定义形象已上传:', result.url);
+                }
+
+                if (typeof showToast === 'function') {
+                    showToast('自定义形象上传成功', 'success');
+                }
+
+                // ── 恢复按钮 ──
+                if (btn) {
+                    btn.disabled = false;
+                    btn.innerHTML = '<i class="fas fa-check"></i> 已上传';
+                    setTimeout(function () {
+                        if (btn) btn.innerHTML = originalBtnHTML;
+                    }, 2000);
+                }
+
+            } catch (err) {
+                console.error('[DigitalHuman] 自定义形象上传失败:', err);
+
+                preview.revoke();
+
+                // 恢复预览面板占位
+                if (previewIcon) previewIcon.style.display = '';
+                if (previewImg) {
+                    previewImg.src = '';
+                    previewImg.style.display = 'none';
+                }
+                if (previewName) {
+                    previewName.textContent = '职场女性 - 小雅';
+                }
+
+                // 恢复按钮
+                if (btn) {
+                    btn.disabled = false;
+                    btn.innerHTML = originalBtnHTML;
+                }
+
+                var errMsg = (err && err.message) ? err.message : '自定义形象上传失败，请重试';
+                if (typeof showToast === 'function') showToast(errMsg, 'error');
+            }
+
+            // ── 重置 file input，允许再次选择同一文件 ──
+            input.value = '';
         }
 
         /**
@@ -2075,7 +2220,8 @@
                                 `).join('')}
                             </div>
                             <div style="margin-top:12px">
-                                <button class="btn btn-outline btn-sm" style="width:100%;justify-content:center"><i class="fas fa-plus"></i> 上传自定义形象</button>
+                                <button id="dhCustomAvatarBtn" type="button" class="btn btn-outline btn-sm" style="width:100%;justify-content:center" onclick="triggerCustomAvatarUpload()"><i class="fas fa-plus"></i> 上传自定义形象</button>
+                                <input type="file" id="dhCustomAvatarFile" accept="image/*" style="display:none" onchange="handleCustomAvatarFile(this)">
                             </div>
                         </div>
 
@@ -2088,7 +2234,7 @@
                         <div class="form-row">
                             <div class="form-group">
                                 <label>音色选择</label>
-                                <select id="dhVoice">${voiceOptions}</select>
+                                <select id="dhVoice" onchange="onDhVoiceChange(this.value)">${voiceOptions}</select>
                             </div>
                             <div class="form-group">
                                 <label>语速</label>
@@ -2141,10 +2287,11 @@
                     </div>
 
                     <div class="preview-panel">
-                        <div class="preview-content">
-                            <i class="fas fa-user-circle"></i>
+                        <div class="preview-content" id="dhPreviewContent">
+                            <i class="fas fa-user-circle" id="dhPreviewIcon"></i>
+                            <img id="dhPreviewImg" src="" alt="自定义形象预览" style="display:none;width:100%;height:100%;object-fit:contain;border-radius:8px">
                             <div style="font-size:15px">数字人预览</div>
-                            <div style="font-size:12px;color:var(--text-muted);margin-top:6px">职场女性 - 小雅</div>
+                            <div id="dhPreviewName" style="font-size:12px;color:var(--text-muted);margin-top:6px">职场女性 - 小雅</div>
                         </div>
                     </div>
                 </div>

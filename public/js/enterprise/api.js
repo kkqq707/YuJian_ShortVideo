@@ -193,8 +193,13 @@
      * @returns {Promise<Object>}
      */
     createDigitalHumanTask: function (taskInput) {
-      // TODO: Phase 2-C-1-B 接入后端数字人接口
-      return YuJianAPI.post('/enterprise/video-generation/digital-human', taskInput);
+      // Phase 2-C-2-4-B-4-C-5: 字段名适配 (imageUrl→image_url, script→text) + 路径修正
+      var body = {
+        image_url: taskInput.imageUrl || null,
+        text: taskInput.script || '',
+        voice: taskInput.voice || 'zhiyan_emo'
+      };
+      return YuJianAPI.post('/enterprise/tasks/digital-human', body);
     }
   };
 
