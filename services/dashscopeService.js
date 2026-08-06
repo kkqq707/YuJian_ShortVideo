@@ -1,6 +1,7 @@
 const https = require('https');
 const { URL } = require('url');
 const { ApiConfig } = require('../models');
+const apiKeys = require('../config/api-keys');
 
 // ─── 状态映射表 ────────────────────────────────────────────────
 const STATUS_MAP = {
@@ -43,10 +44,10 @@ function maskApiKey(key) {
 
 class DashScopeService {
   constructor() {
-    this.apiKey = process.env.DASHSCOPE_API_KEY || '';
-    this.endpoint = process.env.DASHSCOPE_ENDPOINT || 'https://dashscope.aliyuncs.com';
-    this.defaultModel = process.env.DASHSCOPE_VIDEO_MODEL || '';
-    this.timeout = parseInt(process.env.DASHSCOPE_REQUEST_TIMEOUT) || 30000;
+    this.apiKey = apiKeys.DASHSCOPE_API_KEY || '';
+    this.endpoint = apiKeys.DASHSCOPE_ENDPOINT || 'https://dashscope.aliyuncs.com';
+    this.defaultModel = apiKeys.DASHSCOPE_VIDEO_MODEL || '';
+    this.timeout = parseInt(apiKeys.DASHSCOPE_REQUEST_TIMEOUT) || 30000;
     this.maxRetries = 2;
   }
 

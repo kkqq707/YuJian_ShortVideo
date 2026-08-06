@@ -1,4 +1,5 @@
 const crypto = require('crypto');
+const apiKeys = require('../config/api-keys');
 
 /**
  * DashScope Callback HMAC-SHA256 签名验证中间件
@@ -11,12 +12,15 @@ const crypto = require('crypto');
  *   X-DashScope-Signature: <hex-encoded-hmac-sha256>
  *
  * 验证失败返回 401，成功则继续执行原回调逻辑。
+ *
+ * 注意：DASHSCOPE_CALLBACK_SECRET 仅从项目 .env 文件读取，
+ * 不会使用 Windows 系统环境变量。
  */
 
 const SIGNATURE_HEADER = 'x-dashscope-signature';
 
 function getCallbackSecret() {
-  return process.env.DASHSCOPE_CALLBACK_SECRET || '';
+  return apiKeys.DASHSCOPE_CALLBACK_SECRET || '';
 }
 
 /**

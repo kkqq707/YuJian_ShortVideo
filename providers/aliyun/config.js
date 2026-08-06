@@ -5,13 +5,15 @@
  *
  * 统一管理：
  *   - endpoint
- *   - apiKey 来源
+ *   - apiKey 来源（仅从项目 .env 文件，禁止 Windows 系统环境变量）
  *   - model mapping（templateId → model）
  *
  * 禁止：
  *   业务代码直接读取 process.env.DASHSCOPE_*
  *   前端直接传模型名称
  */
+
+const apiKeys = require('../../config/api-keys');
 
 // ─── Aliyun 模型映射表 ────────────────────────────────────────────
 //
@@ -57,29 +59,29 @@ const ALIYUN_MODELS = {
 const ALIYUN_CONFIG = {
   provider: 'aliyun',
 
-  // API 端点（优先使用 ApiConfig，其次 env）
+  // API 端点（仅从 .env 文件读取）
   get endpoint() {
-    return process.env.DASHSCOPE_ENDPOINT || 'https://dashscope.aliyuncs.com';
+    return apiKeys.DASHSCOPE_ENDPOINT || 'https://dashscope.aliyuncs.com';
   },
 
-  // API Key（优先使用 ApiConfig，其次 env）
+  // API Key（仅从 .env 文件读取，禁止 Windows 系统环境变量）
   get apiKey() {
-    return process.env.DASHSCOPE_API_KEY || '';
+    return apiKeys.DASHSCOPE_API_KEY || '';
   },
 
-  // 默认视频模型
+  // 默认视频模型（仅从 .env 文件读取）
   get defaultVideoModel() {
-    return process.env.DASHSCOPE_VIDEO_MODEL || 'happyhorse-1.1-i2v';
+    return apiKeys.DASHSCOPE_VIDEO_MODEL || 'happyhorse-1.1-i2v';
   },
 
   // 请求超时（毫秒）
   get timeout() {
-    return parseInt(process.env.DASHSCOPE_REQUEST_TIMEOUT) || 30000;
+    return parseInt(apiKeys.DASHSCOPE_REQUEST_TIMEOUT) || 30000;
   },
 
-  // 回调签名密钥
+  // 回调签名密钥（仅从 .env 文件读取）
   get callbackSecret() {
-    return process.env.DASHSCOPE_CALLBACK_SECRET || '';
+    return apiKeys.DASHSCOPE_CALLBACK_SECRET || '';
   },
 
   // API 路径
