@@ -151,7 +151,7 @@
   function render(page) {
     var container = document.getElementById('mainContent');
     switch (page) {
-      case 'dashboard': container.innerHTML = renderDashboard(); break;
+      case 'dashboard': container.innerHTML = (typeof renderDashboard === 'function' ? renderDashboard() : '<div class="card"><div class="card-body">页面开发中</div></div>'); break;
       case 'storyboard': container.innerHTML = renderStoryboardPage(); break;
       case 'text2video': container.innerHTML = (typeof renderText2Video === 'function' ? renderText2Video() : '<div class="card"><div class="card-body">页面开发中</div></div>'); initTemplateSelector('#t2vTemplateContainer', 't2vPrompt'); break;
       case 'image2video': container.innerHTML = (typeof renderImage2Video === 'function' ? renderImage2Video() : '<div class="card"><div class="card-body">页面开发中</div></div>'); initTemplateSelector('#i2vTemplateContainer', 'i2vPrompt'); break;
