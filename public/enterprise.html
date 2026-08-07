@@ -1222,9 +1222,9 @@
 
         // ─── 创作类型切换 ───────────────────────────────
         function studioSelectType(el, type) {
-            var prevType = STUDIO_STATE.creationType;
+            var prevType = YJ.state.aiCreation.creationType;
             STUDIO_STATE.creationType = type;
-            syncStudioToAiCreation();
+            YJ.state.aiCreation.creationType = type;
             document.querySelectorAll('.yj-studio-type-card').forEach(function(c) {
                 c.classList.remove('active');
             });
@@ -1318,7 +1318,12 @@
             STUDIO_STATE.uploadedImageUrl = null;
             STUDIO_STATE.assetId = null;
             STUDIO_STATE.sourceMode = 'upload';
-            syncStudioToAiCreation();
+            // Dual-write to unified state (Phase 2-D-3.4-B.1)
+            YJ.state.aiCreation.selectedFile = file;
+            YJ.state.aiCreation.previewUrl = preview.url;
+            YJ.state.aiCreation.uploadedImageUrl = null;
+            YJ.state.aiCreation.assetId = null;
+            YJ.state.aiCreation.sourceMode = 'upload';
 
             studioShowPreview(preview.url, meta);
         }
@@ -1330,7 +1335,12 @@
             STUDIO_STATE.assetId = asset.id;
             STUDIO_STATE.selectedFile = null;
             STUDIO_STATE.uploadedImageUrl = asset.url;
-            syncStudioToAiCreation();
+            // Dual-write to unified state (Phase 2-D-3.4-B.1)
+            YJ.state.aiCreation.sourceMode = 'asset';
+            YJ.state.aiCreation.selectedAsset = asset;
+            YJ.state.aiCreation.assetId = asset.id;
+            YJ.state.aiCreation.selectedFile = null;
+            YJ.state.aiCreation.uploadedImageUrl = asset.url;
 
             var thumbUrl = asset.thumbnailUrl || asset.url || '';
             studioShowPreview(thumbUrl, {
