@@ -919,7 +919,6 @@
             // Phase 2-C-2-4-C-3-1: ref2video 基础状态字段
             ref2videoPrompt: '',         // 参考生视频描述
             referenceSubjects: [],       // 参考主体列表 [{type, name, assetId}]
-            referenceImages: []          // 参考图片列表 [{assetId, url}]
         };
 
         // ─── Phase 2-C-1-B: 双写同步 → YJ.state.aiCreation ───
@@ -940,8 +939,7 @@
                     textPrompt: STUDIO_STATE.textPrompt,
                     // Phase 2-C-2-4-C-3-1: ref2video 状态同步
                     ref2videoPrompt: STUDIO_STATE.ref2videoPrompt,
-                    referenceSubjects: STUDIO_STATE.referenceSubjects,
-                    referenceImages: STUDIO_STATE.referenceImages
+                    referenceSubjects: STUDIO_STATE.referenceSubjects
                 });
             }
         }
@@ -1223,7 +1221,6 @@
         // ─── 创作类型切换 ───────────────────────────────
         function studioSelectType(el, type) {
             var prevType = YJ.state.aiCreation.creationType;
-            STUDIO_STATE.creationType = type;
             YJ.state.aiCreation.creationType = type;
             document.querySelectorAll('.yj-studio-type-card').forEach(function(c) {
                 c.classList.remove('active');
@@ -1313,12 +1310,7 @@
             var meta = validation.meta;
             var preview = YuJianUpload.createPreview(file);
 
-            STUDIO_STATE.selectedFile = file;
-            STUDIO_STATE.previewUrl = preview.url;
-            STUDIO_STATE.uploadedImageUrl = null;
-            STUDIO_STATE.assetId = null;
-            STUDIO_STATE.sourceMode = 'upload';
-            // Dual-write to unified state (Phase 2-D-3.4-B.1)
+            // Unified state (Phase 2-D-3.4-B.5-B1)
             YJ.state.aiCreation.selectedFile = file;
             YJ.state.aiCreation.previewUrl = preview.url;
             YJ.state.aiCreation.uploadedImageUrl = null;
@@ -1330,12 +1322,7 @@
 
         // ─── 资产选择回调 ───────────────────────────────
         function studioOnAssetPicked(asset) {
-            STUDIO_STATE.sourceMode = 'asset';
-            STUDIO_STATE.selectedAsset = asset;
-            STUDIO_STATE.assetId = asset.id;
-            STUDIO_STATE.selectedFile = null;
-            STUDIO_STATE.uploadedImageUrl = asset.url;
-            // Dual-write to unified state (Phase 2-D-3.4-B.1)
+            // Unified state (Phase 2-D-3.4-B.5-B1)
             YJ.state.aiCreation.sourceMode = 'asset';
             YJ.state.aiCreation.selectedAsset = asset;
             YJ.state.aiCreation.assetId = asset.id;
@@ -1386,12 +1373,6 @@
             if (previewUrl) {
                 URL.revokeObjectURL(previewUrl);
             }
-            STUDIO_STATE.selectedFile = null;
-            STUDIO_STATE.previewUrl = null;
-            STUDIO_STATE.uploadedImageUrl = null;
-            STUDIO_STATE.assetId = null;
-            STUDIO_STATE.selectedAsset = null;
-            STUDIO_STATE.sourceMode = 'upload';
             // Dual-write to unified state (Phase 2-D-3.4-B.2)
             YJ.state.aiCreation.selectedFile = null;
             YJ.state.aiCreation.previewUrl = null;
@@ -1399,7 +1380,6 @@
             YJ.state.aiCreation.assetId = null;
             YJ.state.aiCreation.selectedAsset = null;
             YJ.state.aiCreation.sourceMode = 'upload';
-            syncStudioToAiCreation();
 
             var thumbContainer = document.getElementById('studioPreviewThumb');
             var uploadZone = document.getElementById('studioUploadZone');
@@ -1419,10 +1399,10 @@
 
         /** 清理所有 ref2video 参考图片并 revoke ObjectURL */
         function studioClearRefImages() {
-            var images = YJ.state.aiCreation.referenceImages || STUDIO_STATE.referenceImages;
+            var images = YJ.state.aiCreation.referenceImages;
             if (!images || !images.length) {
-                STUDIO_STATE.referenceImages = [];
                 YJ.state.aiCreation.referenceImages = [];
+                renderRefImageGrid();
                 return;
             }
 
@@ -1432,9 +1412,7 @@
                     URL.revokeObjectURL(ref.url);
                 }
             }
-            STUDIO_STATE.referenceImages = [];
             YJ.state.aiCreation.referenceImages = [];
-            syncStudioToAiCreation();
             renderRefImageGrid();
         }
 
@@ -1443,7 +1421,7 @@
             var grid = document.getElementById('studioRefGrid');
             if (!grid) return;
 
-            var images = YJ.state.aiCreation.referenceImages || STUDIO_STATE.referenceImages || [];
+            var images = YJ.state.aiCreation.referenceImages || [];
             var maxSlots = 5;
             var html = '';
 
@@ -1474,7 +1452,7 @@
             var files = event.target.files;
             if (!files || !files.length) return;
 
-            var refImages = YJ.state.aiCreation.referenceImages || STUDIO_STATE.referenceImages;
+            var refImages = YJ.state.aiCreation.referenceImages;
             var currentCount = refImages.length;
             var maxSlots = 5;
             var remaining = maxSlots - currentCount;
@@ -1496,7 +1474,7 @@
                     continue;
                 }
                 var preview = YuJianUpload.createPreview(file);
-                STUDIO_STATE.referenceImages.push({
+                refImages.push({
                     file: file,
                     url: preview.url,
                     name: file.name || ('参考图' + (refImages.length + 1))
@@ -1506,7 +1484,6 @@
 
             event.target.value = '';
             if (added > 0) {
-                syncStudioToAiCreation();
                 renderRefImageGrid();
                 showToast('已添加 ' + added + ' 张参考图片', 'success');
             }
@@ -1514,8 +1491,8 @@
 
         /** 移除单张 ref2video 参考图片并 revoke ObjectURL */
         function studioRemoveRefImage(index) {
-            var images = YJ.state.aiCreation.referenceImages || STUDIO_STATE.referenceImages;
-            if (index < 0 || index >= images.length) return;
+            var images = YJ.state.aiCreation.referenceImages;
+            if (!images || index < 0 || index >= images.length) return;
 
             var removed = images[index];
             if (removed.url && removed.url.startsWith('blob:')) {
@@ -1523,20 +1500,19 @@
             }
 
             images.splice(index, 1);
-            syncStudioToAiCreation();
             renderRefImageGrid();
         }
 
         // ★ Phase 2-C-2-4-C-3-3-A: ref2video 参考图片批量上传
+        // Phase 2-D-3.4-B.3-B: 迁移至 YJ.state.aiCreation
         async function studioUploadRefImages() {
-            var images = STUDIO_STATE.referenceImages;
+            var images = YJ.state.aiCreation.referenceImages;
             if (!images || !images.length) {
                 showToast('请先添加参考图片', 'warning');
                 return null;
             }
 
-            STUDIO_STATE.isUploading = true;
-            syncStudioToAiCreation();
+            YJ.state.aiCreation.isUploading = true;
 
             try {
                 for (var i = 0; i < images.length; i++) {
@@ -1549,14 +1525,12 @@
                     item.uploadedAssetId = result.assetId;
                 }
             } catch (err) {
-                STUDIO_STATE.isUploading = false;
-                syncStudioToAiCreation();
+                YJ.state.aiCreation.isUploading = false;
                 showToast('参考图片上传失败: ' + (err.message || '未知错误'), 'error');
                 return null;
             }
 
-            STUDIO_STATE.isUploading = false;
-            syncStudioToAiCreation();
+            YJ.state.aiCreation.isUploading = false;
 
             var uploadedUrls = images.map(function(r) { return r.uploadedUrl; });
             return uploadedUrls;
@@ -1598,7 +1572,7 @@
 
         // ─── 开始生成 ────────────────────────────────────
         async function studioStartGenerate() {
-            if (STUDIO_STATE.isGenerating) return;
+            if (YJ.state.aiCreation.isGenerating) return;
 
             var prompt = (document.getElementById('studioPrompt').value || '').trim();
             if (!prompt) {
@@ -1611,11 +1585,11 @@
             }
 
             // Phase 2-C-1-D: 文生视频 — 保存提示词到状态
-            STUDIO_STATE.textPrompt = prompt;
+            YJ.state.aiCreation.textPrompt = prompt;
 
             // ★ Phase 2-C-2-4-C-3-3-B: ref2video 参考图片数量校验（2-5张）
-            if (STUDIO_STATE.creationType === 'ref2video') {
-                var _refImgCount = (STUDIO_STATE.referenceImages || []).length;
+            if (YJ.state.aiCreation.creationType === 'ref2video') {
+                var _refImgCount = (YJ.state.aiCreation.referenceImages || []).length;
                 if (_refImgCount < 2) {
                     showToast('参考生视频至少需要2张参考图片', 'warning');
                     return;
@@ -1626,8 +1600,7 @@
                 }
             }
 
-            STUDIO_STATE.isGenerating = true;
-            syncStudioToAiCreation();
+            YJ.state.aiCreation.isGenerating = true;
             var generateBtn = document.getElementById('studioGenerateBtn');
             var generateText = document.getElementById('studioGenerateText');
             var statusArea = document.getElementById('studioStatus');
@@ -1648,7 +1621,7 @@
             if (generateBtn) generateBtn.disabled = true;
             if (generateText) generateText.textContent = '提交中...';
 
-            var creationType = STUDIO_STATE.creationType;
+            var creationType = YJ.state.aiCreation.creationType;
 
             // Phase 2-C-2-3-B: 读取用户选择的模型 ID
             var modelSelectEl = document.getElementById('studioModel');
@@ -1694,8 +1667,7 @@
                     var _uploadedUrls = await studioUploadRefImages();
                     if (!_uploadedUrls) {
                         // 上传失败 — 恢复状态但不清空参考图片
-                        STUDIO_STATE.isGenerating = false;
-                        syncStudioToAiCreation();
+                        YJ.state.aiCreation.isGenerating = false;
                         if (generateBtn) generateBtn.disabled = false;
                         if (generateText) generateText.textContent = '开始生成';
                         if (statusArea) statusArea.style.display = 'none';
@@ -1738,23 +1710,22 @@
                     };
 
                     if (creationType === 'image2video') {
-                        if (!STUDIO_STATE.assetId && !STUDIO_STATE.uploadedImageUrl && !STUDIO_STATE.selectedFile) {
+                        if (!YJ.state.aiCreation.assetId && !YJ.state.aiCreation.uploadedImageUrl && !YJ.state.aiCreation.selectedFile) {
                             throw new Error('请先上传参考图片');
                         }
-                        if (STUDIO_STATE.assetId) {
-                            taskInput.sourceAssetId = STUDIO_STATE.assetId;
-                        } else if (STUDIO_STATE.uploadedImageUrl) {
-                            taskInput.imageUrl = STUDIO_STATE.uploadedImageUrl;
-                        } else if (STUDIO_STATE.selectedFile) {
+                        if (YJ.state.aiCreation.assetId) {
+                            taskInput.sourceAssetId = YJ.state.aiCreation.assetId;
+                        } else if (YJ.state.aiCreation.uploadedImageUrl) {
+                            taskInput.imageUrl = YJ.state.aiCreation.uploadedImageUrl;
+                        } else if (YJ.state.aiCreation.selectedFile) {
                             // 先上传
                             if (statusText) statusText.textContent = '正在上传素材...';
                             if (generateText) generateText.textContent = '上传中...';
-                            var uploadResult = await YuJianUpload.uploadImage(STUDIO_STATE.selectedFile);
-                            STUDIO_STATE.uploadedImageUrl = uploadResult.url;
-                            STUDIO_STATE.assetId = uploadResult.id;
+                            var uploadResult = await YuJianUpload.uploadImage(YJ.state.aiCreation.selectedFile);
+                            YJ.state.aiCreation.uploadedImageUrl = uploadResult.url;
+                            YJ.state.aiCreation.assetId = uploadResult.id;
                             taskInput.imageUrl = uploadResult.url;
                             taskInput.sourceAssetId = uploadResult.id;
-                            syncStudioToAiCreation();
                         }
                         taskInput.templateId = 'image_to_video';
                         task = await EnterpriseAPI.Generation.createImageToVideoTask(taskInput);
@@ -1764,13 +1735,12 @@
                     }
                 }
 
-                STUDIO_STATE.currentTaskId = task.id || task.task_id;
-                syncStudioToAiCreation();
-                console.log('[Studio] 任务创建成功, taskId:', STUDIO_STATE.currentTaskId);
+                YJ.state.aiCreation.currentTaskId = task.id || task.task_id;
+                console.log('[Studio] 任务创建成功, taskId:', YJ.state.aiCreation.currentTaskId);
 
                 // 开始轮询
                 if (typeof YuJianVideoTask !== 'undefined' && YuJianVideoTask.pollTaskStatus) {
-                    YuJianVideoTask.pollTaskStatus(STUDIO_STATE.currentTaskId, {
+                    YuJianVideoTask.pollTaskStatus(YJ.state.aiCreation.currentTaskId, {
                         onUpdate: function(t) {
                             var pct = (t.progress !== null && t.progress !== undefined) ? t.progress : 0;
                             if (progressBar) progressBar.style.width = pct + '%';
@@ -1809,8 +1779,7 @@
 
         // ─── 生成成功 ────────────────────────────────────
         function studioOnSuccess(task) {
-            STUDIO_STATE.isGenerating = false;
-            syncStudioToAiCreation();
+            YJ.state.aiCreation.isGenerating = false;
             var generateBtn = document.getElementById('studioGenerateBtn');
             var generateText = document.getElementById('studioGenerateText');
             var statusText = document.getElementById('studioStatusText');
@@ -1909,8 +1878,7 @@
 
         // ─── 生成失败 ────────────────────────────────────
         function studioOnFailed(task) {
-            STUDIO_STATE.isGenerating = false;
-            syncStudioToAiCreation();
+            YJ.state.aiCreation.isGenerating = false;
             var generateBtn = document.getElementById('studioGenerateBtn');
             var generateText = document.getElementById('studioGenerateText');
             var statusText = document.getElementById('studioStatusText');
@@ -1936,8 +1904,7 @@
 
         // ─── 生成超时 ────────────────────────────────────
         function studioOnTimeout() {
-            STUDIO_STATE.isGenerating = false;
-            syncStudioToAiCreation();
+            YJ.state.aiCreation.isGenerating = false;
             var generateBtn = document.getElementById('studioGenerateBtn');
             var generateText = document.getElementById('studioGenerateText');
             var statusText = document.getElementById('studioStatusText');
