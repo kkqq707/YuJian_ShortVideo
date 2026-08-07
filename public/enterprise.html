@@ -1382,8 +1382,9 @@
 
         // ─── 清理素材 ───────────────────────────────────
         function studioClearMaterial() {
-            if (STUDIO_STATE.previewUrl) {
-                URL.revokeObjectURL(STUDIO_STATE.previewUrl);
+            var previewUrl = YJ.state.aiCreation.previewUrl || STUDIO_STATE.previewUrl;
+            if (previewUrl) {
+                URL.revokeObjectURL(previewUrl);
             }
             STUDIO_STATE.selectedFile = null;
             STUDIO_STATE.previewUrl = null;
@@ -1391,6 +1392,13 @@
             STUDIO_STATE.assetId = null;
             STUDIO_STATE.selectedAsset = null;
             STUDIO_STATE.sourceMode = 'upload';
+            // Dual-write to unified state (Phase 2-D-3.4-B.2)
+            YJ.state.aiCreation.selectedFile = null;
+            YJ.state.aiCreation.previewUrl = null;
+            YJ.state.aiCreation.uploadedImageUrl = null;
+            YJ.state.aiCreation.assetId = null;
+            YJ.state.aiCreation.selectedAsset = null;
+            YJ.state.aiCreation.sourceMode = 'upload';
             syncStudioToAiCreation();
 
             var thumbContainer = document.getElementById('studioPreviewThumb');
@@ -1411,9 +1419,10 @@
 
         /** 清理所有 ref2video 参考图片并 revoke ObjectURL */
         function studioClearRefImages() {
-            var images = STUDIO_STATE.referenceImages;
+            var images = YJ.state.aiCreation.referenceImages || STUDIO_STATE.referenceImages;
             if (!images || !images.length) {
                 STUDIO_STATE.referenceImages = [];
+                YJ.state.aiCreation.referenceImages = [];
                 return;
             }
 
@@ -1424,6 +1433,7 @@
                 }
             }
             STUDIO_STATE.referenceImages = [];
+            YJ.state.aiCreation.referenceImages = [];
             syncStudioToAiCreation();
             renderRefImageGrid();
         }
@@ -1433,7 +1443,7 @@
             var grid = document.getElementById('studioRefGrid');
             if (!grid) return;
 
-            var images = STUDIO_STATE.referenceImages || [];
+            var images = YJ.state.aiCreation.referenceImages || STUDIO_STATE.referenceImages || [];
             var maxSlots = 5;
             var html = '';
 
@@ -1464,7 +1474,8 @@
             var files = event.target.files;
             if (!files || !files.length) return;
 
-            var currentCount = STUDIO_STATE.referenceImages.length;
+            var refImages = YJ.state.aiCreation.referenceImages || STUDIO_STATE.referenceImages;
+            var currentCount = refImages.length;
             var maxSlots = 5;
             var remaining = maxSlots - currentCount;
 
@@ -1488,7 +1499,7 @@
                 STUDIO_STATE.referenceImages.push({
                     file: file,
                     url: preview.url,
-                    name: file.name || ('参考图' + (STUDIO_STATE.referenceImages.length + 1))
+                    name: file.name || ('参考图' + (refImages.length + 1))
                 });
                 added++;
             }
@@ -1503,7 +1514,7 @@
 
         /** 移除单张 ref2video 参考图片并 revoke ObjectURL */
         function studioRemoveRefImage(index) {
-            var images = STUDIO_STATE.referenceImages;
+            var images = YJ.state.aiCreation.referenceImages || STUDIO_STATE.referenceImages;
             if (index < 0 || index >= images.length) return;
 
             var removed = images[index];
