@@ -1153,3 +1153,93 @@
     font-size: 18px;
   }
 }
+
+/* ================================================================
+   Phase 2-C-2-4-C-3-2: ref2video 多图参考 Grid
+   所有新组件使用 yj-studio-ref-* 命名前缀
+   ================================================================ */
+
+.yj-studio-ref-grid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 10px;
+}
+
+.yj-studio-ref-item {
+  aspect-ratio: 1;
+  border-radius: 10px;
+  border: 2px dashed var(--border-glass);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.02);
+  transition: border-color 0.2s;
+}
+
+.yj-studio-ref-item.filled {
+  border-style: solid;
+  border-color: var(--primary);
+  background: linear-gradient(135deg, rgba(99, 102, 241, 0.15), rgba(168, 85, 247, 0.08));
+}
+
+.yj-studio-ref-thumb {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.yj-studio-ref-remove {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.7);
+  border: none;
+  color: #fff;
+  font-size: 11px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+
+.yj-studio-ref-item.filled:hover .yj-studio-ref-remove {
+  opacity: 1;
+}
+
+.yj-studio-ref-item.yj-studio-ref-add {
+  cursor: pointer;
+  color: var(--text-muted);
+  flex-direction: column;
+  gap: 6px;
+  font-size: 12px;
+}
+
+.yj-studio-ref-item.yj-studio-ref-add:hover {
+  border-color: var(--primary-light);
+  background: rgba(99, 102, 241, 0.06);
+  color: var(--primary-light);
+}
+
+.yj-studio-ref-item.yj-studio-ref-add i {
+  font-size: 20px;
+}
+
+.yj-studio-ref-item.yj-studio-ref-empty {
+  cursor: default;
+  border-style: dashed;
+  border-color: rgba(255, 255, 255, 0.05);
+  background: transparent;
+}
+
+@media (max-width: 768px) {
+  .yj-studio-ref-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}

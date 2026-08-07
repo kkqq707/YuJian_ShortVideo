@@ -905,7 +905,7 @@
         //  Phase 2-C: AI创作中心 — 统一创作页面
         // ===================================================
         var STUDIO_STATE = {
-            creationType: 'image2video',  // 当前创作类型: imageGen | image2video | text2video
+            creationType: 'image2video',  // 当前创作类型: imageGen | image2video | text2video | ref2video
             selectedFile: null,
             previewUrl: null,
             uploadedImageUrl: null,
@@ -915,7 +915,11 @@
             currentTaskId: null,
             isUploading: false,
             isGenerating: false,
-            textPrompt: ''               // Phase 2-C-1-D: 文生视频提示词
+            textPrompt: '',              // Phase 2-C-1-D: 文生视频提示词
+            // Phase 2-C-2-4-C-3-1: ref2video 基础状态字段
+            ref2videoPrompt: '',         // 参考生视频描述
+            referenceSubjects: [],       // 参考主体列表 [{type, name, assetId}]
+            referenceImages: []          // 参考图片列表 [{assetId, url}]
         };
 
         // ─── Phase 2-C-1-B: 双写同步 → YJ.state.aiCreation ───
@@ -933,7 +937,11 @@
                     currentTaskId: STUDIO_STATE.currentTaskId,
                     isUploading: STUDIO_STATE.isUploading,
                     isGenerating: STUDIO_STATE.isGenerating,
-                    textPrompt: STUDIO_STATE.textPrompt
+                    textPrompt: STUDIO_STATE.textPrompt,
+                    // Phase 2-C-2-4-C-3-1: ref2video 状态同步
+                    ref2videoPrompt: STUDIO_STATE.ref2videoPrompt,
+                    referenceSubjects: STUDIO_STATE.referenceSubjects,
+                    referenceImages: STUDIO_STATE.referenceImages
                 });
             }
         }
@@ -943,12 +951,14 @@
         // capability 映射:
         //   image2video  → image_to_video
         //   text2video   → text_to_video
+        //   ref2video    → reference_to_video
         //   imageGen     → image_generation
 
         /** 创作类型 → Registry capability 映射 */
         var STUDIO_CAPABILITY_MAP = {
             image2video: 'image_to_video',
             text2video: 'text_to_video',
+            ref2video: 'reference_to_video',
             imageGen: 'image_generation'
         };
 
@@ -1022,6 +1032,11 @@
                 + '    <div class="yj-studio-type-label">图片生成</div>'
                 + '    <div class="yj-studio-type-desc">文字描述 → 图片</div>'
                 + '  </div>'
+                + '  <div class="yj-studio-type-card" data-type="ref2video" onclick="studioSelectType(this, \'ref2video\')">'
+                + '    <div class="yj-studio-type-icon"><i class="fas fa-images"></i></div>'
+                + '    <div class="yj-studio-type-label">参考生视频</div>'
+                + '    <div class="yj-studio-type-desc">多图参考 → 视频</div>'
+                + '  </div>'
                 + '</div>'
                 // ── Main layout: left panel + right preview ──
                 + '<div class="yj-studio-layout">'
@@ -1054,6 +1069,25 @@
                 + '      <button class="yj-btn yj-btn-sm yj-btn-ghost" onclick="studioClearMaterial()" style="color:var(--danger)"><i class="fas fa-trash"></i> 移除</button>'
                 + '    </div>'
                 + '  </div>'
+                + '</div>'
+                // ★ Phase 2-C-2-4-C-3-2: ref2video 多图素材输入区
+                + '<div class="yj-studio-section" id="studioRef2VideoMaterial" style="display:none">'
+                + '  <div class="yj-studio-section-header">'
+                + '    <span class="yj-studio-step-badge">1</span>'
+                + '    <label>参考图片</label>'
+                + '    <span class="yj-studio-hint">上传2-5张参考图片（人物/场景/物体/画风）</span>'
+                + '  </div>'
+                + '  <div class="yj-studio-ref-grid" id="studioRefGrid">'
+                + '    <div class="yj-studio-ref-item yj-studio-ref-add" onclick="document.getElementById(\'studioRefFileInput\').click()" title="添加参考图片">'
+                + '      <i class="fas fa-plus"></i>'
+                + '      <span>添加</span>'
+                + '    </div>'
+                + '    <div class="yj-studio-ref-item yj-studio-ref-empty"></div>'
+                + '    <div class="yj-studio-ref-item yj-studio-ref-empty"></div>'
+                + '    <div class="yj-studio-ref-item yj-studio-ref-empty"></div>'
+                + '    <div class="yj-studio-ref-item yj-studio-ref-empty"></div>'
+                + '  </div>'
+                + '  <input type="file" id="studioRefFileInput" accept="image/jpeg,image/png,image/webp" style="display:none" multiple onchange="studioHandleRefImageSelect(event)">'
                 + '</div>'
                 // ── Step 3: Prompt区域 ──
                 + '<div class="yj-studio-section" id="studioPromptSection">'
@@ -1188,6 +1222,7 @@
 
         // ─── 创作类型切换 ───────────────────────────────
         function studioSelectType(el, type) {
+            var prevType = STUDIO_STATE.creationType;
             STUDIO_STATE.creationType = type;
             syncStudioToAiCreation();
             document.querySelectorAll('.yj-studio-type-card').forEach(function(c) {
@@ -1197,6 +1232,7 @@
 
             // 根据类型调整 UI 可见性
             var materialSection = document.getElementById('studioMaterialSection');
+            var ref2videoMaterial = document.getElementById('studioRef2VideoMaterial');
             var promptSection = document.getElementById('studioPromptSection');
             var paramsSection = document.getElementById('studioParamsSection');
             var modelSelect = document.getElementById('studioModel');
@@ -1209,12 +1245,36 @@
                 studioRefreshModelSelect(capability);
             }
 
-            // 图片生成不需要素材输入
+            // ── Phase 2-C-2-4-C-3-2: 素材清理（拆分规则） ──
+            if (prevType === 'ref2video' && type !== 'ref2video') {
+                studioClearRefImages();
+            }
+            if (prevType !== 'ref2video' && type === 'ref2video') {
+                studioClearMaterial();
+            }
+            if (type === prevType && type === 'image2video') {
+                studioClearMaterial();
+            }
+
+            // ── UI 可见性切换 ──
+            // 先重置所有特殊区域
+            if (materialSection) materialSection.style.display = 'none';
+            if (ref2videoMaterial) ref2videoMaterial.style.display = 'none';
+            if (promptSection) promptSection.style.display = 'block';
+            if (durationSelect) { durationSelect.parentElement.parentElement.style.display = 'block'; }
+
             if (type === 'imageGen') {
-                if (materialSection) materialSection.style.display = 'none';
                 if (promptSection) promptSection.querySelector('.yj-studio-section-header label').textContent = '图片描述';
                 if (durationSelect) { durationSelect.parentElement.parentElement.style.display = 'none'; }
                 if (costEstimate) costEstimate.textContent = '~ 4 积分';
+            } else if (type === 'ref2video') {
+                // ★ Phase 2-C-2-4-C-3-2: ref2video 多图素材区
+                if (ref2videoMaterial) ref2videoMaterial.style.display = 'block';
+                if (promptSection) {
+                    promptSection.querySelector('.yj-studio-section-header label').textContent = '视频描述';
+                }
+                if (costEstimate) costEstimate.textContent = '~ 120 积分';
+                renderRefImageGrid();
             } else {
                 // image2video, text2video
                 if (materialSection) {
@@ -1232,8 +1292,6 @@
                 }
             }
 
-            // 清理素材状态
-            studioClearMaterial();
             // 重置结果
             studioResetResult();
         }
@@ -1339,6 +1397,150 @@
             if (fileInput) fileInput.value = '';
         }
 
+        // ★ Phase 2-C-2-4-C-3-2: ref2video 多图素材函数 ──
+
+        /** 清理所有 ref2video 参考图片并 revoke ObjectURL */
+        function studioClearRefImages() {
+            var images = STUDIO_STATE.referenceImages;
+            if (!images || !images.length) {
+                STUDIO_STATE.referenceImages = [];
+                return;
+            }
+
+            for (var i = 0; i < images.length; i++) {
+                var ref = images[i];
+                if (ref.url && ref.url.startsWith('blob:')) {
+                    URL.revokeObjectURL(ref.url);
+                }
+            }
+            STUDIO_STATE.referenceImages = [];
+            syncStudioToAiCreation();
+            renderRefImageGrid();
+        }
+
+        /** 渲染 ref2video 5-slot 参考图片 Grid */
+        function renderRefImageGrid() {
+            var grid = document.getElementById('studioRefGrid');
+            if (!grid) return;
+
+            var images = STUDIO_STATE.referenceImages || [];
+            var maxSlots = 5;
+            var html = '';
+
+            for (var i = 0; i < maxSlots; i++) {
+                if (i < images.length) {
+                    html += '<div class="yj-studio-ref-item filled">'
+                        + '<img class="yj-studio-ref-thumb" src="' + images[i].url + '" alt="参考图' + (i + 1) + '">'
+                        + '<button class="yj-studio-ref-remove" onclick="studioRemoveRefImage(' + i + ')" title="移除">'
+                        + '<i class="fas fa-times"></i>'
+                        + '</button>'
+                        + '</div>';
+                } else if (i === images.length && images.length < maxSlots) {
+                    html += '<div class="yj-studio-ref-item yj-studio-ref-add"'
+                        + ' onclick="document.getElementById(\'studioRefFileInput\').click()" title="添加参考图片">'
+                        + '<i class="fas fa-plus"></i>'
+                        + '<span>添加</span>'
+                        + '</div>';
+                } else {
+                    html += '<div class="yj-studio-ref-item yj-studio-ref-empty"></div>';
+                }
+            }
+
+            grid.innerHTML = html;
+        }
+
+        /** 处理 ref2video 多图文件选择 */
+        async function studioHandleRefImageSelect(event) {
+            var files = event.target.files;
+            if (!files || !files.length) return;
+
+            var currentCount = STUDIO_STATE.referenceImages.length;
+            var maxSlots = 5;
+            var remaining = maxSlots - currentCount;
+
+            if (remaining <= 0) {
+                showToast('最多添加5张参考图片', 'warning');
+                event.target.value = '';
+                return;
+            }
+
+            var toProcess = Math.min(files.length, remaining);
+            var added = 0;
+
+            for (var i = 0; i < toProcess; i++) {
+                var file = files[i];
+                var validation = await YuJianUpload.validateImage(file);
+                if (!validation.valid) {
+                    showToast(validation.error, 'error');
+                    continue;
+                }
+                var preview = YuJianUpload.createPreview(file);
+                STUDIO_STATE.referenceImages.push({
+                    file: file,
+                    url: preview.url,
+                    name: file.name || ('参考图' + (STUDIO_STATE.referenceImages.length + 1))
+                });
+                added++;
+            }
+
+            event.target.value = '';
+            if (added > 0) {
+                syncStudioToAiCreation();
+                renderRefImageGrid();
+                showToast('已添加 ' + added + ' 张参考图片', 'success');
+            }
+        }
+
+        /** 移除单张 ref2video 参考图片并 revoke ObjectURL */
+        function studioRemoveRefImage(index) {
+            var images = STUDIO_STATE.referenceImages;
+            if (index < 0 || index >= images.length) return;
+
+            var removed = images[index];
+            if (removed.url && removed.url.startsWith('blob:')) {
+                URL.revokeObjectURL(removed.url);
+            }
+
+            images.splice(index, 1);
+            syncStudioToAiCreation();
+            renderRefImageGrid();
+        }
+
+        // ★ Phase 2-C-2-4-C-3-3-A: ref2video 参考图片批量上传
+        async function studioUploadRefImages() {
+            var images = STUDIO_STATE.referenceImages;
+            if (!images || !images.length) {
+                showToast('请先添加参考图片', 'warning');
+                return null;
+            }
+
+            STUDIO_STATE.isUploading = true;
+            syncStudioToAiCreation();
+
+            try {
+                for (var i = 0; i < images.length; i++) {
+                    var item = images[i];
+                    // 已上传的跳过，禁止重复上传
+                    if (item.uploadedUrl) continue;
+
+                    var result = await YuJianUpload.uploadImage(item.file);
+                    item.uploadedUrl = result.url;
+                    item.uploadedAssetId = result.assetId;
+                }
+            } catch (err) {
+                STUDIO_STATE.isUploading = false;
+                syncStudioToAiCreation();
+                showToast('参考图片上传失败: ' + (err.message || '未知错误'), 'error');
+                return null;
+            }
+
+            STUDIO_STATE.isUploading = false;
+            syncStudioToAiCreation();
+
+            var uploadedUrls = images.map(function(r) { return r.uploadedUrl; });
+            return uploadedUrls;
+        }
+
         // ─── Prompt字数统计 ──────────────────────────────
         function studioUpdatePromptCount() {
             var promptEl = document.getElementById('studioPrompt');
@@ -1389,6 +1591,19 @@
 
             // Phase 2-C-1-D: 文生视频 — 保存提示词到状态
             STUDIO_STATE.textPrompt = prompt;
+
+            // ★ Phase 2-C-2-4-C-3-3-B: ref2video 参考图片数量校验（2-5张）
+            if (STUDIO_STATE.creationType === 'ref2video') {
+                var _refImgCount = (STUDIO_STATE.referenceImages || []).length;
+                if (_refImgCount < 2) {
+                    showToast('参考生视频至少需要2张参考图片', 'warning');
+                    return;
+                }
+                if (_refImgCount > 5) {
+                    showToast('参考生视频最多支持5张参考图片', 'warning');
+                    return;
+                }
+            }
 
             STUDIO_STATE.isGenerating = true;
             syncStudioToAiCreation();
@@ -1448,6 +1663,36 @@
                         count: 4,
                         modelId: selectedModelId
                     });
+                } else if (creationType === 'ref2video') {
+                    // ★ Phase 2-C-2-4-C-3-3-B: ref2video 真实生成分支
+                    var _refDurationVal = parseInt(document.getElementById('studioDuration').value) || 5;
+
+                    // 上传参考图片到 OSS
+                    if (statusText) statusText.textContent = '正在上传参考图片...';
+                    if (generateText) generateText.textContent = '上传中...';
+                    var _uploadedUrls = await studioUploadRefImages();
+                    if (!_uploadedUrls) {
+                        // 上传失败 — 恢复状态但不清空参考图片
+                        STUDIO_STATE.isGenerating = false;
+                        syncStudioToAiCreation();
+                        if (generateBtn) generateBtn.disabled = false;
+                        if (generateText) generateText.textContent = '开始生成';
+                        if (statusArea) statusArea.style.display = 'none';
+                        return;
+                    }
+
+                    // 重置状态文本
+                    if (statusText) statusText.textContent = '正在生成，请耐心等待...';
+                    if (generateText) generateText.textContent = '生成中...';
+
+                    var _refTaskInput = {
+                        referenceImages: _uploadedUrls,
+                        prompt: prompt,
+                        duration: _refDurationVal,
+                        modelId: selectedModelId
+                    };
+
+                    task = await EnterpriseAPI.Generation.createRefToVideoTask(_refTaskInput);
                 } else {
                     // image2video / text2video — 使用统一 API
                     // Phase 2-C-1-C: 读取统一参数
@@ -1710,6 +1955,10 @@
             STUDIO_STATE.currentTaskId = null;
             STUDIO_STATE.textPrompt = '';
             syncStudioToAiCreation();
+
+            // Phase 2-C-2-4-C-3-2: 清理两套素材
+            studioClearMaterial();
+            studioClearRefImages();
 
             var generateBtn = document.getElementById('studioGenerateBtn');
             var generateText = document.getElementById('studioGenerateText');

@@ -188,6 +188,33 @@
     },
 
     /**
+     * 参考生视频任务 (Phase 2-C-2-4-C-3-1)
+     * @param {Object} taskInput - {
+     *   prompt, duration, referenceSubjects, referenceImages,
+     *   params: { aspectRatio, motionStrength, cameraMovement, quality }
+     * }
+     * @returns {Promise<Object>}
+     */
+    createRefToVideoTask: function (taskInput) {
+      // Phase 2-C-2-4-C-3-3-B: Contract Adapter — 内部语义 → 后端契约
+      var body = {
+        images: taskInput.referenceImages || [],
+        prompt: taskInput.prompt || '',
+        duration: taskInput.duration || 5
+      };
+
+      // Registry-driven model resolution: modelId → apiModelName
+      if (taskInput.modelId && YJ.state && YJ.state.aiModels && YJ.state.aiModels.models) {
+        var modelConfig = YJ.state.aiModels.models[taskInput.modelId];
+        if (modelConfig && modelConfig.apiModelName) {
+          body.model = modelConfig.apiModelName;
+        }
+      }
+
+      return YuJianAPI.post('/enterprise/tasks/ref2video', body);
+    },
+
+    /**
      * 数字人任务
      * @param {Object} taskInput - { script, voice, avatarId, ... }
      * @returns {Promise<Object>}

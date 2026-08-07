@@ -85,7 +85,7 @@
     // 统一 Studio 创作状态，与 STUDIO_STATE / generation 并行存在
     // 后续逐步将 Studio inline 代码迁移到此处
     aiCreation: {
-      creationType: 'image2video',  // imageGen | image2video | text2video
+      creationType: 'image2video',  // imageGen | image2video | text2video | ref2video
       selectedFile: null,           // 用户上传的 File 对象
       previewUrl: null,             // 本地预览 ObjectURL
       uploadedImageUrl: null,       // OSS 上传后的 URL
@@ -97,6 +97,10 @@
       isGenerating: false,          // 生成中标志
       // Phase 2-C-1-D: 文生视频专用字段
       textPrompt: '',               // 文生视频提示词
+      // Phase 2-C-2-4-C-3-1: ref2video 状态字段
+      ref2videoPrompt: '',          // 参考生视频描述
+      referenceSubjects: [],        // 参考主体列表
+      referenceImages: [],          // 参考图片列表
       // Phase 2-C-1-C: 统一图生视频参数
       params: {
         aspectRatio: '16:9',        // 画面比例: 16:9 | 9:16 | 1:1
@@ -373,6 +377,10 @@
     ac.isUploading = false;
     ac.isGenerating = false;
     ac.textPrompt = '';
+    // Phase 2-C-2-4-C-3-1: Reset ref2video fields
+    ac.ref2videoPrompt = '';
+    ac.referenceSubjects = [];
+    ac.referenceImages = [];
     // Phase 2-C-1-C: Reset unified params to defaults
     ac.params = {
       aspectRatio: '16:9',
@@ -740,5 +748,5 @@
   window.CURRENT_IMAGE_PREVIEW = APP_STATE.currentPreviewAsset;
   window.SELECTED_ASSET = APP_STATE.selectedAsset;
 
-  console.log('[Enterprise/State] Unified state management initialized (Phase 2-D-4.6: selectedAsset bridge, Phase 2-C-1-A: aiCreation state, Phase 2-C-1-C: aiCreation.params, Phase 2-C-2-3-A: aiModels registry data, Phase 2-C-2-4-B-2-B-1: digitalHuman state)');
+  console.log('[Enterprise/State] Unified state management initialized (Phase 2-D-4.6: selectedAsset bridge, Phase 2-C-1-A: aiCreation state, Phase 2-C-1-C: aiCreation.params, Phase 2-C-2-3-A: aiModels registry data, Phase 2-C-2-4-B-2-B-1: digitalHuman state, Phase 2-C-2-4-C-3-1: ref2video state)');
 })();

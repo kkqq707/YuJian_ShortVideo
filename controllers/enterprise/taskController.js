@@ -125,16 +125,27 @@ exports.image2Video = async (req, res) => {
 // 参考生视频
 exports.ref2Video = async (req, res) => {
   const { images, prompt, model, duration } = req.body;
-  if (!images || !images.length) return res.fail('参考图不能为空');
+  if (!images || images.length < 2) return res.fail('参考生视频至少需要2张参考图片');
+  if (images.length > 5) return res.fail('参考生视频最多支持5张参考图片');
 
-  const refModels = getModelsByCapability('image_to_video');
+  const refModels = getModelsByCapability('reference_to_video');
   const resolvedModel = model || (refModels.length > 0 ? refModels[0].apiModelName : registry.getApiModelName('wan2.1-i2v'));
+  const selectedDuration = duration || 5;
+
+  // 积分校验
+  const enterprise = await Enterprise.findByPk(req.user.enterpriseId);
+  const pointsPerSecond = await dashscopeService.getPointsPerSecond(resolvedModel);
+  const estimatedPoints = Math.ceil(selectedDuration * pointsPerSecond);
+
+  if (enterprise.quota_balance < estimatedPoints) {
+    return res.fail('积分余额不足，请先充值');
+  }
 
   const result = await dashscopeService.submitRef2Video({
     images,
     prompt,
     model: resolvedModel,
-    duration: duration || 5
+    duration: selectedDuration
   });
 
   if (!result.output?.task_id) {
@@ -151,7 +162,8 @@ exports.ref2Video = async (req, res) => {
     input_images: JSON.stringify(images),
     status: 'pending',
     provider: 'aliyun',
-    duration: duration || 5
+    duration: selectedDuration,
+    points_cost: estimatedPoints
   });
 
   res.success({ task_id: task.id, dashscope_task_id: result.output.task_id, provider: 'aliyun' });
