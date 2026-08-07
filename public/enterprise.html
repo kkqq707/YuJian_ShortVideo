@@ -5363,7 +5363,7 @@
                     contentEl.innerHTML = '<div class="workspace-state"><div class="workspace-loading-spinner"></div><p>加载中...</p></div>';
                     break;
                 case ASSET_PAGE_STATE.EMPTY:
-                    var hasFilters = ASSETS_STATE.currentKeyword || ASSETS_STATE.currentType || ASSETS_STATE.currentStatus;
+                    var hasFilters = YJ.state.assets.currentKeyword || YJ.state.assets.currentType || YJ.state.assets.currentStatus;
                     if (hasFilters) {
                         contentEl.innerHTML = '<div class="workspace-state">' +
                             '<i class="fas fa-search"></i>' +
@@ -5382,13 +5382,13 @@
                 case ASSET_PAGE_STATE.ERROR:
                     contentEl.innerHTML = '<div class="empty-works">' +
                         '<i class="fas fa-exclamation-circle"></i>' +
-                        '<p>' + (ASSETS_STATE.errorMessage || '加载失败，请稍后重试') + '</p>' +
-                        '<p class="sub-text"><button class="btn btn-outline btn-sm" onclick="loadAssets(' + ASSETS_STATE.currentPage + ')" style="margin-top:12px">重新加载</button></p>' +
+                        '<p>' + (YJ.state.assets.errorMessage || '加载失败，请稍后重试') + '</p>' +
+                        '<p class="sub-text"><button class="btn btn-outline btn-sm" onclick="loadAssets(' + YJ.state.assets.currentPage + ')" style="margin-top:12px">重新加载</button></p>' +
                         '</div>';
                     break;
                 case ASSET_PAGE_STATE.SUCCESS:
                     contentEl.innerHTML = '<div class="asset-grid-new">' +
-                        ASSETS_STATE.items.map(renderAssetCard).join('') +
+                        YJ.state.assets.items.map(renderAssetCard).join('') +
                         '</div>';
                     renderAssetPagination(paginationEl);
                     break;
@@ -5413,24 +5413,25 @@
 
         // ─── 加载资产列表（Sprint 4.4 Patch1: 容错重构）────
         async function loadAssets(page) {
-            if (ASSETS_STATE.isLoading) return;
-            ASSETS_STATE.isLoading = true;
-            ASSETS_STATE.currentPage = page || 1;
-            ASSETS_STATE.errorMessage = '';
+            var AS = YJ.state.assets;
+            if (AS.isLoading) return;
+            AS.isLoading = true;
+            AS.currentPage = page || 1;
+            AS.errorMessage = '';
 
             var contentEl = document.getElementById('assetContent');
             var paginationEl = document.getElementById('assetPagination');
-            if (!contentEl) { ASSETS_STATE.isLoading = false; return; }
+            if (!contentEl) { AS.isLoading = false; return; }
 
             // 显示加载状态
-            ASSETS_STATE.pageState = ASSET_PAGE_STATE.LOADING;
+            AS.pageState = ASSET_PAGE_STATE.LOADING;
             renderAssetPageState(ASSET_PAGE_STATE.LOADING, contentEl, paginationEl);
 
-            var params = '?page=' + ASSETS_STATE.currentPage + '&pageSize=' + ASSETS_STATE.pageSize;
-            if (ASSETS_STATE.currentType) params += '&type=' + ASSETS_STATE.currentType;
-            if (ASSETS_STATE.currentKeyword) params += '&keyword=' + encodeURIComponent(ASSETS_STATE.currentKeyword);
-            if (ASSETS_STATE.currentSort) params += '&sort=' + ASSETS_STATE.currentSort;
-            if (ASSETS_STATE.currentStatus) params += '&status=' + ASSETS_STATE.currentStatus;
+            var params = '?page=' + AS.currentPage + '&pageSize=' + AS.pageSize;
+            if (AS.currentType) params += '&type=' + AS.currentType;
+            if (AS.currentKeyword) params += '&keyword=' + encodeURIComponent(AS.currentKeyword);
+            if (AS.currentSort) params += '&sort=' + AS.currentSort;
+            if (AS.currentStatus) params += '&status=' + AS.currentStatus;
 
             // Sprint 4.4 Patch2: 始终使用稳定的 Asset API，不依赖 Workspace 模块
             var apiPath = '/enterprise/assets';
@@ -5443,20 +5444,20 @@
                     throw { code: 'EMPTY_RESPONSE', message: '服务器返回空数据', status: 0, retryable: true };
                 }
 
-                ASSETS_STATE.total = data.total || 0;
-                ASSETS_STATE.items = data.items || [];
-                ASSETS_STATE.pageSize = data.pageSize || 20;
+                AS.total = data.total || 0;
+                AS.items = data.items || [];
+                AS.pageSize = data.pageSize || 20;
 
                 // Sprint 4.4 Patch4: 填充 Asset 缓存，避免 AI创作Panel 重复查询
-                (ASSETS_STATE.items || []).forEach(function(a) {
+                (AS.items || []).forEach(function(a) {
                     if (a && a.id) ASSET_CACHE[a.id] = a;
                 });
 
-                if (!ASSETS_STATE.items.length) {
-                    ASSETS_STATE.pageState = ASSET_PAGE_STATE.EMPTY;
+                if (!AS.items.length) {
+                    AS.pageState = ASSET_PAGE_STATE.EMPTY;
                     renderAssetPageState(ASSET_PAGE_STATE.EMPTY, contentEl, paginationEl);
                 } else {
-                    ASSETS_STATE.pageState = ASSET_PAGE_STATE.SUCCESS;
+                    AS.pageState = ASSET_PAGE_STATE.SUCCESS;
                     renderAssetPageState(ASSET_PAGE_STATE.SUCCESS, contentEl, paginationEl);
                 }
 
@@ -5465,21 +5466,21 @@
 
             } catch (err) {
                 console.error('[Assets] 加载失败:', err);
-                ASSETS_STATE.pageState = ASSET_PAGE_STATE.ERROR;
+                AS.pageState = ASSET_PAGE_STATE.ERROR;
 
                 if (err.status === 401) {
-                    ASSETS_STATE.errorMessage = '登录已过期，请刷新页面重新登录';
+                    AS.errorMessage = '登录已过期，请刷新页面重新登录';
                     contentEl.innerHTML = '<div class="empty-works">' +
                         '<i class="fas fa-lock"></i>' +
                         '<p>登录已过期</p>' +
                         '<p class="sub-text">请刷新页面重新登录</p>' +
                         '</div>';
                 } else {
-                    ASSETS_STATE.errorMessage = err.message || '加载失败，请稍后重试';
+                    AS.errorMessage = err.message || '加载失败，请稍后重试';
                     renderAssetPageState(ASSET_PAGE_STATE.ERROR, contentEl, paginationEl);
                 }
             } finally {
-                ASSETS_STATE.isLoading = false;
+                AS.isLoading = false;
             }
         }
 
@@ -5625,9 +5626,9 @@
         // ─── 渲染分页 ──────────────────────────────────────
         function renderAssetPagination(container) {
             if (!container) return;
-            var total = ASSETS_STATE.total;
-            var page = ASSETS_STATE.currentPage;
-            var pageSize = ASSETS_STATE.pageSize;
+            var total = YJ.state.assets.total;
+            var page = YJ.state.assets.currentPage;
+            var pageSize = YJ.state.assets.pageSize;
             var totalPages = Math.ceil(total / pageSize);
 
             if (total <= pageSize) {
@@ -5655,11 +5656,11 @@
         // ─── 搜索（300ms debounce）─────────────────────────
         function assetSearch() {
             var input = document.getElementById('assetSearchInput');
-            ASSETS_STATE.currentKeyword = input ? (input.value || '').trim() : '';
-            ASSETS_STATE.currentPage = 1;
+            YJ.state.assets.currentKeyword = input ? (input.value || '').trim() : '';
+            YJ.state.assets.currentPage = 1;
             // 清除之前的定时器，实现 debounce
-            if (ASSETS_STATE.searchTimer) clearTimeout(ASSETS_STATE.searchTimer);
-            ASSETS_STATE.searchTimer = setTimeout(function () {
+            if (YJ.state.assets.searchTimer) clearTimeout(YJ.state.assets.searchTimer);
+            YJ.state.assets.searchTimer = setTimeout(function () {
                 loadAssets(1);
             }, 300);
         }
@@ -5667,24 +5668,24 @@
         // ─── 类型筛选 ──────────────────────────────────────
         function assetFilterChange() {
             var select = document.getElementById('assetTypeFilter');
-            ASSETS_STATE.currentType = select ? select.value : '';
-            ASSETS_STATE.currentPage = 1;
+            YJ.state.assets.currentType = select ? select.value : '';
+            YJ.state.assets.currentPage = 1;
             loadAssets(1);
         }
 
         // ─── 排序切换 ──────────────────────────────────────
         function assetSortChange() {
             var select = document.getElementById('assetSortFilter');
-            ASSETS_STATE.currentSort = select ? select.value : 'newest';
-            ASSETS_STATE.currentPage = 1;
+            YJ.state.assets.currentSort = select ? select.value : 'newest';
+            YJ.state.assets.currentPage = 1;
             loadAssets(1);
         }
 
         // ─── 清除筛选 ──────────────────────────────────────
         function clearAssetFilters() {
-            ASSETS_STATE.currentKeyword = '';
-            ASSETS_STATE.currentType = '';
-            ASSETS_STATE.currentPage = 1;
+            YJ.state.assets.currentKeyword = '';
+            YJ.state.assets.currentType = '';
+            YJ.state.assets.currentPage = 1;
             var searchInput = document.getElementById('assetSearchInput');
             var typeFilter = document.getElementById('assetTypeFilter');
             if (searchInput) searchInput.value = '';
@@ -6293,12 +6294,12 @@
                 await YuJianAPI.request('/enterprise/assets/' + assetId, { method: 'DELETE' });
                 showToast('素材已删除', 'success');
                 // 从本地状态移除已删除项
-                ASSETS_STATE.items = ASSETS_STATE.items.filter(function(item) { return item.id != assetId; });
-                ASSETS_STATE.total = Math.max(0, ASSETS_STATE.total - 1);
+                YJ.state.assets.items = YJ.state.assets.items.filter(function(item) { return item.id != assetId; });
+                YJ.state.assets.total = Math.max(0, YJ.state.assets.total - 1);
                 // 重新渲染列表
                 var contentEl = document.getElementById('assetContent');
                 if (contentEl) {
-                    if (!ASSETS_STATE.items.length) {
+                    if (!YJ.state.assets.items.length) {
                         contentEl.innerHTML = '<div class="empty-works">' +
                             '<i class="fas fa-folder-open"></i>' +
                             '<p>暂无素材</p>' +
@@ -6306,7 +6307,7 @@
                             '</div>';
                     } else {
                         contentEl.innerHTML = '<div class="asset-grid-new">' +
-                            ASSETS_STATE.items.map(renderAssetCard).join('') +
+                            YJ.state.assets.items.map(renderAssetCard).join('') +
                             '</div>';
                     }
                 }
@@ -6319,7 +6320,7 @@
                     showToast('登录已过期，请刷新页面重新登录', 'error');
                 } else if (err.status === 404) {
                     showToast('素材不存在或已删除', 'warning');
-                    loadAssets(ASSETS_STATE.currentPage);
+                    loadAssets(YJ.state.assets.currentPage);
                 } else {
                     showToast('删除失败，请稍后重试', 'error');
                 }
@@ -6364,7 +6365,7 @@
                 var result = await uploadAssetFile(file, type);
                 showToast('上传成功！', 'success');
                 // 刷新资产列表
-                ASSETS_STATE.currentPage = 1;
+                YJ.state.assets.currentPage = 1;
                 loadAssets(1);
             } catch (err) {
                 console.error('[Assets] 上传失败:', err);
