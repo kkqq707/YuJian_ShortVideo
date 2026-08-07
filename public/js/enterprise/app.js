@@ -152,7 +152,7 @@
     var container = document.getElementById('mainContent');
     switch (page) {
       case 'dashboard': container.innerHTML = (typeof renderDashboard === 'function' ? renderDashboard() : '<div class="card"><div class="card-body">页面开发中</div></div>'); break;
-      case 'storyboard': container.innerHTML = renderStoryboardPage(); break;
+      case 'storyboard': container.innerHTML = (typeof renderStoryboardPage === 'function' ? renderStoryboardPage() : '<div class="card"><div class="card-body">页面开发中</div></div>'); break;
       case 'text2video': container.innerHTML = (typeof renderText2Video === 'function' ? renderText2Video() : '<div class="card"><div class="card-body">页面开发中</div></div>'); initTemplateSelector('#t2vTemplateContainer', 't2vPrompt'); break;
       case 'image2video': container.innerHTML = (typeof renderImage2Video === 'function' ? renderImage2Video() : '<div class="card"><div class="card-body">页面开发中</div></div>'); initTemplateSelector('#i2vTemplateContainer', 'i2vPrompt'); break;
       case 'studio': container.innerHTML = (typeof renderStudio === 'function' ? renderStudio() : renderFallback('AI创作中心')); initTemplateSelector('#studioTemplateContainer', 'studioPrompt'); break;
@@ -200,6 +200,10 @@
     // Sprint Stable: 页面状态持久化 — 刷新后保持当前页面
     if (typeof PageState !== 'undefined' && PageState.save) {
       PageState.save(page);
+    }
+    // Phase 2-D-1.5: 同步 Header 标题/面包屑
+    if (typeof updateHeaderForPage === 'function') {
+      updateHeaderForPage(page);
     }
     render(page);
     if (window.innerWidth < 1024) {
@@ -320,6 +324,13 @@
   window.render = render;
   window.navigateTo = navigateTo;
   window.initApp = logModuleStatus;  // Expose for manual re-init if needed
+
+  // Phase 2-D-1.5: Runtime 身份标识（仅调试用，不参与业务逻辑）
+  window.YJ_RUNTIME = {
+    name: 'enterprise-app',
+    phase: '2-D-1.5',
+    renderSource: 'app.js'
+  };
 
   // Module status log
   logModuleStatus();
