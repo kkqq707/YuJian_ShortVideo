@@ -13,7 +13,7 @@
 (function () {
   'use strict';
 
-  var state = (window.YJ && window.YJ.state) || window.ASSETS_STATE || {};
+  var state = (window.YJ && window.YJ.state && window.YJ.state.assets) || window.ASSETS_STATE || {};
   var utils = (window.YJ && window.YJ.utils) || {};
   var api = window.EnterpriseAPI || ((window.YJ && window.YJ.api) || {});
 
