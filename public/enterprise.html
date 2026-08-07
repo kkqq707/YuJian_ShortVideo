@@ -785,7 +785,7 @@
                 case 'storyboard': container.innerHTML = renderStoryboardPage(); break;
                 case 'text2video': container.innerHTML = renderText2Video(); initTemplateSelector('#t2vTemplateContainer', 't2vPrompt'); break;
                 case 'image2video': container.innerHTML = renderImage2Video(); initTemplateSelector('#i2vTemplateContainer', 'i2vPrompt'); break;
-                case 'ref2video': container.innerHTML = renderRef2Video(); break;
+                case 'ref2video': container.innerHTML = renderStudio(); initTemplateSelector('#studioTemplateContainer', 'studioPrompt'); (function(){var c=document.querySelector('.yj-studio-type-card[data-type="ref2video"]');studioSelectType(c,'ref2video');})(); break;
                 case 'digitalhuman': renderDigitalHumanAsync(container); break;
                 case 'imageGen': container.innerHTML = renderImageGen(); initTemplateSelector('#imgGenTemplateContainer', 'imgGenPrompt'); break;
                 case 'projects': container.innerHTML = renderProjects(); break;
@@ -2130,7 +2130,7 @@
                 <div class="creation-layout" id="i2vLayout">
                     <div class="creation-panel" id="i2vPanel">
                         <div class="sub-tabs" style="margin-bottom:20px">
-                            <div class="sub-tab" onclick="navigateTo('ref2video')">参考生视频</div>
+                            <div class="sub-tab" onclick="navigateToStudioWithType('ref2video')">参考生视频</div>
                             <div class="sub-tab active">图生视频</div>
                             <div class="sub-tab" onclick="navigateTo('text2video')">文生视频</div>
                         </div>
@@ -3582,6 +3582,13 @@
             if (window.innerWidth < 1024) {
                 document.getElementById('sidebar').style.width = '72px';
             }
+        }
+
+        // Phase 2-C-2-4-C-4-A: 入口迁移 — 导航到 Studio 并自动选择创作类型
+        function navigateToStudioWithType(type) {
+            navigateTo('studio');
+            var card = document.querySelector('.yj-studio-type-card[data-type="' + type + '"]');
+            studioSelectType(card, type);
         }
 
         // Phase 2-B: Header 标题与面包屑映射

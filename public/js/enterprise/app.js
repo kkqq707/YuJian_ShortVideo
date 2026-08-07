@@ -156,6 +156,7 @@
       case 'text2video': container.innerHTML = (typeof renderText2Video === 'function' ? renderText2Video() : '<div class="card"><div class="card-body">页面开发中</div></div>'); initTemplateSelector('#t2vTemplateContainer', 't2vPrompt'); break;
       case 'image2video': container.innerHTML = (typeof renderImage2Video === 'function' ? renderImage2Video() : '<div class="card"><div class="card-body">页面开发中</div></div>'); initTemplateSelector('#i2vTemplateContainer', 'i2vPrompt'); break;
       case 'studio': container.innerHTML = (typeof renderStudio === 'function' ? renderStudio() : renderFallback('AI创作中心')); initTemplateSelector('#studioTemplateContainer', 'studioPrompt'); break;
+      case 'ref2video': container.innerHTML = (typeof renderStudio === 'function' ? renderStudio() : renderFallback('AI创作中心')); initTemplateSelector('#studioTemplateContainer', 'studioPrompt'); setTimeout(function () { if (typeof studioSelectType === 'function') { var card = document.querySelector('.yj-studio-type-card[data-type="ref2video"]'); if (card) studioSelectType(card, 'ref2video'); } }, 0); break;
       case 'digitalhuman':
         if (typeof renderDigitalHumanAsync === 'function') {
           renderDigitalHumanAsync(container);
