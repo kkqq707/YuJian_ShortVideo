@@ -101,6 +101,34 @@ class AliyunImageProvider {
   // ─── 私有方法 ──────────────────────────────────────────────────
 
   /**
+   * 画面比例 → 图片分辨率转换
+   *
+   * Phase UI-AICreation-02-B-1-G-R: 将前端传入的比例字符串（如 '16:9'）
+   * 转换为 DashScope API 接受的 size 参数（如 '1280*720'）。
+   *
+   * @param {string} ratio — 比例字符串，如 '16:9', '1:1', '4:3'
+   * @returns {string} size — 分辨率字符串，如 '1280*720'
+   */
+  _ratioToSize(ratio) {
+    const RATIO_SIZE_MAP = {
+      '16:9': '1280*720',
+      '9:16': '720*1280',
+      '4:3': '1280*960',
+      '3:4': '960*1280',
+      '1:1': '1024*1024',
+      '3:2': '1280*853',
+      '2:3': '853*1280'
+    };
+    var size = RATIO_SIZE_MAP[ratio] || '1024*1024';
+    console.log(
+      '[AliyunImageProvider] _ratioToSize | ' +
+      'input_ratio=' + (ratio || 'undefined') + ' | ' +
+      'resolved_size=' + size
+    );
+    return size;
+  }
+
+  /**
    * 文生图
    *
    * Phase UI-AICreation-02-B-1-G-M-I: 支持通过 options.modelId 覆盖模型
@@ -122,10 +150,14 @@ class AliyunImageProvider {
       }
     }
 
+    // Phase UI-AICreation-02-B-1-G-R: 画面比例 → 分辨率转换
+    var size = options.size || this._ratioToSize(options.ratio);
+    console.log('image size:', size);
+
     const result = await this.client.createTextToImageTask({
       prompt: prompt.trim(),
       model: effectiveModel,
-      size: options.size,
+      size: size,
       n: options.n
     });
 

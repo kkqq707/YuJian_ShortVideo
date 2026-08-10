@@ -18,6 +18,10 @@
  *   │ wan2.1-ref2video             │ reference_to_video    │ video    │
  *   │ qwen-image                   │ image_generation      │ image    │
  *   │ qwen-image-backup            │ image_generation      │ image    │
+ *   │ qwen-image-2.0-pro           │ image_generation      │ image    │
+ *   │ qwen-image-2.0               │ image_generation      │ image    │
+ *   │ wan2.7-image-pro             │ image_generation      │ image    │
+ *   │ wan2.7-image                 │ image_generation      │ image    │
  *   │ qwen-image-edit              │ image_edit            │ image    │
  *   │ wanx-digital-human           │ digital_human         │ video    │
  *   └──────────────────────────────┴──────────────────────┴──────────┘
@@ -214,6 +218,126 @@ const models = {
     apiPath: '/api/v1/services/aigc/multimodal-generation/generation',
   },
 
+  // ── Qwen-Image 2.0 系列（Phase UI-AICreation-02-B-1-G-S）───────────
+
+  'qwen-image-2.0-pro': {
+    id: 'qwen-image-2.0-pro',
+    name: 'Qwen-Image 2.0 Pro 图片生成',
+    displayName: 'qwen-image-2.0-pro',
+    family: 'qwen-image',
+    provider: 'aliyun',
+    capability: CAPABILITY.IMAGE_GENERATION,
+    outputType: 'image',
+    apiModelName: 'qwen-image-2.0-pro',
+
+    description: 'Qwen-Image 第二代专业版，更高画质与细节表现，适合商业级图像创作',
+    category: 'image',
+    categoryLabel: '图片生成',
+    icon: '🖼️',
+    sort: 1.2,
+
+    // 参数约束
+    maxPromptLength: 2000,
+    supportedSizes: ['1024*1024', '1280*720', '720*1280', '1280*960'],
+    defaultSize: '1024*1024',
+    maxBatchSize: 4,
+
+    // 定价
+    pricing: { pointsPerUnit: 2, unit: 'image' },
+
+    // API 端点（multimodal-generation，qwen-image 前缀自动路由）
+    apiPath: '/api/v1/services/aigc/multimodal-generation/generation',
+  },
+
+  'qwen-image-2.0': {
+    id: 'qwen-image-2.0',
+    name: 'Qwen-Image 2.0 图片生成',
+    displayName: 'qwen-image-2.0',
+    family: 'qwen-image',
+    provider: 'aliyun',
+    capability: CAPABILITY.IMAGE_GENERATION,
+    outputType: 'image',
+    apiModelName: 'qwen-image-2.0',
+
+    description: 'Qwen-Image 第二代标准版，兼顾质量与速度',
+    category: 'image',
+    categoryLabel: '图片生成',
+    icon: '🖼️',
+    sort: 1.3,
+
+    // 参数约束
+    maxPromptLength: 2000,
+    supportedSizes: ['1024*1024', '1280*720', '720*1280', '1280*960'],
+    defaultSize: '1024*1024',
+    maxBatchSize: 4,
+
+    // 定价
+    pricing: { pointsPerUnit: 1, unit: 'image' },
+
+    // API 端点（multimodal-generation，qwen-image 前缀自动路由）
+    apiPath: '/api/v1/services/aigc/multimodal-generation/generation',
+  },
+
+  // ── Wan2.7 Image 系列（Phase UI-AICreation-02-B-1-G-S）───────────────
+
+  'wan2.7-image-pro': {
+    id: 'wan2.7-image-pro',
+    name: 'Wan2.7 Image Pro 图片生成',
+    displayName: 'wan2.7-image-pro',
+    family: 'wan2.7',
+    provider: 'aliyun',
+    capability: CAPABILITY.IMAGE_GENERATION,
+    outputType: 'image',
+    apiModelName: 'wan2.7-image-pro',
+
+    description: 'Wan2.7 专业版文生图，高质感画面输出，适合海报、宣传素材',
+    category: 'image',
+    categoryLabel: '图片生成',
+    icon: '🎨',
+    sort: 1.6,
+
+    // 参数约束
+    maxPromptLength: 2000,
+    supportedSizes: ['1024*1024', '1280*720', '720*1280', '1280*960'],
+    defaultSize: '1024*1024',
+    maxBatchSize: 4,
+
+    // 定价
+    pricing: { pointsPerUnit: 2, unit: 'image' },
+
+    // API 端点（text2image/image-synthesis）
+    apiPath: '/api/v1/services/aigc/text2image/image-synthesis',
+  },
+
+  'wan2.7-image': {
+    id: 'wan2.7-image',
+    name: 'Wan2.7 Image 图片生成',
+    displayName: 'wan2.7-image',
+    family: 'wan2.7',
+    provider: 'aliyun',
+    capability: CAPABILITY.IMAGE_GENERATION,
+    outputType: 'image',
+    apiModelName: 'wan2.7-image',
+
+    description: 'Wan2.7 标准版文生图，快速出图，适合日常创意素材',
+    category: 'image',
+    categoryLabel: '图片生成',
+    icon: '🎨',
+    sort: 1.7,
+
+    // 参数约束
+    maxPromptLength: 2000,
+    supportedSizes: ['1024*1024', '1280*720', '720*1280', '1280*960'],
+    defaultSize: '1024*1024',
+    maxBatchSize: 4,
+
+    // 定价
+    pricing: { pointsPerUnit: 1, unit: 'image' },
+
+    // API 端点（text2image/image-synthesis）
+    apiPath: '/api/v1/services/aigc/text2image/image-synthesis',
+  },
+
   'qwen-image-edit': {
     id: 'qwen-image-edit',
     name: 'Qwen-Image 图片智能编辑',
@@ -308,7 +432,7 @@ const capabilityMap = buildCapabilityMap();
 //   text_to_video:        ['wan2.1-t2v'],
 //   image_to_video:       ['wan2.1-i2v'],
 //   reference_to_video:   ['wan2.1-ref2video'],
-//   image_generation:     ['qwen-image', 'qwen-image-backup'],
+//   image_generation:     ['qwen-image', 'qwen-image-backup', 'qwen-image-2.0-pro', 'qwen-image-2.0', 'wan2.7-image-pro', 'wan2.7-image'],
 //   image_edit:           ['qwen-image-edit'],
 //   digital_human:        ['wanx-digital-human'],
 // }

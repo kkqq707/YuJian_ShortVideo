@@ -1833,12 +1833,22 @@
             if (generateText) generateText.textContent = '开始生成';
 
             // 结果展示
+            // Phase UI-AICreation-02-B-1-G-Q: 统一提取输出 URL，优先使用 outputAsset.url
             var creationType = YJ.state.aiCreation.creationType;
-            var videoUrl = task.playUrl || task.videoUrl || task.output_url || '';
+            var isImageTask = creationType === 'imageGen'
+                || task.taskType === 'text2image'
+                || task.taskType === 'image_generation';
+            var previewImageUrl = (task.outputAsset && task.outputAsset.url)
+                || task.playUrl
+                || task.videoUrl
+                || task.output_url
+                || (task.results && task.results[0] && task.results[0].url)
+                || '';
+            var videoUrl = previewImageUrl;
             if (resultArea) resultArea.style.display = 'block';
             if (resultBody) {
-                if (creationType === 'imageGen' && videoUrl) {
-                    // imageGen 图片结果展示（非视频）
+                if (isImageTask && videoUrl) {
+                    // imageGen / text2image 图片结果展示（非视频）
                     resultBody.innerHTML = '<img src="' + escapeHtml(videoUrl) + '" style="width:100%;max-height:300px;border-radius:8px;object-fit:contain;background:#111" alt="生成图片">';
                     if (downloadBtn) { downloadBtn.href = videoUrl; downloadBtn.style.display = 'inline-flex'; }
                     if (sendToEditorBtn) {
@@ -1870,7 +1880,7 @@
                         largePreview.innerHTML = '<img src="' + escapeHtml(videoUrl) + '" style="width:100%;height:100%;object-fit:contain;border-radius:8px" alt="预览图片">';
                         largePreview.style.display = 'block';
                     }
-                } else if (creationType !== 'imageGen' && videoUrl) {
+                } else if (!isImageTask && videoUrl) {
                     resultBody.innerHTML = '<video src="' + escapeHtml(videoUrl) + '" controls playsinline style="width:100%;max-height:300px;border-radius:8px;background:#000"></video>';
                     if (downloadBtn) { downloadBtn.href = videoUrl; downloadBtn.style.display = 'inline-flex'; }
                     if (sendToEditorBtn) {
@@ -1901,7 +1911,7 @@
                     if (placeholder2) placeholder2.style.display = 'none';
                     if (largePreview2) largePreview2.style.display = 'none';
                 } else if (task.images && task.images.length > 0) {
-                    // 图片生成结果
+                    // 图片生成结果（多图）
                     resultBody.innerHTML = '<div style="display:grid;grid-template-columns:repeat(2,1fr);gap:8px">'
                         + task.images.map(function(img) {
                             return '<img src="' + escapeHtml(img) + '" style="width:100%;border-radius:8px" alt="生成图片">';
@@ -1924,6 +1934,17 @@
                                 navigateTo('editor');
                             }
                         };
+                    }
+
+                    // Phase UI-AICreation-02-B-1-G-Q: 多图时右侧预览显示第一张
+                    var previewVideo3 = document.getElementById('studioResultVideo');
+                    var placeholder3 = document.getElementById('studioPreviewPlaceholder');
+                    var largePreview3 = document.getElementById('studioLargePreview');
+                    if (previewVideo3) { previewVideo3.style.display = 'none'; }
+                    if (placeholder3) { placeholder3.style.display = 'none'; }
+                    if (largePreview3) {
+                        largePreview3.innerHTML = '<img src="' + escapeHtml(task.images[0]) + '" style="width:100%;height:100%;object-fit:contain;border-radius:8px" alt="预览图片">';
+                        largePreview3.style.display = 'block';
                     }
                 } else {
                     resultBody.innerHTML = '<div style="text-align:center;padding:20px;color:var(--text-sub)">'
