@@ -101,7 +101,7 @@
       ref2videoPrompt: '',          // 参考生视频描述
       referenceSubjects: [],        // 参考主体列表
       referenceImages: [],          // 参考图片列表
-      // Phase 2-C-1-C: 统一图生视频参数
+      // Phase 2-C-1-C: 统一图生视频参数（保留兼容，新代码优先读写 per-mode namespaces）
       params: {
         aspectRatio: '16:9',        // 画面比例: 16:9 | 9:16 | 1:1
         duration: 5,                // 视频时长: 5 | 10
@@ -110,6 +110,62 @@
         quality: 'standard',        // 画质: standard | high
         // Phase UI-AICreation-02-B-1-E-B-2: imageGen 参数
         style: 'realistic'         // 图片风格: realistic | cartoon | ink | cyberpunk
+      },
+
+      // ═══════════════════════════════════════════════════════
+      // Phase UI-AICreation-02-B-2.2-A: Per-Mode Namespaces
+      // 四个独立的创作模式命名空间，实现状态隔离
+      // 旧扁平字段保留兼容，模式切换时通过 save/restore 同步
+      // ═══════════════════════════════════════════════════════
+
+      text2video: {
+        prompt: '',                    // 文生视频提示词
+        params: {
+          aspectRatio: '16:9',
+          duration: 5,
+          motionStrength: 'medium',
+          cameraMovement: 'static',
+          quality: 'standard'
+        }
+      },
+
+      image2video: {
+        prompt: '',                    // 图生视频提示词
+        selectedFile: null,           // 用户上传的 File 对象
+        previewUrl: null,             // 本地预览 ObjectURL
+        uploadedImageUrl: null,       // OSS 上传后的 URL
+        assetId: null,                // 资产记录 ID
+        selectedAsset: null,          // 选中的资产对象
+        sourceMode: 'upload',         // 'upload' | 'asset'
+        params: {
+          aspectRatio: '16:9',
+          duration: 5,
+          motionStrength: 'medium',
+          cameraMovement: 'static',
+          quality: 'standard'
+        }
+      },
+
+      ref2video: {
+        prompt: '',                    // 参考生视频描述
+        referenceSubjects: [],         // 参考主体列表
+        referenceImages: [],           // 参考图片列表
+        params: {
+          aspectRatio: '16:9',
+          duration: 5,
+          motionStrength: 'medium',
+          cameraMovement: 'static',
+          quality: 'standard'
+        }
+      },
+
+      imageGen: {
+        prompt: '',                    // 文生图提示词
+        params: {
+          aspectRatio: '16:9',         // 画面比例
+          style: 'realistic',          // 图片风格: realistic | cartoon | ink | cyberpunk
+          count: 4                     // 生成数量: 1 | 4 | 9
+        }
       }
     },
 
@@ -393,6 +449,25 @@
       // Phase UI-AICreation-02-B-1-E-B-2: imageGen 参数
       style: 'realistic'
     };
+
+    // Phase UI-AICreation-02-B-2.2-A: Reset all per-mode namespaces
+    ac.text2video = {
+      prompt: '',
+      params: { aspectRatio: '16:9', duration: 5, motionStrength: 'medium', cameraMovement: 'static', quality: 'standard' }
+    };
+    ac.image2video = {
+      prompt: '', selectedFile: null, previewUrl: null, uploadedImageUrl: null,
+      assetId: null, selectedAsset: null, sourceMode: 'upload',
+      params: { aspectRatio: '16:9', duration: 5, motionStrength: 'medium', cameraMovement: 'static', quality: 'standard' }
+    };
+    ac.ref2video = {
+      prompt: '', referenceSubjects: [], referenceImages: [],
+      params: { aspectRatio: '16:9', duration: 5, motionStrength: 'medium', cameraMovement: 'static', quality: 'standard' }
+    };
+    ac.imageGen = {
+      prompt: '',
+      params: { aspectRatio: '16:9', style: 'realistic', count: 4 }
+    };
   }
 
   /** Set AI Creation state fields (partial update) */
@@ -454,6 +529,146 @@
       cameraMovement: 'static',
       quality: 'standard'
     };
+  }
+
+  // ── Phase UI-AICreation-02-B-2.2-A: Per-Mode Namespace Accessors ──
+
+  /** Available mode namespace keys */
+  var AI_CREATION_MODES = ['text2video', 'image2video', 'ref2video', 'imageGen'];
+
+  /**
+   * Save current flat state fields into the specified mode namespace.
+   * Called BEFORE switching away from a mode.
+   * @param {string} mode — one of 'text2video' | 'image2video' | 'ref2video' | 'imageGen'
+   */
+  function saveAiCreationModeState(mode) {
+    var ac = APP_STATE.aiCreation;
+    if (!ac[mode]) return;
+
+    var ns = ac[mode];
+
+    switch (mode) {
+      case 'text2video':
+        ns.prompt = ac.textPrompt || '';
+        ns.params = Object.assign({}, ac.params);
+        // text2video doesn't need video-specific params, but we keep all for consistency
+        break;
+      case 'image2video':
+        ns.prompt = ac.textPrompt || '';
+        ns.selectedFile = ac.selectedFile;
+        ns.previewUrl = ac.previewUrl;
+        ns.uploadedImageUrl = ac.uploadedImageUrl;
+        ns.assetId = ac.assetId;
+        ns.selectedAsset = ac.selectedAsset;
+        ns.sourceMode = ac.sourceMode;
+        ns.params = Object.assign({}, ac.params);
+        break;
+      case 'ref2video':
+        ns.prompt = ac.ref2videoPrompt || '';
+        ns.referenceSubjects = (ac.referenceSubjects || []).slice();
+        ns.referenceImages = (ac.referenceImages || []).slice();
+        ns.params = Object.assign({}, ac.params);
+        break;
+      case 'imageGen':
+        ns.prompt = ac.textPrompt || '';
+        ns.params = Object.assign({}, ac.params);
+        break;
+    }
+  }
+
+  /**
+   * Restore the specified mode namespace into the current flat state fields.
+   * Called AFTER switching to a mode.
+   * @param {string} mode — one of 'text2video' | 'image2video' | 'ref2video' | 'imageGen'
+   */
+  function restoreAiCreationModeState(mode) {
+    var ac = APP_STATE.aiCreation;
+    if (!ac[mode]) return;
+
+    var ns = ac[mode];
+
+    switch (mode) {
+      case 'text2video':
+        ac.textPrompt = ns.prompt || '';
+        ac.params = Object.assign({}, ns.params);
+        break;
+      case 'image2video':
+        ac.textPrompt = ns.prompt || '';
+        ac.selectedFile = ns.selectedFile;
+        ac.previewUrl = ns.previewUrl;
+        ac.uploadedImageUrl = ns.uploadedImageUrl;
+        ac.assetId = ns.assetId;
+        ac.selectedAsset = ns.selectedAsset;
+        ac.sourceMode = ns.sourceMode || 'upload';
+        ac.params = Object.assign({}, ns.params);
+        break;
+      case 'ref2video':
+        ac.ref2videoPrompt = ns.prompt || '';
+        ac.referenceSubjects = (ns.referenceSubjects || []).slice();
+        ac.referenceImages = (ns.referenceImages || []).slice();
+        ac.params = Object.assign({}, ns.params);
+        break;
+      case 'imageGen':
+        ac.textPrompt = ns.prompt || '';
+        ac.params = Object.assign({}, ns.params);
+        break;
+    }
+  }
+
+  /**
+   * Get a shallow copy of the specified mode's namespace state.
+   * @param {string} mode — one of 'text2video' | 'image2video' | 'ref2video' | 'imageGen'
+   * @returns {Object|null} shallow copy of mode state, or null if mode is invalid
+   */
+  function getAiCreationModeState(mode) {
+    var ac = APP_STATE.aiCreation;
+    if (!ac[mode]) return null;
+    var ns = ac[mode];
+    // Deep-copy params and arrays
+    var copy = {};
+    var keys = Object.keys(ns);
+    for (var i = 0; i < keys.length; i++) {
+      var k = keys[i];
+      var v = ns[k];
+      if (k === 'params') {
+        copy[k] = Object.assign({}, v);
+      } else if (Array.isArray(v)) {
+        copy[k] = v.slice();
+      } else {
+        copy[k] = v;
+      }
+    }
+    return copy;
+  }
+
+  /**
+   * Reset a single mode namespace to its defaults without touching other modes.
+   * @param {string} mode — one of 'text2video' | 'image2video' | 'ref2video' | 'imageGen'
+   */
+  function resetAiCreationModeState(mode) {
+    var ac = APP_STATE.aiCreation;
+    var defaults = {
+      text2video: {
+        prompt: '',
+        params: { aspectRatio: '16:9', duration: 5, motionStrength: 'medium', cameraMovement: 'static', quality: 'standard' }
+      },
+      image2video: {
+        prompt: '', selectedFile: null, previewUrl: null, uploadedImageUrl: null,
+        assetId: null, selectedAsset: null, sourceMode: 'upload',
+        params: { aspectRatio: '16:9', duration: 5, motionStrength: 'medium', cameraMovement: 'static', quality: 'standard' }
+      },
+      ref2video: {
+        prompt: '', referenceSubjects: [], referenceImages: [],
+        params: { aspectRatio: '16:9', duration: 5, motionStrength: 'medium', cameraMovement: 'static', quality: 'standard' }
+      },
+      imageGen: {
+        prompt: '',
+        params: { aspectRatio: '16:9', style: 'realistic', count: 4 }
+      }
+    };
+    if (defaults[mode]) {
+      ac[mode] = defaults[mode];
+    }
   }
 
   /** Set creation type for AI Creation */
@@ -733,6 +948,11 @@
   YJ.state.getAiCreationType = getAiCreationType;
   YJ.state.setAiCreationParams = setAiCreationParams;
   YJ.state.getAiCreationParams = getAiCreationParams;
+  YJ.state.saveAiCreationModeState = saveAiCreationModeState;
+  YJ.state.restoreAiCreationModeState = restoreAiCreationModeState;
+  YJ.state.getAiCreationModeState = getAiCreationModeState;
+  YJ.state.resetAiCreationModeState = resetAiCreationModeState;
+  YJ.state.AI_CREATION_MODES = AI_CREATION_MODES;
   YJ.state.setAiModelsData = setAiModelsData;
   YJ.state.getAiModels = getAiModels;
   YJ.state.getModelByTemplateId = getModelByTemplateId;
@@ -771,5 +991,5 @@
   window.CURRENT_IMAGE_PREVIEW = APP_STATE.currentPreviewAsset;
   window.SELECTED_ASSET = APP_STATE.selectedAsset;
 
-  console.log('[Enterprise/State] Unified state management initialized (Phase 2-D-4.6: selectedAsset bridge, Phase 2-C-1-A: aiCreation state, Phase 2-C-1-C: aiCreation.params, Phase 2-C-2-3-A: aiModels registry data, Phase 2-C-2-4-B-2-B-1: digitalHuman state, Phase 2-C-2-4-C-3-1: ref2video state)');
+  console.log('[Enterprise/State] Unified state management initialized (Phase 2-D-4.6: selectedAsset bridge, Phase 2-C-1-A: aiCreation state, Phase 2-C-1-C: aiCreation.params, Phase 2-C-2-3-A: aiModels registry data, Phase 2-C-2-4-B-2-B-1: digitalHuman state, Phase 2-C-2-4-C-3-1: ref2video state, Phase UI-AICreation-02-B-2.2-A: per-mode namespace isolation)');
 })();

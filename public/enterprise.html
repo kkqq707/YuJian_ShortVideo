@@ -781,7 +781,7 @@
             const container = document.getElementById('mainContent');
             switch (page) {
                 case 'dashboard': container.innerHTML = renderDashboard(); break;
-                case 'studio': container.innerHTML = renderStudio(); initTemplateSelector('#studioTemplateContainer', 'studioPrompt'); studioInitModelSelect('ref2video'); break;
+                case 'studio': container.innerHTML = renderStudio(); initTemplateSelector('#studioTemplateContainer', 'studioPrompt'); studioInitModelSelect('ref2video'); /* Phase UI-AICreation-02-B-2.2-B: 初始化 DOM 隔离 */ studioUpdateStepBadges('ref2video'); studioUpdatePromptDOM('ref2video'); studioUpdateParamVisibility('ref2video'); break;
                 case 'storyboard': container.innerHTML = renderStoryboardPage(); break;
                 case 'text2video': container.innerHTML = renderText2Video(); initTemplateSelector('#t2vTemplateContainer', 't2vPrompt'); break;
                 case 'image2video': container.innerHTML = renderImage2Video(); initTemplateSelector('#i2vTemplateContainer', 'i2vPrompt'); break;
@@ -1036,9 +1036,9 @@
                 // ── Step 2: 素材输入区 ──
                 + '<div class="yj-studio-section" id="studioMaterialSection">'
                 + '  <div class="yj-studio-section-header">'
-                + '    <span class="yj-studio-step-badge">1</span>'
+                + '    <span class="yj-studio-step-badge" id="studioStepBadgeMaterial">1</span>'
                 + '    <label>素材输入</label>'
-                + '    <span class="yj-studio-hint">上传图片或从素材库选择</span>'
+                + '    <span class="yj-studio-hint" id="studioHintMaterial">上传图片或从素材库选择</span>'
                 + '  </div>'
                 + '  <div class="yj-studio-material-area">'
                 + '    <div class="yj-studio-upload-wrap">'
@@ -1065,9 +1065,9 @@
                 // ★ Phase 2-C-2-4-C-3-2: ref2video 多图素材输入区
                 + '<div class="yj-studio-section" id="studioRef2VideoMaterial" style="display:none">'
                 + '  <div class="yj-studio-section-header">'
-                + '    <span class="yj-studio-step-badge">1</span>'
+                + '    <span class="yj-studio-step-badge" id="studioStepBadgeRef">1</span>'
                 + '    <label>参考图片</label>'
-                + '    <span class="yj-studio-hint">上传2-5张参考图片（人物/场景/物体/画风）</span>'
+                + '    <span class="yj-studio-hint" id="studioHintRef">上传2-5张参考图片（人物/场景/物体/画风）</span>'
                 + '  </div>'
                 + '  <div class="yj-studio-ref-grid" id="studioRefGrid">'
                 + '    <div class="yj-studio-ref-item yj-studio-ref-add" onclick="document.getElementById(\'studioRefFileInput\').click()" title="添加参考图片">'
@@ -1084,14 +1084,15 @@
                 // ── Step 3: Prompt区域 ──
                 + '<div class="yj-studio-section" id="studioPromptSection">'
                 + '  <div class="yj-studio-section-header">'
-                + '    <span class="yj-studio-step-badge">2</span>'
-                + '    <label>提示词</label>'
-                + '    <span class="yj-studio-hint">描述期望的生成效果</span>'
+                + '    <span class="yj-studio-step-badge" id="studioStepBadgePrompt">2</span>'
+                + '    <label id="studioLabelPrompt">提示词</label>'
+                + '    <span class="yj-studio-hint" id="studioHintPrompt">描述期望的生成效果</span>'
                 + '  </div>'
                 + '  <div id="studioTemplateContainer"></div>'
                 + '  <textarea id="studioPrompt" class="yj-studio-prompt-textarea" rows="4"'
                 + '    placeholder="描述期望的画面内容、风格、运镜方式..."'
-                + '    oninput="studioUpdatePromptCount()"></textarea>'
+                + '    oninput="studioUpdatePromptCount()"'
+                + '    data-mode-placeholder="true"></textarea>'
                 + '  <div class="yj-studio-prompt-footer">'
                 + '    <span class="yj-studio-prompt-counter"><span id="studioPromptCount">0</span>/2000</span>'
                 + '  </div>'
@@ -1099,19 +1100,21 @@
                 // ── Step 4: 参数区域 ──
                 + '<div class="yj-studio-section" id="studioParamsSection">'
                 + '  <div class="yj-studio-section-header">'
-                + '    <span class="yj-studio-step-badge">3</span>'
-                + '    <label>参数配置</label>'
+                + '    <span class="yj-studio-step-badge" id="studioStepBadgeParams">3</span>'
+                + '    <label id="studioLabelParams">参数配置</label>'
                 + '  </div>'
                 + '  <div class="yj-studio-params">'
                 // Phase 2-C-1-C: 统一图生视频参数绑定
                 + '    <div class="yj-studio-param-row" id="studioModelRow">'
-                + '      <div class="yj-studio-param-item" style="max-width:300px">'
+                + '      <div class="yj-studio-param-item" id="studioModelItem" style="max-width:300px">'
                 + '        <label>模型</label>'
                 + '        <select id="studioModel" class="yj-studio-select">'
                 + '          <option value="">加载中...</option>'
                 + '        </select>'
                 + '      </div>'
                 + '    </div>'
+                // ★ Phase UI-AICreation-02-B-2.2-B: 视频专属参数分组
+                + '    <div id="studioVideoParamsGroup">'
                 + '    <div class="yj-studio-param-row" id="studioVideoDurationRow">'
                 + '      <div class="yj-studio-param-item">'
                 + '        <label>视频时长</label>'
@@ -1121,8 +1124,8 @@
                 + '        </select>'
                 + '      </div>'
                 + '    </div>'
-                + '    <div class="yj-studio-param-row">'
-                + '      <div class="yj-studio-param-item">'
+                + '    <div class="yj-studio-param-row" id="studioMotionRow">'
+                + '      <div class="yj-studio-param-item" id="studioMotionItem">'
                 + '        <label>动态强度</label>'
                 + '        <select id="studioMotionStrength" class="yj-studio-select" onchange="studioOnParamChange()">'
                 + '          <option value="low">低 — 微动</option>'
@@ -1130,7 +1133,7 @@
                 + '          <option value="high">高 — 强烈</option>'
                 + '        </select>'
                 + '      </div>'
-                + '      <div class="yj-studio-param-item">'
+                + '      <div class="yj-studio-param-item" id="studioAspectRatioItem">'
                 + '        <label>画面比例</label>'
                 + '        <select id="studioAspectRatio" class="yj-studio-select" onchange="studioOnParamChange()">'
                 + '          <option value="16:9" selected>16:9 横屏</option>'
@@ -1139,8 +1142,8 @@
                 + '        </select>'
                 + '      </div>'
                 + '    </div>'
-                + '    <div class="yj-studio-param-row">'
-                + '      <div class="yj-studio-param-item">'
+                + '    <div class="yj-studio-param-row" id="studioCameraRow">'
+                + '      <div class="yj-studio-param-item" id="studioCameraItem">'
                 + '        <label>运镜方式</label>'
                 + '        <select id="studioCameraMovement" class="yj-studio-select" onchange="studioOnParamChange()">'
                 + '          <option value="static" selected>固定镜头</option>'
@@ -1149,13 +1152,14 @@
                 + '          <option value="orbit">环绕</option>'
                 + '        </select>'
                 + '      </div>'
-                + '      <div class="yj-studio-param-item">'
+                + '      <div class="yj-studio-param-item" id="studioQualityItem">'
                 + '        <label>画质</label>'
                 + '        <select id="studioQuality" class="yj-studio-select" onchange="studioOnParamChange()">'
                 + '          <option value="standard" selected>标准</option>'
                 + '          <option value="high">高质量</option>'
                 + '        </select>'
                 + '      </div>'
+                + '    </div>'
                 + '    </div>'
                 // ★ Phase UI-AICreation-02-B-1-E-B-1: imageGen 专属参数行
                 + '    <div class="yj-studio-param-row" id="studioImageGenParams" style="display:none">'
@@ -1235,20 +1239,27 @@
         // ─── 创作类型切换 ───────────────────────────────
         function studioSelectType(el, type) {
             var prevType = YJ.state.aiCreation.creationType;
+
+            // ★ Phase UI-AICreation-02-B-2.2-A: 保存当前模式的 DOM prompt 到状态
+            var promptEl = document.getElementById('studioPrompt');
+            var currentPrompt = promptEl ? promptEl.value : '';
+
+            // ★ Phase UI-AICreation-02-B-2.2-A: 保存当前模式状态 → 旧命名空间
+            if (prevType && YJ.state.saveAiCreationModeState) {
+                // 将 DOM prompt 写入 textPrompt/ref2videoPrompt 后再保存
+                if (prevType === 'ref2video') {
+                    YJ.state.aiCreation.ref2videoPrompt = currentPrompt;
+                } else {
+                    YJ.state.aiCreation.textPrompt = currentPrompt;
+                }
+                YJ.state.saveAiCreationModeState(prevType);
+            }
+
             YJ.state.aiCreation.creationType = type;
             document.querySelectorAll('.yj-studio-type-card').forEach(function(c) {
                 c.classList.remove('active');
             });
             if (el) el.classList.add('active');
-
-            // 根据类型调整 UI 可见性
-            var materialSection = document.getElementById('studioMaterialSection');
-            var ref2videoMaterial = document.getElementById('studioRef2VideoMaterial');
-            var promptSection = document.getElementById('studioPromptSection');
-            var paramsSection = document.getElementById('studioParamsSection');
-            var modelSelect = document.getElementById('studioModel');
-            var durationSelect = document.getElementById('studioDuration');
-            var costEstimate = document.getElementById('studioCostEstimate');
 
             // Phase 2-C-2-3-B: 动态刷新模型选择器（从 Registry 数据获取）
             var capability = STUDIO_CAPABILITY_MAP[type];
@@ -1267,56 +1278,28 @@
                 studioClearMaterial();
             }
 
-            // ── UI 可见性切换 ──
-            // 先重置所有特殊区域（含 imageGen → video 切换时的视频参数恢复）
-            if (materialSection) materialSection.style.display = 'none';
-            if (ref2videoMaterial) ref2videoMaterial.style.display = 'none';
-            if (promptSection) promptSection.style.display = 'block';
-            var _vDurRowReset = document.getElementById('studioVideoDurationRow');
-            if (_vDurRowReset) _vDurRowReset.style.display = '';
-            // Phase UI-AICreation-02-B-1-E-B-1: 恢复 video 专属参数 + 隐藏 imageGen 参数
-            var _vMotionEl = document.getElementById('studioMotionStrength');
-            var _vCameraEl = document.getElementById('studioCameraMovement');
-            var _vImgGenRow = document.getElementById('studioImageGenParams');
-            if (_vMotionEl) _vMotionEl.parentElement.style.display = '';
-            if (_vCameraEl) _vCameraEl.parentElement.parentElement.style.display = '';
-            if (_vImgGenRow) _vImgGenRow.style.display = 'none';
+            // ★ Phase UI-AICreation-02-B-2.2-B: DOM 层隔离 — 集中管理 UI 可见性
+            // 替代原有的散落 show/hide 逻辑，由三个专用函数统一处理
+            studioUpdateStepBadges(type);
+            studioUpdatePromptDOM(type);
+            studioUpdateParamVisibility(type);
 
-            if (type === 'imageGen') {
-                if (promptSection) promptSection.querySelector('.yj-studio-section-header label').textContent = '图片描述';
-                var _vDurRowImgGen = document.getElementById('studioVideoDurationRow');
-                if (_vDurRowImgGen) _vDurRowImgGen.style.display = 'none';
-                if (costEstimate) costEstimate.textContent = '~ 4 积分';
-                // Phase UI-AICreation-02-B-1-E-B-1: 隐藏 video 专属参数，显示图片参数
-                var _motionEl = document.getElementById('studioMotionStrength');
-                var _cameraEl = document.getElementById('studioCameraMovement');
-                var _imgGenRow = document.getElementById('studioImageGenParams');
-                if (_motionEl) _motionEl.parentElement.style.display = 'none';
-                if (_cameraEl) _cameraEl.parentElement.parentElement.style.display = 'none';
-                if (_imgGenRow) _imgGenRow.style.display = '';
-            } else if (type === 'ref2video') {
-                // ★ Phase 2-C-2-4-C-3-2: ref2video 多图素材区
-                if (ref2videoMaterial) ref2videoMaterial.style.display = 'block';
-                if (promptSection) {
-                    promptSection.querySelector('.yj-studio-section-header label').textContent = '视频描述';
-                }
-                if (costEstimate) costEstimate.textContent = '~ 120 积分';
+            // ── 模式专属的额外处理 ──
+            if (type === 'ref2video') {
                 renderRefImageGrid();
-            } else {
-                // image2video, text2video
-                if (materialSection) {
-                    materialSection.style.display = (type === 'text2video') ? 'none' : 'block';
-                }
-                if (promptSection) promptSection.querySelector('.yj-studio-section-header label').textContent = '提示词';
-                var _vDurRowVideo = document.getElementById('studioVideoDurationRow');
-                if (_vDurRowVideo) _vDurRowVideo.style.display = '';
-                // Phase 2-C-1-C: 切换类型时同步新参数到 state
-                // Phase 2-C-1-D: text2video 也复用统一参数
-                if (type === 'image2video' || type === 'text2video') {
-                    studioReadParamsToState();
-                }
-                if (costEstimate) {
-                    costEstimate.textContent = (type === 'text2video') ? '~ 80 积分' : '~ 80 积分';
+            }
+            // Phase 2-C-1-C/2-C-1-D: 视频模式同步参数到 state
+            if (type === 'image2video' || type === 'text2video') {
+                studioReadParamsToState();
+            }
+
+            // ★ Phase UI-AICreation-02-B-2.2-A: 恢复新模式命名空间 → 当前状态 + DOM
+            if (YJ.state.restoreAiCreationModeState) {
+                YJ.state.restoreAiCreationModeState(type);
+                // 恢复 prompt 到 DOM textarea
+                var modeState = YJ.state.getAiCreationModeState(type);
+                if (promptEl && modeState && modeState.prompt !== undefined && modeState.prompt !== null) {
+                    promptEl.value = modeState.prompt;
                 }
             }
 
@@ -1576,6 +1559,200 @@
             }
         }
 
+        // ══════════════════════════════════════════════════════════
+        // ★ Phase UI-AICreation-02-B-2.2-B: DOM 层隔离辅助函数
+        // ══════════════════════════════════════════════════════════
+
+        /**
+         * 根据创作类型动态更新 Step 编号
+         * 解决硬编码 "1"/"2"/"3" 导致的跳过步骤后编号不一致问题
+         *
+         * @param {string} type — creationType
+         *
+         * 规则:
+         *   text2video:  无素材步骤, Prompt=Step1, Params=Step2
+         *   image2video: 素材=Step1, Prompt=Step2, Params=Step3
+         *   ref2video:   参考图=Step1, Prompt=Step2, Params=Step3
+         *   imageGen:    无素材步骤, Prompt=Step1, Params=Step2
+         */
+        function studioUpdateStepBadges(type) {
+            var badgeMaterial = document.getElementById('studioStepBadgeMaterial');
+            var badgeRef = document.getElementById('studioStepBadgeRef');
+            var badgePrompt = document.getElementById('studioStepBadgePrompt');
+            var badgeParams = document.getElementById('studioStepBadgeParams');
+
+            var promptSection = document.getElementById('studioPromptSection');
+            var paramsSection = document.getElementById('studioParamsSection');
+
+            // 隐藏所有 badge 和对应的 section（稍后按需显示）
+            if (badgeMaterial) badgeMaterial.parentElement.parentElement.style.display = 'none';
+            if (badgeRef) badgeRef.parentElement.parentElement.style.display = 'none';
+            if (promptSection) promptSection.style.display = 'block';
+            if (paramsSection) paramsSection.style.display = 'block';
+
+            switch (type) {
+                case 'text2video':
+                    // Step 1: Prompt, Step 2: Params
+                    if (badgePrompt) badgePrompt.textContent = '1';
+                    if (badgeParams) badgeParams.textContent = '2';
+                    break;
+
+                case 'image2video':
+                    // Step 1: 素材, Step 2: Prompt, Step 3: Params
+                    if (badgeMaterial) {
+                        badgeMaterial.textContent = '1';
+                        badgeMaterial.parentElement.parentElement.style.display = 'block';
+                    }
+                    if (badgePrompt) badgePrompt.textContent = '2';
+                    if (badgeParams) badgeParams.textContent = '3';
+                    break;
+
+                case 'ref2video':
+                    // Step 1: 参考图, Step 2: Prompt, Step 3: Params
+                    if (badgeRef) {
+                        badgeRef.textContent = '1';
+                        badgeRef.parentElement.parentElement.style.display = 'block';
+                    }
+                    if (badgePrompt) badgePrompt.textContent = '2';
+                    if (badgeParams) badgeParams.textContent = '3';
+                    break;
+
+                case 'imageGen':
+                    // Step 1: Prompt, Step 2: Params
+                    if (badgePrompt) badgePrompt.textContent = '1';
+                    if (badgeParams) badgeParams.textContent = '2';
+                    break;
+            }
+        }
+
+        /**
+         * 根据创作类型动态更新 Prompt 区域的 DOM 属性
+         * 解决四模式共用 #studioPrompt 时 placeholder/label/hint 无法区分的问题
+         *
+         * @param {string} type — creationType
+         */
+        function studioUpdatePromptDOM(type) {
+            var promptEl = document.getElementById('studioPrompt');
+            var labelEl = document.getElementById('studioLabelPrompt');
+            var hintEl = document.getElementById('studioHintPrompt');
+            var promptSection = document.getElementById('studioPromptSection');
+
+            if (!promptSection) return;
+
+            // 提示词 section 始终可见
+            promptSection.style.display = 'block';
+
+            var placeholders = {
+                text2video: '描述期望的视频画面内容、风格、运镜方式...例如：一只橘猫在花园里漫步，阳光透过树叶洒落',
+                image2video: '描述期望让图片如何动起来...例如：镜头缓慢推进，人物微笑转头看向远方',
+                ref2video: '描述期望的视频内容和风格...例如：参考图中的人物在咖啡店里交谈，温暖午后光线',
+                imageGen: '描述期望的图片画面内容和风格...例如：赛博朋克风格的城市夜景，霓虹灯闪烁'
+            };
+
+            var labels = {
+                text2video: '视频提示词',
+                image2video: '视频提示词',
+                ref2video: '视频描述',
+                imageGen: '图片描述'
+            };
+
+            var hints = {
+                text2video: '描述期望的视频画面内容、风格、运镜方式',
+                image2video: '描述期望的视频动态效果和画面内容',
+                ref2video: '描述期望的视频内容、运镜和风格',
+                imageGen: '描述期望的图片画面内容、风格、构图'
+            };
+
+            if (promptEl && placeholders[type]) {
+                promptEl.placeholder = placeholders[type];
+                promptEl.setAttribute('data-mode', type);
+            }
+            if (labelEl && labels[type]) {
+                labelEl.textContent = labels[type];
+            }
+            if (hintEl && hints[type]) {
+                hintEl.textContent = hints[type];
+            }
+        }
+
+        /**
+         * 根据创作类型集中管理参数区域的 DOM 可见性
+         * 解决参数区域混用 — 视频/图片参数散落在多处 show/hide 逻辑中
+         *
+         * @param {string} type — creationType
+         */
+        function studioUpdateParamVisibility(type) {
+            var videoParamsGroup = document.getElementById('studioVideoParamsGroup');
+            var imageGenParamsRow = document.getElementById('studioImageGenParams');
+            var modelRow = document.getElementById('studioModelRow');
+            var durationRow = document.getElementById('studioVideoDurationRow');
+            var motionItem = document.getElementById('studioMotionItem');
+            var cameraItem = document.getElementById('studioCameraItem');
+            var qualityItem = document.getElementById('studioQualityItem');
+            var aspectRatioItem = document.getElementById('studioAspectRatioItem');
+            var costEstimate = document.getElementById('studioCostEstimate');
+
+            // ── 模型选择器: 所有模式可见 ──
+            if (modelRow) modelRow.style.display = '';
+
+            // ── 画面比例: 所有模式可见 ──
+            if (aspectRatioItem) aspectRatioItem.style.display = '';
+
+            switch (type) {
+                case 'imageGen':
+                    // 隐藏视频专属参数组
+                    if (videoParamsGroup) videoParamsGroup.style.display = 'none';
+                    // 显示图片专属参数
+                    if (imageGenParamsRow) imageGenParamsRow.style.display = '';
+                    // 画面比例标签适配图片场景
+                    if (aspectRatioItem) {
+                        var arLabel = aspectRatioItem.querySelector('label');
+                        if (arLabel) arLabel.textContent = '图片比例';
+                    }
+                    // #studioCostEstimate 本身是 <strong> 元素
+                    if (costEstimate) costEstimate.textContent = '~ 4';
+                    break;
+
+                case 'ref2video':
+                    // 显示视频参数组
+                    if (videoParamsGroup) videoParamsGroup.style.display = '';
+                    // 隐藏图片参数
+                    if (imageGenParamsRow) imageGenParamsRow.style.display = 'none';
+                    // 恢复视频参数可见性
+                    if (durationRow) durationRow.style.display = '';
+                    if (motionItem) motionItem.style.display = '';
+                    if (cameraItem) cameraItem.style.display = '';
+                    if (qualityItem) qualityItem.style.display = '';
+                    // 恢复画面比例标签
+                    if (aspectRatioItem) {
+                        var arLabel2 = aspectRatioItem.querySelector('label');
+                        if (arLabel2) arLabel2.textContent = '画面比例';
+                    }
+                    if (costEstimate) costEstimate.textContent = '~ 120';
+                    break;
+
+                case 'text2video':
+                case 'image2video':
+                default:
+                    // 显示视频参数组
+                    if (videoParamsGroup) videoParamsGroup.style.display = '';
+                    // 隐藏图片参数
+                    if (imageGenParamsRow) imageGenParamsRow.style.display = 'none';
+                    // 恢复视频参数可见性
+                    if (durationRow) durationRow.style.display = '';
+                    if (motionItem) motionItem.style.display = '';
+                    if (cameraItem) cameraItem.style.display = '';
+                    if (qualityItem) qualityItem.style.display = '';
+                    // 恢复画面比例标签
+                    if (aspectRatioItem) {
+                        var arLabel3 = aspectRatioItem.querySelector('label');
+                        if (arLabel3) arLabel3.textContent = '画面比例';
+                    }
+                    if (costEstimate) costEstimate.textContent = '~ 80';
+                    break;
+            }
+        }
+
         // ─── Phase 2-C-1-C: 参数变更同步到统一状态层 ─────
         function studioOnParamChange() {
             studioReadParamsToState();
@@ -1620,6 +1797,16 @@
 
             // Phase 2-C-1-D: 文生视频 — 保存提示词到状态
             YJ.state.aiCreation.textPrompt = prompt;
+            // Phase UI-AICreation-02-B-2.2-A: 同时写入当前模式命名空间
+            var _curType = YJ.state.aiCreation.creationType;
+            if (_curType === 'ref2video') {
+                YJ.state.aiCreation.ref2videoPrompt = prompt;
+                if (YJ.state.aiCreation.ref2video) {
+                    YJ.state.aiCreation.ref2video.prompt = prompt;
+                }
+            } else if (YJ.state.aiCreation[_curType]) {
+                YJ.state.aiCreation[_curType].prompt = prompt;
+            }
 
             // ★ Phase 2-C-2-4-C-3-3-B: ref2video 参考图片数量校验（2-5张）
             if (YJ.state.aiCreation.creationType === 'ref2video') {
