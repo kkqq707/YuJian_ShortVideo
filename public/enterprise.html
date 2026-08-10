@@ -781,7 +781,7 @@
             const container = document.getElementById('mainContent');
             switch (page) {
                 case 'dashboard': container.innerHTML = renderDashboard(); break;
-                case 'studio': container.innerHTML = renderStudio(); initTemplateSelector('#studioTemplateContainer', 'studioPrompt'); studioInitModelSelect('image2video'); break;
+                case 'studio': container.innerHTML = renderStudio(); initTemplateSelector('#studioTemplateContainer', 'studioPrompt'); studioInitModelSelect('ref2video'); break;
                 case 'storyboard': container.innerHTML = renderStoryboardPage(); break;
                 case 'text2video': container.innerHTML = renderText2Video(); initTemplateSelector('#t2vTemplateContainer', 't2vPrompt'); break;
                 case 'image2video': container.innerHTML = renderImage2Video(); initTemplateSelector('#i2vTemplateContainer', 'i2vPrompt'); break;
@@ -916,9 +916,6 @@
             isUploading: false,
             isGenerating: false,
             textPrompt: '',              // Phase 2-C-1-D: 文生视频提示词
-            // Phase 2-C-2-4-C-3-1: ref2video 基础状态字段
-            ref2videoPrompt: '',         // 参考生视频描述
-            referenceSubjects: [],       // 参考主体列表 [{type, name, assetId}]
         };
 
         // ─── Phase 2-C-1-B: 双写同步 → YJ.state.aiCreation ───
@@ -937,9 +934,6 @@
                     isUploading: STUDIO_STATE.isUploading,
                     isGenerating: STUDIO_STATE.isGenerating,
                     textPrompt: STUDIO_STATE.textPrompt,
-                    // Phase 2-C-2-4-C-3-1: ref2video 状态同步
-                    ref2videoPrompt: STUDIO_STATE.ref2videoPrompt,
-                    referenceSubjects: STUDIO_STATE.referenceSubjects
                 });
             }
         }
@@ -1015,25 +1009,25 @@
                 + '<div class="yj-studio-container">'
                 // ── Step 1: 创作类型选择器 ──
                 + '<div class="yj-studio-type-selector">'
-                + '  <div class="yj-studio-type-card active" data-type="image2video" onclick="studioSelectType(this, \'image2video\')">'
+                + '  <div class="yj-studio-type-card active" data-type="ref2video" onclick="studioSelectType(this, \'ref2video\')">'
+                + '    <div class="yj-studio-type-icon"><i class="fas fa-images"></i></div>'
+                + '    <div class="yj-studio-type-label">参考生视频</div>'
+                + '    <div class="yj-studio-type-desc">多图参考 → 视频</div>'
+                + '  </div>'
+                + '  <div class="yj-studio-type-card" data-type="image2video" onclick="studioSelectType(this, \'image2video\')">'
                 + '    <div class="yj-studio-type-icon"><i class="fas fa-video"></i></div>'
-                + '    <div class="yj-studio-type-label">图片转视频</div>'
+                + '    <div class="yj-studio-type-label">图生视频</div>'
                 + '    <div class="yj-studio-type-desc">静态图片 → 动态视频</div>'
                 + '  </div>'
                 + '  <div class="yj-studio-type-card" data-type="text2video" onclick="studioSelectType(this, \'text2video\')">'
                 + '    <div class="yj-studio-type-icon"><i class="fas fa-film"></i></div>'
-                + '    <div class="yj-studio-type-label">文字生成视频</div>'
+                + '    <div class="yj-studio-type-label">文生视频</div>'
                 + '    <div class="yj-studio-type-desc">文字描述 → 视频</div>'
                 + '  </div>'
                 + '  <div class="yj-studio-type-card" data-type="imageGen" onclick="studioSelectType(this, \'imageGen\')">'
                 + '    <div class="yj-studio-type-icon"><i class="fas fa-image"></i></div>'
-                + '    <div class="yj-studio-type-label">图片生成</div>'
+                + '    <div class="yj-studio-type-label">文生图像</div>'
                 + '    <div class="yj-studio-type-desc">文字描述 → 图片</div>'
-                + '  </div>'
-                + '  <div class="yj-studio-type-card" data-type="ref2video" onclick="studioSelectType(this, \'ref2video\')">'
-                + '    <div class="yj-studio-type-icon"><i class="fas fa-images"></i></div>'
-                + '    <div class="yj-studio-type-label">参考生视频</div>'
-                + '    <div class="yj-studio-type-desc">多图参考 → 视频</div>'
                 + '  </div>'
                 + '</div>'
                 // ── Main layout: left panel + right preview ──
@@ -2732,7 +2726,7 @@
         function renderImageGen() {
             return `
                 <div class="sub-tabs">
-                    <div class="sub-tab active">图片生成</div>
+                    <div class="sub-tab active">文生图像</div>
                 </div>
                 <div class="creation-layout">
                     <div class="creation-panel">
