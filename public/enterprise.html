@@ -2023,10 +2023,15 @@
             var resultArea = document.getElementById('studioResult');
             var statusArea = document.getElementById('studioStatus');
             var previewVideo = document.getElementById('studioResultVideo');
+            var largePreview = document.getElementById('studioLargePreview');
+            var placeholder = document.getElementById('studioPreviewPlaceholder');
 
             if (resultArea) resultArea.style.display = 'none';
             if (statusArea) statusArea.style.display = 'none';
             if (previewVideo) { previewVideo.style.display = 'none'; previewVideo.src = ''; }
+            // Phase UI-AICreation-02-B-1-G-V: 重置右侧大图预览，恢复占位符
+            if (largePreview) { largePreview.style.display = 'none'; largePreview.src = ''; }
+            if (placeholder) placeholder.style.display = '';
         }
 
         // ─── 重置整个 Studio 状态 ─────────────────────────
