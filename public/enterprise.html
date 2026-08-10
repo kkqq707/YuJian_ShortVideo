@@ -1104,13 +1104,15 @@
                 + '  </div>'
                 + '  <div class="yj-studio-params">'
                 // Phase 2-C-1-C: 统一图生视频参数绑定
-                + '    <div class="yj-studio-param-row">'
-                + '      <div class="yj-studio-param-item">'
+                + '    <div class="yj-studio-param-row" id="studioModelRow">'
+                + '      <div class="yj-studio-param-item" style="max-width:300px">'
                 + '        <label>模型</label>'
                 + '        <select id="studioModel" class="yj-studio-select">'
                 + '          <option value="">加载中...</option>'
                 + '        </select>'
                 + '      </div>'
+                + '    </div>'
+                + '    <div class="yj-studio-param-row" id="studioVideoDurationRow">'
                 + '      <div class="yj-studio-param-item">'
                 + '        <label>视频时长</label>'
                 + '        <select id="studioDuration" class="yj-studio-select" onchange="studioOnParamChange()">'
@@ -1152,6 +1154,24 @@
                 + '        <select id="studioQuality" class="yj-studio-select" onchange="studioOnParamChange()">'
                 + '          <option value="standard" selected>标准</option>'
                 + '          <option value="high">高质量</option>'
+                + '        </select>'
+                + '      </div>'
+                + '    </div>'
+                // ★ Phase UI-AICreation-02-B-1-E-B-1: imageGen 专属参数行
+                + '    <div class="yj-studio-param-row" id="studioImageGenParams" style="display:none">'
+                + '      <div class="yj-studio-param-item">'
+                + '        <label>图片风格</label>'
+                + '        <select id="studioStyle" class="yj-studio-select" onchange="studioOnParamChange()">'
+                + '          <option value="realistic" selected>写实摄影</option>'
+                + '          <option value="3d_render">3D渲染</option>'
+                + '          <option value="illustration">插画</option>'
+                + '          <option value="anime">动漫</option>'
+                + '          <option value="oil_painting">油画</option>'
+                + '          <option value="watercolor">水彩</option>'
+                + '          <option value="cyberpunk">赛博朋克</option>'
+                + '          <option value="guochao">国潮</option>'
+                + '          <option value="manga">二次元</option>'
+                + '          <option value="ink">水墨</option>'
                 + '        </select>'
                 + '      </div>'
                 + '    </div>'
@@ -1248,16 +1268,32 @@
             }
 
             // ── UI 可见性切换 ──
-            // 先重置所有特殊区域
+            // 先重置所有特殊区域（含 imageGen → video 切换时的视频参数恢复）
             if (materialSection) materialSection.style.display = 'none';
             if (ref2videoMaterial) ref2videoMaterial.style.display = 'none';
             if (promptSection) promptSection.style.display = 'block';
-            if (durationSelect) { durationSelect.parentElement.parentElement.style.display = 'block'; }
+            var _vDurRowReset = document.getElementById('studioVideoDurationRow');
+            if (_vDurRowReset) _vDurRowReset.style.display = '';
+            // Phase UI-AICreation-02-B-1-E-B-1: 恢复 video 专属参数 + 隐藏 imageGen 参数
+            var _vMotionEl = document.getElementById('studioMotionStrength');
+            var _vCameraEl = document.getElementById('studioCameraMovement');
+            var _vImgGenRow = document.getElementById('studioImageGenParams');
+            if (_vMotionEl) _vMotionEl.parentElement.style.display = '';
+            if (_vCameraEl) _vCameraEl.parentElement.parentElement.style.display = '';
+            if (_vImgGenRow) _vImgGenRow.style.display = 'none';
 
             if (type === 'imageGen') {
                 if (promptSection) promptSection.querySelector('.yj-studio-section-header label').textContent = '图片描述';
-                if (durationSelect) { durationSelect.parentElement.parentElement.style.display = 'none'; }
+                var _vDurRowImgGen = document.getElementById('studioVideoDurationRow');
+                if (_vDurRowImgGen) _vDurRowImgGen.style.display = 'none';
                 if (costEstimate) costEstimate.textContent = '~ 4 积分';
+                // Phase UI-AICreation-02-B-1-E-B-1: 隐藏 video 专属参数，显示图片参数
+                var _motionEl = document.getElementById('studioMotionStrength');
+                var _cameraEl = document.getElementById('studioCameraMovement');
+                var _imgGenRow = document.getElementById('studioImageGenParams');
+                if (_motionEl) _motionEl.parentElement.style.display = 'none';
+                if (_cameraEl) _cameraEl.parentElement.parentElement.style.display = 'none';
+                if (_imgGenRow) _imgGenRow.style.display = '';
             } else if (type === 'ref2video') {
                 // ★ Phase 2-C-2-4-C-3-2: ref2video 多图素材区
                 if (ref2videoMaterial) ref2videoMaterial.style.display = 'block';
@@ -1272,7 +1308,8 @@
                     materialSection.style.display = (type === 'text2video') ? 'none' : 'block';
                 }
                 if (promptSection) promptSection.querySelector('.yj-studio-section-header label').textContent = '提示词';
-                if (durationSelect) { durationSelect.parentElement.parentElement.style.display = 'block'; }
+                var _vDurRowVideo = document.getElementById('studioVideoDurationRow');
+                if (_vDurRowVideo) _vDurRowVideo.style.display = '';
                 // Phase 2-C-1-C: 切换类型时同步新参数到 state
                 // Phase 2-C-1-D: text2video 也复用统一参数
                 if (type === 'image2video' || type === 'text2video') {
@@ -1553,6 +1590,7 @@
             var motionStrengthEl = document.getElementById('studioMotionStrength');
             var cameraMovementEl = document.getElementById('studioCameraMovement');
             var qualityEl = document.getElementById('studioQuality');
+            var styleEl = document.getElementById('studioStyle');
 
             var params = {};
             if (durationEl) params.duration = parseInt(durationEl.value) || 5;
@@ -1560,6 +1598,8 @@
             if (motionStrengthEl) params.motionStrength = motionStrengthEl.value;
             if (cameraMovementEl) params.cameraMovement = cameraMovementEl.value;
             if (qualityEl) params.quality = qualityEl.value;
+            // Phase UI-AICreation-02-B-1-E-B-2: imageGen params
+            if (styleEl) params.style = styleEl.value;
 
             YJ.state.setAiCreationParams(params);
         }
@@ -1641,15 +1681,14 @@
                 var task = null;
                 if (creationType === 'imageGen') {
                     // 图片生成 — 使用统一 API
-                    // Phase 2-C-1-C: studioStyle → 默认值（该控件已替换为统一参数）
-                    var imgGenStyle = (document.getElementById('studioStyle') || {}).value || 'realistic';
-                    var imgGenRatio = (document.getElementById('studioAspectRatio') || {}).value || '16:9';
+                    // Phase UI-AICreation-02-B-1-E-C: 从统一状态读取图片参数
+                    var _p = YJ.state.aiCreation.params;
                     task = await EnterpriseAPI.Generation.createImageGenerationTask({
                         prompt: prompt,
-                        style: imgGenStyle,
-                        ratio: imgGenRatio,
-                        count: 4,
-                        modelId: selectedModelId
+                        style: _p.style || 'realistic',
+                        ratio: _p.aspectRatio || '16:9',
+                        modelId: selectedModelId,
+                        templateId: 'image_generation'
                     });
                 } else if (creationType === 'ref2video') {
                     // ★ Phase 2-C-2-4-C-3-3-B: ref2video 真实生成分支
@@ -1794,10 +1833,44 @@
             if (generateText) generateText.textContent = '开始生成';
 
             // 结果展示
+            var creationType = YJ.state.aiCreation.creationType;
             var videoUrl = task.playUrl || task.videoUrl || task.output_url || '';
             if (resultArea) resultArea.style.display = 'block';
             if (resultBody) {
-                if (videoUrl) {
+                if (creationType === 'imageGen' && videoUrl) {
+                    // imageGen 图片结果展示（非视频）
+                    resultBody.innerHTML = '<img src="' + escapeHtml(videoUrl) + '" style="width:100%;max-height:300px;border-radius:8px;object-fit:contain;background:#111" alt="生成图片">';
+                    if (downloadBtn) { downloadBtn.href = videoUrl; downloadBtn.style.display = 'inline-flex'; }
+                    if (sendToEditorBtn) {
+                        sendToEditorBtn.style.display = 'inline-flex';
+                        sendToEditorBtn.onclick = function() {
+                            var bridgeAsset = {
+                                id: task.task_id || task.id || '',
+                                name: task.prompt ? task.prompt.substring(0, 40) : 'AI生成图片',
+                                type: 'image',
+                                url: videoUrl,
+                                duration: 5,
+                                thumbnailUrl: videoUrl
+                            };
+                            if (window.YJ && window.YJ.Editor && window.YJ.Editor.openEditorWithAsset) {
+                                YJ.Editor.openEditorWithAsset(bridgeAsset);
+                            } else {
+                                navigateTo('editor');
+                            }
+                        };
+                    }
+
+                    // 右侧预览 — 图片
+                    var previewVideo = document.getElementById('studioResultVideo');
+                    var placeholder = document.getElementById('studioPreviewPlaceholder');
+                    var largePreview = document.getElementById('studioLargePreview');
+                    if (previewVideo) { previewVideo.style.display = 'none'; }
+                    if (placeholder) { placeholder.style.display = 'none'; }
+                    if (largePreview) {
+                        largePreview.innerHTML = '<img src="' + escapeHtml(videoUrl) + '" style="width:100%;height:100%;object-fit:contain;border-radius:8px" alt="预览图片">';
+                        largePreview.style.display = 'block';
+                    }
+                } else if (creationType !== 'imageGen' && videoUrl) {
                     resultBody.innerHTML = '<video src="' + escapeHtml(videoUrl) + '" controls playsinline style="width:100%;max-height:300px;border-radius:8px;background:#000"></video>';
                     if (downloadBtn) { downloadBtn.href = videoUrl; downloadBtn.style.display = 'inline-flex'; }
                     if (sendToEditorBtn) {
@@ -1821,12 +1894,12 @@
                     }
 
                     // 右侧预览
-                    var previewVideo = document.getElementById('studioResultVideo');
-                    var placeholder = document.getElementById('studioPreviewPlaceholder');
-                    var largePreview = document.getElementById('studioLargePreview');
-                    if (previewVideo) { previewVideo.src = videoUrl; previewVideo.style.display = 'block'; }
-                    if (placeholder) placeholder.style.display = 'none';
-                    if (largePreview) largePreview.style.display = 'none';
+                    var previewVideo2 = document.getElementById('studioResultVideo');
+                    var placeholder2 = document.getElementById('studioPreviewPlaceholder');
+                    var largePreview2 = document.getElementById('studioLargePreview');
+                    if (previewVideo2) { previewVideo2.src = videoUrl; previewVideo2.style.display = 'block'; }
+                    if (placeholder2) placeholder2.style.display = 'none';
+                    if (largePreview2) largePreview2.style.display = 'none';
                 } else if (task.images && task.images.length > 0) {
                     // 图片生成结果
                     resultBody.innerHTML = '<div style="display:grid;grid-template-columns:repeat(2,1fr);gap:8px">'
@@ -2756,27 +2829,18 @@
                             </div>
                         </div>
                         
-                        <div class="form-row">
-                            <div class="form-group">
-                                <label>尺寸比例</label>
-                                <select>
-                                    <option>1:1 方形</option>
-                                    <option selected>16:9 横屏</option>
-                                    <option>9:16 竖屏</option>
-                                    <option>4:3 标准</option>
-                                    <option>3:4 竖版</option>
-                                </select>
-                            </div>
-                            <div class="form-group">
-                                <label>生成数量</label>
-                                <select>
-                                    <option>1张</option>
-                                    <option selected>4张</option>
-                                    <option>9张</option>
-                                </select>
-                            </div>
+
+                        <div class="form-group">
+                            <label>尺寸比例</label>
+                            <select>
+                                <option>1:1 方形</option>
+                                <option selected>16:9 横屏</option>
+                                <option>9:16 竖屏</option>
+                                <option>4:3 标准</option>
+                                <option>3:4 竖版</option>
+                            </select>
                         </div>
-                        
+
                         <div class="form-group">
                             <label>参考图（可选）</label>
                             <div class="upload-grid" style="grid-template-columns:repeat(4,1fr)">
@@ -2796,14 +2860,14 @@
                             <span style="font-size:11px;color:var(--text-muted)">AI生成内容请遵守平台规范</span>
                         </div>
                         
-                        <button class="generate-btn" onclick="alert('开始生成图片，通义万相 · 4张，预计消耗4积分')">
+                        <button class="generate-btn" onclick="alert('开始生成图片，通义万相 · 1张，预计消耗1积分')">
                             <i class="fas fa-palette"></i> 生成图片
                         </button>
-                        
+
                         <div class="cost-estimate">
                             <div class="cost-estimate-row">
-                                <span class="label">通义万相 · 4张</span>
-                                <span class="value">~ 4 积分</span>
+                                <span class="label">通义万相 · 1张</span>
+                                <span class="value">~ 1 积分</span>
                             </div>
                             <div class="cost-estimate-row">
                                 <span class="label">当前余额</span>

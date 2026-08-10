@@ -462,6 +462,104 @@ exports.createTask = async (req, res) => {
 };
 
 /**
+ * POST /api/enterprise/video-generation/text-to-image
+ *
+ * Phase UI-AICreation-02-B-1-A: 图片生成接口
+ *
+ * Controller 只负责：参数校验、权限检查、调用 generationService.generateImage()
+ *
+ * 请求体（来自前端 studioStartGenerate imageGen 分支）：
+ *   prompt   - 正向提示词（必填）
+ *   style    - 图片风格（可选，默认 'realistic'）
+ *   ratio    - 画面比例（可选，默认 '16:9'）
+ *   count    - 生成数量（可选，默认 4）
+ *   modelId  - 模型 ID，用作 templateId（可选）
+ *
+ * 流程：
+ *   Controller
+ *     ↓ (参数校验)
+ *   GenerationService.generateImage()
+ *     ↓ (模板解析 + 任务创建)
+ *   Aliyun Provider
+ *     ↓ (API 调用)
+ *   DashScope API
+ */
+exports.createImageTask = async (req, res) => {
+  try {
+    const enterpriseId = req.user.enterpriseId;
+    const userId = req.user.userId;
+    const { prompt, style, ratio, modelId, templateId } = req.body;
+
+    // ── 1. 参数校验（Controller 层）─────────────────────────────
+    if (!prompt || typeof prompt !== 'string' || !prompt.trim()) {
+      return res.fail('提示词不能为空');
+    }
+    if (prompt.trim().length > 2000) {
+      return res.fail('提示词不能超过2000字');
+    }
+
+    // ── 2. 组装 options ──────────────────────────────────────────
+    // Phase UI-AICreation-02-B-1-G-M-E: 文生图像固定生成1张图片
+    // qwen-image-3.0-pro multimodal-generation 端点每次生成1张（同步）
+    const options = {
+      style: style || 'realistic',
+      ratio: ratio || '16:9'
+    };
+
+    // ── 3. 调用 GenerationService.generateImage() ────────────────
+    console.log(
+      `[VideoGeneration] createImageTask REQUEST | ` +
+      `enterpriseId=${enterpriseId} | ` +
+      `templateId=${templateId || 'image_generation'} | ` +
+      `prompt_len=${prompt.trim().length} | ` +
+      `style=${options.style} | ` +
+      `ratio=${options.ratio} | ` +
+      `time=${new Date().toISOString()}`
+    );
+
+    const result = await generationService.generateImage({
+      enterpriseId,
+      userId,
+      templateId: templateId || 'image_generation',
+      prompt: prompt.trim(),
+      options
+    });
+
+    // ── 4. 返回结果 ────────────────────────────────────────────
+    // Phase UI-AICreation-02-B-1-G-M-G: 返回 results 和 output_url 给前端
+    const responsePayload = {
+      id: result.id,
+      task_id: result.taskId,
+      status: result.status,
+      provider: result.provider,
+      model: result.model,
+      created_at: result.createdAt,
+      results: result.results || [],
+      output_url: result.results?.[0]?.url || null
+    };
+
+    return res.success(responsePayload);
+  } catch (error) {
+    console.error(
+      `[VideoGeneration] createImageTask ERROR | ` +
+      `name=${error.name || 'Unknown'} | ` +
+      `message=${error.message || '(no message)'} | ` +
+      `code=${error.code || 'N/A'} | ` +
+      `statusCode=${error.statusCode || 'N/A'} | ` +
+      `provider=${error.provider || 'N/A'} | ` +
+      `retryable=${error.retryable !== undefined ? error.retryable : 'N/A'} | ` +
+      `time=${new Date().toISOString()}`
+    );
+
+    if (error.name === 'ProviderError') {
+      return res.fail(error.message, error.statusCode || 500);
+    }
+
+    return res.fail('服务器内部错误', 500);
+  }
+};
+
+/**
  * GET /api/enterprise/video-generation/tasks
  *
  * Sprint 3.3: 作品列表接口
@@ -672,6 +770,10 @@ exports.getTask = async (req, res) => {
 
     // ── 3. success 但无 output_asset_id → 补做存储闭环 ─────────
     if (task.status === 'success' && !task.output_asset_id) {
+      // Phase UI-AICreation-02-B-1-G-M-G: 图片任务不进入视频存储闭环
+      if (task.task_type === 'text2image' || task.task_type === 'image_generation') {
+        return res.success(await toDetailWithPlayUrl(task));
+      }
       if (task.output_url) {
         const storedTask = await storeVideoAndCreateAsset(
           task, enterpriseId, userId,
@@ -767,6 +869,16 @@ exports.getTask = async (req, res) => {
 
         // ── 同步结果为 success → 转存视频到自有 OSS ──────────────
         if (task.status === 'success' && !task.output_asset_id) {
+          // Phase UI-AICreation-02-B-1-G-M-G: 图片任务不进入视频存储闭环
+          if (task.task_type === 'text2image' || task.task_type === 'image_generation') {
+            const reloaded = await GenerationTask.findByPk(task.id, {
+              include: [
+                { model: Asset, as: 'sourceAsset', attributes: ['id', 'name', 'url', 'thumbnail', 'type', 'width', 'height'], required: false },
+                { model: Asset, as: 'outputAsset', attributes: ['id', 'name', 'url', 'thumbnail', 'type', 'duration', 'width', 'height', 'size', 'mime_type'], required: false }
+              ]
+            });
+            return res.success(await toDetailWithPlayUrl(reloaded || task));
+          }
           const videoUrl = task.output_url || statusResult.outputUrl;
           if (videoUrl) {
             const storedTask = await storeVideoAndCreateAsset(
@@ -879,21 +991,21 @@ exports.getTemplates = async (req, res) => {
     const templates = getTemplatesByOutput(outputType);
 
     // 返回安全字段（不暴露内部实现细节）
-    const safeTemplates = templates.map(t => {
-      const model = getModelConfig(t.modelId);
-      return {
-        id: t.id,
-        name: t.name,
-        description: t.description,
-        capability: model ? model.capability : null,
-        category: model ? model.category : null,
-        categoryLabel: model ? model.categoryLabel : null,
-        icon: t.icon,
-        outputType: model ? model.outputType : null,
-        sort: t.sort,
-        providerLabel: '阿里云百炼'
-      };
-    });
+    const safeTemplates = templates.map(t => {
+      const model = getModelConfig(t.modelId);
+      return {
+        id: t.id,
+        name: t.name,
+        description: t.description,
+        capability: model ? model.capability : null,
+        category: model ? model.category : null,
+        categoryLabel: model ? model.categoryLabel : null,
+        icon: t.icon,
+        outputType: model ? model.outputType : null,
+        sort: t.sort,
+        providerLabel: '阿里云百炼'
+      };
+    });
 
     return res.success(safeTemplates);
   } catch (error) {

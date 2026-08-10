@@ -112,14 +112,32 @@ class AliyunBailianProvider {
 
     this._logSuccess('generateImage', result);
 
-    return {
+    // ── DEBUG(Phase UI-AICreation-02-B-1-G-M-F): 打印 aliyunProvider return ──
+    console.log(
+      `[DEBUG-QWEN-IMAGE] AliyunBailianProvider.generateImage | ` +
+      `result.taskId=${result.taskId} | ` +
+      `result.hasResults=${!!result.results} | ` +
+      `result.resultsCount=${result.results ? result.results.length : 0} | ` +
+      `result.status=${result.status}`
+    );
+    const returnValue = {
       taskId: result.taskId,
+      results: result.results || null,
       provider: this.name,
       model: modelConfig.apiModelName,
       modelId: modelConfig.id,
       status: result.status,
       outputType: 'image'
     };
+    console.log(
+      `[DEBUG-QWEN-IMAGE] AliyunBailianProvider.generateImage return | ` +
+      `taskId=${returnValue.taskId} | ` +
+      `hasResults=${!!returnValue.results} | ` +
+      `resultsCount=${returnValue.results ? returnValue.results.length : 0}`
+    );
+    // ── DEBUG END ────────────────────────────────────────────────────────────
+
+    return returnValue;
   }
 
   /**

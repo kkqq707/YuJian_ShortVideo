@@ -107,7 +107,9 @@
         duration: 5,                // 视频时长: 5 | 10
         motionStrength: 'medium',   // 动态强度: low | medium | high
         cameraMovement: 'static',   // 运镜方式: static | push | zoom | orbit
-        quality: 'standard'         // 画质: standard | high
+        quality: 'standard',        // 画质: standard | high
+        // Phase UI-AICreation-02-B-1-E-B-2: imageGen 参数
+        style: 'realistic'         // 图片风格: realistic | cartoon | ink | cyberpunk
       }
     },
 
@@ -387,7 +389,9 @@
       duration: 5,
       motionStrength: 'medium',
       cameraMovement: 'static',
-      quality: 'standard'
+      quality: 'standard',
+      // Phase UI-AICreation-02-B-1-E-B-2: imageGen 参数
+      style: 'realistic'
     };
   }
 

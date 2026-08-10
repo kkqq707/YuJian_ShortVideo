@@ -179,7 +179,7 @@
 
     /**
      * 图片生成任务
-     * @param {Object} taskInput - { prompt, size, style, count, ... }
+     * @param {Object} taskInput - { prompt, style, ratio, modelId, templateId }
      * @returns {Promise<Object>}
      */
     createImageGenerationTask: function (taskInput) {

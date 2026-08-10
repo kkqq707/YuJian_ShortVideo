@@ -18,7 +18,11 @@ const STATUS_MAP = {
 };
 
 // ─── 可重试的状态码和网络错误 ──────────────────────────────────
-const RETRYABLE_STATUS_CODES = new Set([429, 500, 502, 503, 504]);
+// Phase UI-AICreation-02-B-1-G-M-B: 429 (Rate Limit) removed from retryable set
+// Rationale: retrying 429 with short backoff (500ms/1000ms) amplifies request
+// volume 3× without recovering — the rate limit window has not reset.
+// 429 is now handled as a non-retryable terminal status, same as 4xx.
+const RETRYABLE_STATUS_CODES = new Set([500, 502, 503, 504]);
 const RETRYABLE_ERROR_CODES = new Set([
   'ECONNRESET', 'ECONNREFUSED', 'ETIMEDOUT',
   'ENOTFOUND', 'EAI_AGAIN', 'EPIPE', 'ERR_SOCKET_BAD_PORT'
@@ -77,6 +81,12 @@ class DashScopeService {
         ...extraHeaders
       };
 
+      // Allow extraHeaders to explicitly disable X-DashScope-Async
+      // (e.g. qwen-image multimodal-generation is synchronous-only)
+      if (headers['X-DashScope-Async'] == null || headers['X-DashScope-Async'] === '') {
+        delete headers['X-DashScope-Async'];
+      }
+
       if (body) {
         headers['Content-Length'] = Buffer.byteLength(body, 'utf8');
       }
@@ -127,12 +137,25 @@ class DashScopeService {
         const result = await this.request(path, data, method, extraHeaders);
         const statusCode = result.statusCode;
 
+        // Phase UI-AICreation-02-B-1-G-M-B: 429 Rate Limit 专用日志
+        // 429 不再重试（已从 RETRYABLE_STATUS_CODES 移除），记录详细日志
+        if (statusCode === 429) {
+          console.warn(
+            `[DashScope] Rate Limit (429) hit | ` +
+            `method=${method} | ` +
+            `path=${path} | ` +
+            `attempt=${attempt + 1}/${this.maxRetries + 1} | ` +
+            `time=${new Date().toISOString()}`
+          );
+          return result;
+        }
+
         // 非可重试状态码，直接返回
         if (NON_RETRYABLE_STATUS_CODES.has(statusCode)) {
           return result;
         }
 
-        // 可重试状态码（429 / 5xx），且还有剩余重试次数
+        // 可重试状态码（5xx），且还有剩余重试次数
         if (RETRYABLE_STATUS_CODES.has(statusCode) && attempt < this.maxRetries) {
           const delay = Math.pow(2, attempt) * 500; // 500ms, 1000ms
           console.log(

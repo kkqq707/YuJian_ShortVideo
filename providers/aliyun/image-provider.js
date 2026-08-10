@@ -110,12 +110,36 @@ class AliyunImageProvider {
       n: options.n
     });
 
-    return {
+    // ── DEBUG(Phase UI-AICreation-02-B-1-G-M-F): 打印 image-provider 返回格式 ──
+    console.log(
+      `[DEBUG-QWEN-IMAGE] AliyunImageProvider._createImageGeneration result | ` +
+      `taskId=${result.taskId} | ` +
+      `hasResults=${!!result.results} | ` +
+      `resultsCount=${result.results ? result.results.length : 0} | ` +
+      `status=${result.status} | ` +
+      `provider=${result.provider}`
+    );
+    if (result.results && result.results.length > 0) {
+      console.log(
+        `[DEBUG-QWEN-IMAGE] AliyunImageProvider._createImageGeneration first result.url (first 200 chars) = ${String(result.results[0].url).substring(0, 200)}`
+      );
+    }
+    const returnValue = {
       taskId: result.taskId,
+      results: result.results,
       provider: this.provider,
       model,
       status: result.status
     };
+    console.log(
+      `[DEBUG-QWEN-IMAGE] AliyunImageProvider._createImageGeneration return | ` +
+      `taskId=${returnValue.taskId} | ` +
+      `hasResults=${!!returnValue.results} | ` +
+      `resultsCount=${returnValue.results ? returnValue.results.length : 0}`
+    );
+    // ── DEBUG END ────────────────────────────────────────────────────────────
+
+    return returnValue;
   }
 
   /**

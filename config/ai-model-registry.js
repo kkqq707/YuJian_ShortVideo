@@ -179,7 +179,7 @@ const models = {
     pricing: { pointsPerUnit: 1, unit: 'image' },
 
     // API 端点
-    apiPath: '/api/v1/services/aigc/text2image/image-synthesis',
+    apiPath: '/api/v1/services/aigc/multimodal-generation/generation',
   },
 
   'qwen-image-edit': {

@@ -143,6 +143,12 @@ class DashScopeClient {
    */
   async createTextToImageTask(params) {
     try {
+      // Route qwen-image models to multimodal-generation endpoint
+      // (uses input.messages format, synchronous-only, different response structure)
+      if (params.model && params.model.startsWith('qwen-image')) {
+        return await this._createQwenImageTask(params);
+      }
+
       const result = await this.service.text2Image({
         prompt: params.prompt,
         model: params.model,
@@ -150,21 +156,189 @@ class DashScopeClient {
         n: params.n || 1
       });
 
-      if (!result.output?.task_id) {
-        throw new ProviderError(
-          this.provider, 'MISSING_TASK_ID',
-          'DashScope response missing task_id', false
-        );
+      // 同步返回：output.results[].url
+      if (result.output?.results) {
+        return {
+          results: result.output.results,
+          provider: this.provider,
+          status: 'success'
+        };
       }
 
-      return {
-        taskId: result.output.task_id,
-        provider: this.provider,
-        status: this.service.normalizeStatus(result.output.task_status || 'PENDING')
-      };
+      // 异步返回：output.task_id
+      if (result.output?.task_id) {
+        return {
+          taskId: result.output.task_id,
+          provider: this.provider,
+          status: this.service.normalizeStatus(result.output.task_status || 'PENDING')
+        };
+      }
+
+      // 两者都不存在
+      throw new ProviderError(
+        this.provider, 'MISSING_TASK_ID',
+        'DashScope response missing task_id and results', false
+      );
     } catch (error) {
       throw this._wrapError(error);
     }
+  }
+
+  /**
+   * Qwen-Image 文生图（multimodal-generation 端点）
+   *
+   * qwen-image-3.0-pro 使用 DashScope 多模态生成端点，
+   * 请求格式为 input.messages，同步返回，不支持异步。
+   *
+   * 端点：POST /api/v1/services/aigc/multimodal-generation/generation
+   *
+   * @param {Object} params
+   * @param {string} params.prompt  — 提示词
+   * @param {string} params.model   — 模型名称（如 qwen-image-3.0-pro）
+   * @param {string} [params.size]  — 图片尺寸（默认 1024*1024）
+   * @returns {Promise<{ results: Array<{url: string}>, provider: string, status: string }>}
+   */
+  async _createQwenImageTask(params) {
+    const apiPath = '/api/v1/services/aigc/multimodal-generation/generation';
+
+    const requestBody = {
+      model: params.model,
+      input: {
+        messages: [
+          {
+            role: 'user',
+            content: [
+              { text: params.prompt.trim() }
+            ]
+          }
+        ]
+      },
+      parameters: {
+        size: params.size || '1024*1024'
+      }
+    };
+
+    // ── 日志 ──────────────────────────────────────────────────
+    console.log(
+      `[DashScopeClient] _createQwenImageTask REQUEST | ` +
+      `model=${params.model} | ` +
+      `endpoint=${apiPath} | ` +
+      `prompt_len=${params.prompt.length} | ` +
+      `size=${requestBody.parameters.size} | ` +
+      `time=${new Date().toISOString()}`
+    );
+
+    // Call without X-DashScope-Async header (qwen-image is synchronous-only)
+    const result = await this.service.requestWithRetry(
+      apiPath,
+      requestBody,
+      'POST',
+      { 'X-DashScope-Async': null }
+    );
+
+    const body = result.body;
+
+    // ── 响应日志 ──────────────────────────────────────────────
+    console.log(
+      `[DashScopeClient] _createQwenImageTask RESPONSE | ` +
+      `httpStatus=${result.statusCode} | ` +
+      `hasCode=${!!(body && body.code)} | ` +
+      `hasOutput=${!!(body && body.output)} | ` +
+      `time=${new Date().toISOString()}`
+    );
+
+    // ── DEBUG(Phase UI-AICreation-02-B-1-G-M-F): 打印 HTTP status + response body 结构 + image URL ──
+    console.log(
+      `[DEBUG-QWEN-IMAGE] HTTP status = ${result.statusCode}`
+    );
+    console.log(
+      `[DEBUG-QWEN-IMAGE] Response body keys = ${body && typeof body === 'object' ? Object.keys(body).join(', ') : 'NOT_OBJECT'}`
+    );
+    if (body && body.output) {
+      console.log(
+        `[DEBUG-QWEN-IMAGE] body.output keys = ${Object.keys(body.output).join(', ')}`
+      );
+    }
+    if (body && body.output && body.output.choices) {
+      console.log(
+        `[DEBUG-QWEN-IMAGE] body.output.choices length = ${body.output.choices.length}`
+      );
+      for (let ci = 0; ci < body.output.choices.length; ci++) {
+        const choice = body.output.choices[ci];
+        const msgContent = choice.message?.content;
+        console.log(
+          `[DEBUG-QWEN-IMAGE] choices[${ci}].message.content type = ${Array.isArray(msgContent) ? 'array(' + msgContent.length + ')' : typeof msgContent}`
+        );
+        if (Array.isArray(msgContent)) {
+          for (let mi = 0; mi < msgContent.length; mi++) {
+            const item = msgContent[mi];
+            console.log(
+              `[DEBUG-QWEN-IMAGE] choices[${ci}].message.content[${mi}] keys = ${Object.keys(item).join(', ')}`
+            );
+            if (item.image !== undefined) {
+              console.log(
+                `[DEBUG-QWEN-IMAGE] choices[${ci}].message.content[${mi}].image type = ${typeof item.image}`
+              );
+              console.log(
+                `[DEBUG-QWEN-IMAGE] choices[${ci}].message.content[${mi}].image value (first 200 chars) = ${String(item.image).substring(0, 200)}`
+              );
+            }
+          }
+        }
+      }
+    }
+    // ── DEBUG END ────────────────────────────────────────────────────────────
+
+    // ── 错误处理 ──────────────────────────────────────────────
+    if (!body || typeof body !== 'object') {
+      throw new ProviderError(
+        this.provider, 'INVALID_RESPONSE',
+        'DashScope returned non-JSON response', false
+      );
+    }
+
+    if (body.code) {
+      const err = new Error(body.message || 'DashScope API error');
+      err.statusCode = result.statusCode;
+      err.body = body;
+      throw err;
+    }
+
+    // ── 解析响应：output.choices[].message.content[].image → results:[{url}] ─
+    const choices = body.output?.choices || [];
+    const results = [];
+    for (const choice of choices) {
+      const contents = choice.message?.content || [];
+      for (const item of contents) {
+        if (item.image) {
+          results.push({ url: item.image });
+        }
+      }
+    }
+
+    // ── DEBUG(Phase UI-AICreation-02-B-1-G-M-F): 打印解析结果 ──
+    console.log(
+      `[DEBUG-QWEN-IMAGE] Parsed results count = ${results.length}`
+    );
+    for (let ri = 0; ri < results.length; ri++) {
+      console.log(
+        `[DEBUG-QWEN-IMAGE] results[${ri}].url (first 200 chars) = ${String(results[ri].url).substring(0, 200)}`
+      );
+    }
+    // ── DEBUG END ────────────────────────────────────────────────────────────
+
+    if (results.length === 0) {
+      throw new ProviderError(
+        this.provider, 'MISSING_RESULTS',
+        'DashScope response missing image results in output.choices', false
+      );
+    }
+
+    return {
+      results,
+      provider: this.provider,
+      status: 'success'
+    };
   }
 
   // ─── 任务状态查询 ──────────────────────────────────────────────

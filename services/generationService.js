@@ -130,7 +130,32 @@ class GenerationService {
         });
       }
 
-      // ── 6. 更新本地任务（关联 provider task ID）──────────────
+      // ── 6. 同步结果（results 存在）→ 直接完成 ──────────────
+      if (aiResult.results && aiResult.results.length > 0) {
+        await localTask.update({
+          task_id: aiResult.taskId,
+          provider: aiResult.provider,
+          model: aiResult.model || model,
+          status: 'success',
+          progress: 100,
+          output_url: aiResult.results[0].url,
+          completed_at: new Date()
+        });
+
+        this._logTaskCreated(localTask, aiResult);
+
+        return {
+          id: localTask.id,
+          taskId: aiResult.taskId,
+          provider: aiResult.provider,
+          model: aiResult.model || model,
+          status: 'success',
+          results: aiResult.results,
+          createdAt: localTask.created_at
+        };
+      }
+
+      // ── 7. 异步任务（taskId）→ 更新本地任务关联 ─────────────
       await localTask.update({
         task_id: aiResult.taskId,
         provider: aiResult.provider,
@@ -140,7 +165,7 @@ class GenerationService {
         started_at: new Date()
       });
 
-      // ── 7. 记录 AI 调用日志 ─────────────────────────────────
+      // ── 8. 记录 AI 调用日志 ─────────────────────────────────
       this._logTaskCreated(localTask, aiResult);
 
       return {
@@ -279,6 +304,55 @@ class GenerationService {
         options
       });
 
+      // 同步返回（results 存在）：直接完成任务
+      if (aiResult.results && aiResult.results.length > 0) {
+        // ── DEBUG(Phase UI-AICreation-02-B-1-G-M-F): 打印同步结果处理 ──
+        console.log(
+          `[DEBUG-QWEN-IMAGE] GenerationService.generateImage SYNCHRONOUS PATH | ` +
+          `aiResult.taskId=${aiResult.taskId} | ` +
+          `aiResult.results count=${aiResult.results.length} | ` +
+          `aiResult.results[0].url (first 200 chars)=${String(aiResult.results[0].url).substring(0, 200)}`
+        );
+        // ── DEBUG END ────────────────────────────────────────────────────────────
+
+        await localTask.update({
+          task_id: aiResult.taskId,
+          provider: aiResult.provider,
+          model: aiResult.model || model,
+          status: 'success',
+          progress: 100,
+          output_url: aiResult.results[0].url,
+          completed_at: new Date()
+        });
+
+        this._logTaskCreated(localTask, aiResult);
+
+        const returnValue = {
+          id: localTask.id,
+          taskId: aiResult.taskId,
+          provider: aiResult.provider,
+          model: aiResult.model || model,
+          modelId: aiResult.modelId || modelId,
+          status: 'success',
+          results: aiResult.results,
+          createdAt: localTask.created_at
+        };
+
+        // ── DEBUG(Phase UI-AICreation-02-B-1-G-M-F): 打印返回给上层的格式 ──
+        console.log(
+          `[DEBUG-QWEN-IMAGE] GenerationService.generateImage return (sync) | ` +
+          `id=${returnValue.id} | ` +
+          `taskId=${returnValue.taskId} | ` +
+          `hasResults=${!!returnValue.results} | ` +
+          `resultsCount=${returnValue.results ? returnValue.results.length : 0} | ` +
+          `status=${returnValue.status}`
+        );
+        // ── DEBUG END ────────────────────────────────────────────────────────────
+
+        return returnValue;
+      }
+
+      // 异步返回（taskId）：保持原流程
       await localTask.update({
         task_id: aiResult.taskId,
         provider: aiResult.provider,
