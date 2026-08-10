@@ -1838,12 +1838,16 @@
             var isImageTask = creationType === 'imageGen'
                 || task.taskType === 'text2image'
                 || task.taskType === 'image_generation';
+            console.log(task.outputAsset);
+            console.log(task.outputAsset?.url);
             var previewImageUrl = (task.outputAsset && task.outputAsset.url)
-                || task.playUrl
-                || task.videoUrl
                 || task.output_url
                 || (task.results && task.results[0] && task.results[0].url)
                 || '';
+            // 如果以上都为空，直接使用 task.outputAsset.url
+            if (!previewImageUrl && task.outputAsset && task.outputAsset.url) {
+                previewImageUrl = task.outputAsset.url;
+            }
             var videoUrl = previewImageUrl;
             if (resultArea) resultArea.style.display = 'block';
             if (resultBody) {
@@ -1877,7 +1881,7 @@
                     if (previewVideo) { previewVideo.style.display = 'none'; }
                     if (placeholder) { placeholder.style.display = 'none'; }
                     if (largePreview) {
-                        largePreview.innerHTML = '<img src="' + escapeHtml(videoUrl) + '" style="width:100%;height:100%;object-fit:contain;border-radius:8px" alt="预览图片">';
+                        largePreview.src = videoUrl;
                         largePreview.style.display = 'block';
                     }
                 } else if (!isImageTask && videoUrl) {
@@ -1943,7 +1947,7 @@
                     if (previewVideo3) { previewVideo3.style.display = 'none'; }
                     if (placeholder3) { placeholder3.style.display = 'none'; }
                     if (largePreview3) {
-                        largePreview3.innerHTML = '<img src="' + escapeHtml(task.images[0]) + '" style="width:100%;height:100%;object-fit:contain;border-radius:8px" alt="预览图片">';
+                        largePreview3.src = task.images[0];
                         largePreview3.style.display = 'block';
                     }
                 } else {

@@ -172,7 +172,7 @@ const models = {
     category: 'image',
     categoryLabel: '图片生成',
     icon: '🎨',
-    sort: 1,
+    sort: 1.2,
 
     // 参数约束
     maxPromptLength: 2000,
@@ -187,7 +187,7 @@ const models = {
     apiPath: '/api/v1/services/aigc/multimodal-generation/generation',
   },
 
-  // Phase UI-AICreation-02-B-1-G-M-I: 备用文生图模型
+  // Phase UI-AICreation-02-B-1-G-U: qwen-image-3.0-pro 不再是默认模型，默认改为 qwen-image-2.0-pro
   // qwen-image-3.0-pro 主模型在限流(429)时切到此模型继续生成
   'qwen-image-backup': {
     id: 'qwen-image-backup',
@@ -234,7 +234,7 @@ const models = {
     category: 'image',
     categoryLabel: '图片生成',
     icon: '🖼️',
-    sort: 1.2,
+    sort: 1,
 
     // 参数约束
     maxPromptLength: 2000,
@@ -447,7 +447,7 @@ const capabilityMap = buildCapabilityMap();
 const templates = [
   {
     id: 'image_generation',
-    modelId: 'qwen-image',
+    modelId: 'qwen-image-2.0-pro',
     name: '商业图片生成',
     description: '通过文字描述生成高质量商业图片，适合产品展示、营销素材',
     icon: '🎨',
