@@ -87,6 +87,7 @@
    *   prompt: string,
    *   negativePrompt?: string,
    *   model?: string,
+   *   modelId?: string,
    *   duration?: number,
    *   params?: object
    * }} input
@@ -94,7 +95,7 @@
    * @returns {Promise<{id: number, task_id: string, status: string, created_at: string}>}
    */
   async function createImageToVideoTask(input, signal) {
-    const { sourceAssetId, prompt, negativePrompt, model, duration, params } = input;
+    const { sourceAssetId, prompt, negativePrompt, model, modelId, duration, params } = input;
 
     // 校验
     if (!sourceAssetId) {
@@ -125,7 +126,7 @@
     };
 
     if (negativePrompt) body.negativePrompt = negativePrompt.trim();
-    if (model) body.model = model;
+    if (model || modelId) body.model = model || modelId;
     if (duration !== undefined && duration !== null) body.duration = parseInt(duration) || 5;
     if (params && typeof params === 'object') body.params = params;
 

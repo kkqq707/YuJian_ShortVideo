@@ -598,6 +598,7 @@ async function storeVideoAndCreateAsset(task, enterpriseId, userId, videoUrl, co
  *   prompt         - 正向提示词（必填）
  *   negativePrompt - 负向提示词（可选）
  *   templateId     - 创作模板ID（可选，默认 image_to_video）
+ *   model          - 模型ID（可选，用于覆盖模板默认模型）
  *   duration       - 视频时长（可选）
  *   params         - 扩展参数（可选）
  *
@@ -618,7 +619,7 @@ exports.createTask = async (req, res) => {
   try {
     const enterpriseId = req.user.enterpriseId;
     const userId = req.user.userId;
-    const { sourceAssetId, prompt, negativePrompt, templateId, duration, params } = req.body;
+    const { sourceAssetId, prompt, negativePrompt, templateId, duration, params, model } = req.body;
 
     // ── 1. 参数校验（Controller 层）─────────────────────────────
     if (!sourceAssetId) {
@@ -658,6 +659,7 @@ exports.createTask = async (req, res) => {
       `templateId=${templateId || 'image_to_video'} | ` +
       `prompt_len=${prompt.trim().length} | ` +
       `has_negative=${!!negativePrompt} | ` +
+      `model=${model || 'N/A'} | ` +
       `imageUrl=${imageUrl ? imageUrl.substring(0, 80) + '...' : '(missing)'} | ` +
       `duration=${duration || 'N/A'} | ` +
       `has_params=${!!params} | ` +
@@ -673,6 +675,7 @@ exports.createTask = async (req, res) => {
       imageUrl: imageUrl.trim(),
       sourceAssetId,
       duration,
+      model,
       options: params
     });
 

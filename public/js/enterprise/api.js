@@ -174,7 +174,21 @@
      */
     createTextToVideoTask: function (taskInput) {
       // Phase 2-C-1-D: 接入后端文生视频接口
-      return YuJianAPI.post('/enterprise/tasks/text2video', taskInput);
+      // modelId → model 字段转换（参照 createRefToVideoTask）
+      var body = {
+        prompt: taskInput.prompt || '',
+        duration: taskInput.duration || 5,
+        params: taskInput.params || {}
+      };
+
+      if (taskInput.modelId && YJ.state && YJ.state.aiModels && YJ.state.aiModels.models) {
+        var modelConfig = YJ.state.aiModels.models[taskInput.modelId];
+        if (modelConfig && modelConfig.apiModelName) {
+          body.model = modelConfig.apiModelName;
+        }
+      }
+
+      return YuJianAPI.post('/enterprise/tasks/text2video', body);
     },
 
     /**

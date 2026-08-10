@@ -1943,9 +1943,9 @@
                             if (generateText) generateText.textContent = '上传中...';
                             var uploadResult = await YuJianUpload.uploadImage(YJ.state.aiCreation.selectedFile);
                             YJ.state.aiCreation.uploadedImageUrl = uploadResult.url;
-                            YJ.state.aiCreation.assetId = uploadResult.id;
+                            YJ.state.aiCreation.assetId = uploadResult.assetId;
                             taskInput.imageUrl = uploadResult.url;
-                            taskInput.sourceAssetId = uploadResult.id;
+                            taskInput.sourceAssetId = uploadResult.assetId;
                         }
                         taskInput.templateId = 'image_to_video';
                         task = await EnterpriseAPI.Generation.createImageToVideoTask(taskInput);

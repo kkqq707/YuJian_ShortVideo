@@ -51,6 +51,7 @@ class GenerationService {
    * @param {Array}  [params.images]       — 多参考图
    * @param {number} [params.sourceAssetId] — 输入素材 Asset ID
    * @param {number} [params.duration]     — 视频时长（秒）
+   * @param {string} [params.model]        — 用户指定模型ID（可选，用于覆盖模板默认模型）
    * @param {Object} [params.options]      — 额外参数
    * @returns {Promise<{
    *   id: number,
@@ -65,8 +66,13 @@ class GenerationService {
     const {
       enterpriseId, userId, templateId, prompt,
       negativePrompt, imageUrl, images,
-      sourceAssetId, duration, options
+      sourceAssetId, duration, model: userModel, options
     } = params;
+
+    // ── 0. 用户指定模型日志 ──────────────────────────────────────
+    if (userModel) {
+      console.log(`[GenerationService] createGenerationTask userModel override: ${userModel}`);
+    }
 
     // ── 1. 参数校验 ────────────────────────────────────────────
     this._validateInput({ enterpriseId, userId, templateId, prompt });
