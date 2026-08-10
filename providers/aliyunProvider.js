@@ -183,7 +183,7 @@ class AliyunBailianProvider {
   async generateVideo(params) {
     const {
       templateId, prompt, imageUrl, images,
-      negativePrompt, duration, options = {}
+      negativePrompt, duration, model, options = {}
     } = params;
 
     // ── 1. 参数校验 ────────────────────────────────────────────
@@ -215,6 +215,7 @@ class AliyunBailianProvider {
       images,
       negativePrompt,
       duration: duration || modelConfig.defaultDuration,
+      model,
       options
     });
 
@@ -223,7 +224,7 @@ class AliyunBailianProvider {
     return {
       taskId: result.taskId,
       provider: this.name,
-      model: modelConfig.apiModelName,
+      model: model || modelConfig.apiModelName,
       modelId: modelConfig.id,
       status: result.status,
       outputType: 'video'

@@ -15,6 +15,7 @@
  *   ├──────────────────────────────┼──────────────────────┼──────────┤
  *   │ wan2.1-t2v                   │ text_to_video         │ video    │
  *   │ wan2.1-i2v                   │ image_to_video        │ video    │
+ *   │ wan2.7-i2v                   │ image_to_video        │ video    │
  *   │ wan2.1-ref2video             │ reference_to_video    │ video    │
  *   │ qwen-image                   │ image_generation      │ image    │
  *   │ qwen-image-backup            │ image_generation      │ image    │
@@ -117,6 +118,41 @@ const models = {
     maxImages: 1,
 
     // 定价
+    pricing: { pointsPerUnit: 12, unit: 'second' },
+
+    // API 端点
+    apiPath: '/api/v1/services/aigc/video-generation/video-synthesis',
+  },
+
+  // ── Wan2.7 系列 ─────────────────────────────────────────────────
+
+  'wan2.7-i2v': {
+    id: 'wan2.7-i2v',
+    name: 'Wan2.7 图生视频',
+    displayName: 'wan2.7-i2v',
+    family: 'wan2.7',
+    provider: 'aliyun',
+    capability: CAPABILITY.IMAGE_TO_VIDEO,
+    outputType: 'video',
+    apiModelName: 'wan2.7-i2v',
+
+    description: 'Wan2.7 图生视频模型，更高画质与动态表现，将静态图片转换为高质量动态视频',
+    category: 'video',
+    categoryLabel: '视频生成',
+    icon: '🎬',
+    sort: 2.5,
+
+    // 参数约束（沿用 wan2.1-i2v 兼容配置）
+    maxPromptLength: 2000,
+    defaultDuration: 5,
+    maxDuration: 30,
+    supportedSizes: ['720P', '480P'],
+    defaultSize: '720P',
+    requireImage: true,
+    minImages: 1,
+    maxImages: 1,
+
+    // 定价（沿用 wan2.1-i2v 配置）
     pricing: { pointsPerUnit: 12, unit: 'second' },
 
     // API 端点

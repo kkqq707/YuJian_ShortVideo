@@ -40,7 +40,7 @@ class AliyunVideoProvider {
   async createTask(params) {
     const {
       templateId, prompt, imageUrl, images,
-      negativePrompt, duration, options = {}
+      negativePrompt, duration, model, options = {}
     } = params;
 
     // ── 1. 解析模型 ────────────────────────────────────────────
@@ -75,11 +75,13 @@ class AliyunVideoProvider {
     }
 
     // ── 3. 按 capability 分发 ──────────────────────────────────
+    const effectiveModel = model || modelConfig.model;
+
     switch (modelConfig.capability) {
       case 'image_to_video':
         return this._createImageToVideo(
           prompt.trim(), imageUrl, images,
-          negativePrompt, modelConfig.model, duration, options
+          negativePrompt, effectiveModel, duration, options
         );
 
       case 'text_to_video':

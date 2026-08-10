@@ -2,13 +2,21 @@
  * YuJian PromptTemplates — Prompt 模板系统
  *
  * Sprint 4.3: 静态前端模板，降低用户 Prompt 编写门槛
+ * Phase UI-AICreation-02-B-2.3-D-1: 按 capability 分类过滤
  *
  * 使用方式：
- *   // 渲染模板卡片到指定容器
+ *   // 渲染模板卡片到指定容器（无过滤 — 兼容旧行为）
  *   YuJianPromptTemplates.render('.template-selector', 'i2vPrompt');
+ *
+ *   // 渲染时按 capability 过滤
+ *   YuJianPromptTemplates.render('.template-selector', 'studioPrompt', 'video');    // 仅视频模板
+ *   YuJianPromptTemplates.render('.template-selector', 'imgGenPrompt', 'image');   // 仅图片模板
  *
  *   // 获取所有模板
  *   YuJianPromptTemplates.getTemplates();
+ *
+ *   // 按 capability 获取模板
+ *   YuJianPromptTemplates.getTemplatesByCapability('video');
  */
 
 (function () {
@@ -18,44 +26,83 @@
 
   /**
    * 创作模板列表
-   * 每个模板包含用于图生视频的 motion prompt（描述动态效果）
+   *
+   * 每个模板必须声明 capability 字段：
+   *   'video' — 适用于视频类生成（image_to_video / text_to_video / reference_to_video）
+   *   'image' — 适用于图片类生成（image_generation）
+   *
+   * 原 6 个模板均为视频场景设计（描述动态/运镜效果），归属 'video'
    */
   var TEMPLATES = [
     {
       id: 'movie-blockbuster',
       name: '电影大片',
       icon: '🎬',
+      capability: 'video',
       prompt: '电影级光影，镜头缓慢推进，画面富有史诗感，色彩浓郁饱满，浅景深虚化背景，人物主体突出，柔和的胶片颗粒质感，24fps电影帧率，动态模糊自然流畅'
     },
     {
       id: 'portrait-photo',
       name: '人物写真',
       icon: '👤',
+      capability: 'video',
       prompt: '人物保持自然优雅的微动作，发丝轻柔飘动，眼神温和有光，背景光斑缓缓旋转，画面有呼吸感，柔焦效果，整体氛围温暖治愈，高端写真质感'
     },
     {
       id: 'product-ad',
       name: '产品广告',
       icon: '🛍',
+      capability: 'video',
       prompt: '产品主体精致展示，光影在产品表面流动，镜头以产品为中心环绕旋转，背景干净简约，粒子光效点缀，高端广告质感，画面明亮通透'
     },
     {
       id: 'chinese-anime',
       name: '国风动画',
       icon: '🏮',
+      capability: 'video',
       prompt: '中国传统水墨风格动画，墨色浓淡渐变晕染，笔触流动自然，古风元素灵动飘逸，画面留白有韵味，绢本质感，暖色调光晕，诗意氛围'
     },
     {
       id: 'product-showcase',
       name: '产品展示',
       icon: '📦',
+      capability: 'video',
       prompt: '产品360度旋转展示，镜头平滑环绕，细节特写切换流畅，光线均匀柔和，纯色背景突出产品，画面干净专业，电商展示风格'
     },
     {
       id: 'game-cg',
       name: '游戏CG',
       icon: '🎮',
+      capability: 'video',
       prompt: '游戏CG级别渲染，画面具有强烈的视觉冲击力，粒子特效绚丽，光影对比强烈，动态运镜充满力量感，色彩鲜艳饱和，次世代游戏画面质感'
+    },
+    {
+      id: 'image-portrait',
+      name: '人物肖像',
+      icon: '📷',
+      capability: 'image',
+      prompt: '专业人像摄影，柔和自然光从侧前方打亮面部，眼神深邃有故事感，浅景深虚化背景，皮肤质感细腻真实，色彩温暖自然，高端杂志封面质感，8K超高清细节'
+    },
+    {
+      id: 'image-product-photo',
+      name: '产品摄影',
+      icon: '💎',
+      capability: 'image',
+      prompt: '商业产品摄影，产品主体居中构图，影棚级布光突出材质与轮廓，干净的纯色渐变背景，水珠或光斑点缀增强质感，画面通透锐利，高端电商广告风格，超写实渲染'
+    },
+    {
+      id: 'image-concept-art',
+      name: '概念艺术',
+      icon: '🎨',
+      capability: 'image',
+      prompt: '概念艺术插画，宏大的世界观场景设定，丰富的环境细节与层次感，戏剧性的光影对比营造氛围，独特的艺术风格与色彩基调，画面具有强烈的叙事性与想象空间，数字绘画大师级品质'
+    },
+    {
+      id: 'image-movie-poster',
+      name: '电影海报',
+      icon: '🎭',
+      capability: 'image',
+      prompt: '电影海报设计，精心构图的角色群像或关键场景，强烈的视觉中心与标题留白区域，电影级色彩调色与光影氛围，字体排版预留空间，戏剧化的情绪张力，高端影视宣传风格'
     }
   ];
 
@@ -64,10 +111,12 @@
   /**
    * 渲染模板选择器到指定容器
    *
-   * @param {string|Element} container - 容器选择器或 DOM 元素
-   * @param {string} targetInputId   - 目标 prompt 输入框的 id
+   * @param {string|Element} container    - 容器选择器或 DOM 元素
+   * @param {string}          targetInputId - 目标 prompt 输入框的 id
+   * @param {string}          [capability]  - 可选，按 capability 过滤模板 ('video' | 'image')
+   *                                          不传则渲染全部模板（兼容旧行为）
    */
-  function render(container, targetInputId) {
+  function render(container, targetInputId, capability) {
     var el = typeof container === 'string'
       ? document.querySelector(container)
       : container;
@@ -82,12 +131,17 @@
       return;
     }
 
+    // ── Phase UI-AICreation-02-B-2.3-D-1: 按 capability 过滤 ──
+    var filtered = capability
+      ? TEMPLATES.filter(function (tmpl) { return tmpl.capability === capability; })
+      : TEMPLATES;
+
     // 构建模板卡片 HTML
     var html = '<div class="template-selector">';
     html += '<div class="template-selector-label">创作模板</div>';
     html += '<div class="template-cards">';
 
-    TEMPLATES.forEach(function (tmpl) {
+    filtered.forEach(function (tmpl) {
       html +=
         '<div class="template-card" ' +
         'data-template-id="' + tmpl.id + '" ' +
@@ -189,6 +243,17 @@
     return TEMPLATES.slice();
   }
 
+  /**
+   * 按 capability 获取模板列表
+   *
+   * @param {string} capability - 'video' | 'image'
+   * @returns {object[]} 匹配的模板数组
+   */
+  function getTemplatesByCapability(capability) {
+    if (!capability) return TEMPLATES.slice();
+    return TEMPLATES.filter(function (tmpl) { return tmpl.capability === capability; });
+  }
+
   // ─── 工具函数 ────────────────────────────────────────────
 
   /**
@@ -283,6 +348,7 @@
     render: render,
     handleSelect: handleSelect,
     getTemplates: getTemplates,
+    getTemplatesByCapability: getTemplatesByCapability,
     findTemplate: findTemplate
   };
 

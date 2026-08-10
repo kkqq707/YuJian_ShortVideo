@@ -58,11 +58,12 @@
   };
 
   // ─── Init Template Selector ───────────────────────────────
-  function initTemplateSelector(containerSelector, targetInputId) {
+  // Phase UI-AICreation-02-B-2.3-D-1: 支持 capability 参数过滤
+  function initTemplateSelector(containerSelector, targetInputId, capability) {
     var container = document.querySelector(containerSelector);
     if (!container) return;
     if (typeof YuJianPromptTemplates !== 'undefined') {
-      YuJianPromptTemplates.render(container, targetInputId);
+      YuJianPromptTemplates.render(container, targetInputId, capability);
     }
   }
 
@@ -153,10 +154,10 @@
     switch (page) {
       case 'dashboard': container.innerHTML = (typeof renderDashboard === 'function' ? renderDashboard() : '<div class="card"><div class="card-body">页面开发中</div></div>'); break;
       case 'storyboard': container.innerHTML = (typeof renderStoryboardPage === 'function' ? renderStoryboardPage() : '<div class="card"><div class="card-body">页面开发中</div></div>'); break;
-      case 'text2video': container.innerHTML = (typeof renderText2Video === 'function' ? renderText2Video() : '<div class="card"><div class="card-body">页面开发中</div></div>'); initTemplateSelector('#t2vTemplateContainer', 't2vPrompt'); break;
-      case 'image2video': container.innerHTML = (typeof renderImage2Video === 'function' ? renderImage2Video() : '<div class="card"><div class="card-body">页面开发中</div></div>'); initTemplateSelector('#i2vTemplateContainer', 'i2vPrompt'); break;
-      case 'studio': container.innerHTML = (typeof renderStudio === 'function' ? renderStudio() : renderFallback('AI创作中心')); initTemplateSelector('#studioTemplateContainer', 'studioPrompt'); break;
-      case 'ref2video': container.innerHTML = (typeof renderStudio === 'function' ? renderStudio() : renderFallback('AI创作中心')); initTemplateSelector('#studioTemplateContainer', 'studioPrompt'); setTimeout(function () { if (typeof studioSelectType === 'function') { var card = document.querySelector('.yj-studio-type-card[data-type="ref2video"]'); if (card) studioSelectType(card, 'ref2video'); } }, 0); break;
+      case 'text2video': container.innerHTML = (typeof renderText2Video === 'function' ? renderText2Video() : '<div class="card"><div class="card-body">页面开发中</div></div>'); initTemplateSelector('#t2vTemplateContainer', 't2vPrompt', 'video'); break;
+      case 'image2video': container.innerHTML = (typeof renderImage2Video === 'function' ? renderImage2Video() : '<div class="card"><div class="card-body">页面开发中</div></div>'); initTemplateSelector('#i2vTemplateContainer', 'i2vPrompt', 'video'); break;
+      case 'studio': container.innerHTML = (typeof renderStudio === 'function' ? renderStudio() : renderFallback('AI创作中心')); initTemplateSelector('#studioTemplateContainer', 'studioPrompt', 'video'); break;
+      case 'ref2video': container.innerHTML = (typeof renderStudio === 'function' ? renderStudio() : renderFallback('AI创作中心')); initTemplateSelector('#studioTemplateContainer', 'studioPrompt', 'video'); setTimeout(function () { if (typeof studioSelectType === 'function') { var card = document.querySelector('.yj-studio-type-card[data-type="ref2video"]'); if (card) studioSelectType(card, 'ref2video'); } }, 0); break;
       case 'digitalhuman':
         if (typeof renderDigitalHumanAsync === 'function') {
           renderDigitalHumanAsync(container);
@@ -166,7 +167,7 @@
           container.innerHTML = '<div class="card"><div class="card-body">页面开发中</div></div>';
         }
         break;
-      case 'imageGen': container.innerHTML = (typeof renderImageGen === 'function' ? renderImageGen() : '<div class="card"><div class="card-body">页面开发中</div></div>'); initTemplateSelector('#imgGenTemplateContainer', 'imgGenPrompt'); break;
+      case 'imageGen': container.innerHTML = (typeof renderImageGen === 'function' ? renderImageGen() : '<div class="card"><div class="card-body">页面开发中</div></div>'); initTemplateSelector('#imgGenTemplateContainer', 'imgGenPrompt', 'image'); break;
       case 'projects': container.innerHTML = (typeof renderProjects === 'function' ? renderProjects() : '<div class="card"><div class="card-body">页面开发中</div></div>'); break;
       case 'project-detail': {
         var pid = APP.currentProjectId;

@@ -781,13 +781,13 @@
             const container = document.getElementById('mainContent');
             switch (page) {
                 case 'dashboard': container.innerHTML = renderDashboard(); break;
-                case 'studio': container.innerHTML = renderStudio(); initTemplateSelector('#studioTemplateContainer', 'studioPrompt'); studioInitModelSelect('ref2video'); /* Phase UI-AICreation-02-B-2.2-B: 初始化 DOM 隔离 */ studioUpdateStepBadges('ref2video'); studioUpdatePromptDOM('ref2video'); studioUpdateParamVisibility('ref2video'); break;
+                case 'studio': container.innerHTML = renderStudio(); initTemplateSelector('#studioTemplateContainer', 'studioPrompt', 'video'); studioInitModelSelect('ref2video'); /* Phase UI-AICreation-02-B-2.2-B: 初始化 DOM 隔离 */ studioUpdateStepBadges('ref2video'); studioUpdatePromptDOM('ref2video'); studioUpdateParamVisibility('ref2video'); break;
                 case 'storyboard': container.innerHTML = renderStoryboardPage(); break;
-                case 'text2video': container.innerHTML = renderText2Video(); initTemplateSelector('#t2vTemplateContainer', 't2vPrompt'); break;
-                case 'image2video': container.innerHTML = renderImage2Video(); initTemplateSelector('#i2vTemplateContainer', 'i2vPrompt'); break;
-                case 'ref2video': container.innerHTML = renderStudio(); initTemplateSelector('#studioTemplateContainer', 'studioPrompt'); (function(){var c=document.querySelector('.yj-studio-type-card[data-type="ref2video"]');studioSelectType(c,'ref2video');})(); break;
+                case 'text2video': container.innerHTML = renderText2Video(); initTemplateSelector('#t2vTemplateContainer', 't2vPrompt', 'video'); break;
+                case 'image2video': container.innerHTML = renderImage2Video(); initTemplateSelector('#i2vTemplateContainer', 'i2vPrompt', 'video'); break;
+                case 'ref2video': container.innerHTML = renderStudio(); initTemplateSelector('#studioTemplateContainer', 'studioPrompt', 'video'); (function(){var c=document.querySelector('.yj-studio-type-card[data-type="ref2video"]');studioSelectType(c,'ref2video');})(); break;
                 case 'digitalhuman': renderDigitalHumanAsync(container); break;
-                case 'imageGen': container.innerHTML = renderImageGen(); initTemplateSelector('#imgGenTemplateContainer', 'imgGenPrompt'); break;
+                case 'imageGen': container.innerHTML = renderImageGen(); initTemplateSelector('#imgGenTemplateContainer', 'imgGenPrompt', 'image'); break;
                 case 'projects': container.innerHTML = renderProjects(); break;
                 case 'myworks': container.innerHTML = renderMyWorks(); setTimeout(() => loadMyWorks(1), 0); break;
                 case 'assets': container.innerHTML = renderAssets(); break;
@@ -802,11 +802,12 @@
         }
 
         // ─── Sprint 4.3: 初始化模板选择器 ────────────────────
-        function initTemplateSelector(containerSelector, targetInputId) {
+        // Phase UI-AICreation-02-B-2.3-D-1: 支持 capability 参数过滤
+        function initTemplateSelector(containerSelector, targetInputId, capability) {
             var container = document.querySelector(containerSelector);
             if (!container) return;
             if (typeof YuJianPromptTemplates !== 'undefined') {
-                YuJianPromptTemplates.render(container, targetInputId);
+                YuJianPromptTemplates.render(container, targetInputId, capability);
             }
         }
 
@@ -1226,8 +1227,8 @@
                 + '<div class="yj-studio-preview-panel" id="studioPreviewPanel">'
                 + '  <div class="yj-studio-preview-placeholder" id="studioPreviewPlaceholder">'
                 + '    <i class="fas fa-image" style="font-size:64px;opacity:0.3"></i>'
-                + '    <div style="font-size:15px;color:var(--text-sub);margin-top:12px">预览区域</div>'
-                + '    <div style="font-size:12px;color:var(--text-muted);margin-top:6px">上传素材后可在此预览</div>'
+                + '    <div id="studioPreviewPlaceholderTitle" style="font-size:15px;color:var(--text-sub);margin-top:12px">生成结果预览</div>'
+                + '    <div id="studioPreviewPlaceholderDesc" style="font-size:12px;color:var(--text-muted);margin-top:6px">生成完成的视频将在此处显示，可直接预览和播放</div>'
                 + '  </div>'
                 + '  <img id="studioLargePreview" style="display:none;width:100%;height:100%;object-fit:contain;position:relative;z-index:1" alt="大图预览">'
                 + '  <video id="studioResultVideo" controls playsinline style="display:none;width:100%;max-height:100%;border-radius:8px;background:#000"></video>'
@@ -1267,6 +1268,10 @@
                 studioRefreshModelSelect(capability);
             }
 
+            // ★ Phase UI-AICreation-02-B-2.3-D-3: 同步刷新 Prompt 模板
+            var templateCapability = (type === 'imageGen') ? 'image' : 'video';
+            initTemplateSelector('#studioTemplateContainer', 'studioPrompt', templateCapability);
+
             // ── Phase 2-C-2-4-C-3-2: 素材清理（拆分规则） ──
             if (prevType === 'ref2video' && type !== 'ref2video') {
                 studioClearRefImages();
@@ -1302,6 +1307,9 @@
                     promptEl.value = modeState.prompt;
                 }
             }
+
+            // 更新预览区域占位文案
+            studioUpdatePreviewPlaceholder(type);
 
             // 重置结果
             studioResetResult();
@@ -2027,14 +2035,14 @@
                 || task.taskType === 'image_generation';
             console.log(task.outputAsset);
             console.log(task.outputAsset?.url);
-            var previewImageUrl = (task.outputAsset && task.outputAsset.url)
+            // Phase UI-AICreation-02-B-2.3-B: 视频优先使用签名播放 URL
+            var previewImageUrl = task.videoUrl
+                || task.playUrl
+                || (task.outputAsset && task.outputAsset.play_url)
+                || (task.outputAsset && task.outputAsset.url)
                 || task.output_url
                 || (task.results && task.results[0] && task.results[0].url)
                 || '';
-            // 如果以上都为空，直接使用 task.outputAsset.url
-            if (!previewImageUrl && task.outputAsset && task.outputAsset.url) {
-                previewImageUrl = task.outputAsset.url;
-            }
             var videoUrl = previewImageUrl;
             if (resultArea) resultArea.style.display = 'block';
             if (resultBody) {
@@ -2206,6 +2214,22 @@
         }
 
         // ─── 重置结果 ────────────────────────────────────
+        // ─── 更新预览区域占位文案 ──────────────────────
+        function studioUpdatePreviewPlaceholder(type) {
+            var titleEl = document.getElementById('studioPreviewPlaceholderTitle');
+            var descEl = document.getElementById('studioPreviewPlaceholderDesc');
+            if (!titleEl || !descEl) return;
+
+            var isVideoMode = type === 'ref2video' || type === 'image2video' || type === 'text2video';
+            if (isVideoMode) {
+                titleEl.textContent = '生成结果预览';
+                descEl.textContent = '生成完成的视频将在此处显示，可直接预览和播放';
+            } else if (type === 'imageGen') {
+                titleEl.textContent = '生成结果预览';
+                descEl.textContent = '生成完成的图片将在此处显示，可直接预览';
+            }
+        }
+
         function studioResetResult() {
             var resultArea = document.getElementById('studioResult');
             var statusArea = document.getElementById('studioStatus');

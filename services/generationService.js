@@ -34,7 +34,8 @@ const { GenerationTask } = require('../models');
 const { providerRouter, aliyunProvider, ProviderError } = require('../providers');
 const {
   resolveModelForTemplate,
-  getTemplateModelConfig
+  getTemplateModelConfig,
+  getModelConfig
 } = require('../config/ai-model-registry');
 
 class GenerationService {
@@ -81,6 +82,35 @@ class GenerationService {
     const modelConfig = this._resolveTemplate(templateId);
     const { provider, model, modelId, capability, outputType } = modelConfig;
 
+    // ── 2.5. 用户模型覆盖 ─────────────────────────────────────
+    let effectiveModel = model;
+    let effectiveProvider = provider;
+
+    if (userModel) {
+      const userConfig = getModelConfig(userModel);
+      if (userConfig) {
+        // 校验 capability 一致性
+        if (userConfig.capability === capability) {
+          effectiveModel = userConfig.apiModelName;
+          effectiveProvider = userConfig.provider;
+          console.log(
+            `[GenerationService] userModel override applied: ` +
+            `${userModel} → apiModel=${effectiveModel}, provider=${effectiveProvider}`
+          );
+        } else {
+          console.warn(
+            `[GenerationService] userModel capability mismatch: ` +
+            `${userModel} (capability=${userConfig.capability}) ` +
+            `vs template ${templateId} (capability=${capability}) — ignoring`
+          );
+        }
+      } else {
+        console.warn(
+          `[GenerationService] userModel not found in registry: ${userModel} — using template default`
+        );
+      }
+    }
+
     // ── 3. 判断 task_type ──────────────────────────────────────
     const taskType = this._capabilityToTaskType(capability);
 
@@ -89,14 +119,14 @@ class GenerationService {
       enterprise_id: enterpriseId,
       user_id: userId,
       task_type: taskType,
-      model,
+      model: effectiveModel,
       prompt: prompt.trim(),
       negative_prompt: negativePrompt ? negativePrompt.trim() : null,
       input_url: imageUrl || null,
       input_images: images ? JSON.stringify(images) : null,
       source_asset_id: sourceAssetId || null,
       status: 'pending',
-      provider,
+      provider: effectiveProvider,
       duration: duration || null,
       params: options ? JSON.stringify(options) : null,
       progress: 5
@@ -114,6 +144,7 @@ class GenerationService {
           images,
           negativePrompt,
           duration,
+          model: effectiveModel,
           options
         });
       } else if (outputType === 'image') {
@@ -141,7 +172,7 @@ class GenerationService {
         await localTask.update({
           task_id: aiResult.taskId,
           provider: aiResult.provider,
-          model: aiResult.model || model,
+          model: aiResult.model || effectiveModel,
           status: 'success',
           progress: 100,
           output_url: aiResult.results[0].url,
@@ -154,7 +185,7 @@ class GenerationService {
           id: localTask.id,
           taskId: aiResult.taskId,
           provider: aiResult.provider,
-          model: aiResult.model || model,
+          model: aiResult.model || effectiveModel,
           status: 'success',
           results: aiResult.results,
           createdAt: localTask.created_at
@@ -165,7 +196,7 @@ class GenerationService {
       await localTask.update({
         task_id: aiResult.taskId,
         provider: aiResult.provider,
-        model: aiResult.model || model,
+        model: aiResult.model || effectiveModel,
         status: aiResult.status,
         progress: 30,
         started_at: new Date()
@@ -178,7 +209,7 @@ class GenerationService {
         id: localTask.id,
         taskId: aiResult.taskId,
         provider: aiResult.provider,
-        model: aiResult.model || model,
+        model: aiResult.model || effectiveModel,
         status: aiResult.status,
         createdAt: localTask.created_at
       };
@@ -192,8 +223,8 @@ class GenerationService {
         `[GenerationService] createGenerationTask FAILED | ` +
         `localTaskId=${localTask.id} | ` +
         `templateId=${templateId} | ` +
-        `provider=${provider} | ` +
-        `model=${model} | ` +
+        `provider=${effectiveProvider} | ` +
+        `model=${effectiveModel} | ` +
         `errorName=${error.name || 'Unknown'} | ` +
         `errorCode=${errorInfo.code} | ` +
         `errorMessage=${errorInfo.message} | ` +
