@@ -469,7 +469,7 @@
   // ── AI Model Registry Accessors (Phase 2-C-2-3-A) ───────────
 
   /** Populate aiModels from API response data */
-  function setAiModelsData(templates, capabilities) {
+  function setAiModelsData(templates, capabilities, allModels) {
     var am = APP_STATE.aiModels;
 
     // Build lookup maps from templates (each template carries its associated model)
@@ -497,6 +497,25 @@
             if (capabilityToModels[m.capability].indexOf(m.id) === -1) {
               capabilityToModels[m.capability].push(m.id);
             }
+          }
+        }
+      }
+    }
+
+    // Phase UI-AICreation-02-B-1-G-M-I: 合并来自 /registry/models 的全部模型
+    // 确保无 template 的备用模型（如 qwen-image-backup）也出现在 state 中
+    if (allModels && allModels.length) {
+      for (var j = 0; j < allModels.length; j++) {
+        var am_ = allModels[j];
+        if (am_.id && !models[am_.id]) {
+          models[am_.id] = am_;
+        }
+        if (am_.id && am_.capability) {
+          if (!capabilityToModels[am_.capability]) {
+            capabilityToModels[am_.capability] = [];
+          }
+          if (capabilityToModels[am_.capability].indexOf(am_.id) === -1) {
+            capabilityToModels[am_.capability].push(am_.id);
           }
         }
       }

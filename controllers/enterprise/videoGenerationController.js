@@ -1,4 +1,7 @@
 const { Op } = require('sequelize');
+const https = require('https');
+const http = require('http');
+const crypto = require('crypto');
 const { GenerationTask, Asset } = require('../../models');
 const dashscopeService = require('../../services/dashscopeService');
 const generationService = require('../../services/generationService');
@@ -43,6 +46,15 @@ function generateVideoName(task) {
 }
 
 /**
+ * 从图片生成任务创建友好名称
+ */
+function generateImageName(task) {
+  const date = new Date().toISOString().slice(0, 10);
+  const promptSnippet = (task.prompt || 'image').substring(0, 30).replace(/[^a-zA-Z0-9一-鿿]/g, '_');
+  return `AI图片_${promptSnippet}_${date}`;
+}
+
+/**
  * 构建轻量列表项
  * 用于 GET /api/enterprise/video-generation/tasks
  *
@@ -55,6 +67,11 @@ function toListItem(task) {
     || (outputAsset && outputAsset.play_url)
     || null;
 
+  // Phase UI-AICreation-02-B-1-G-P: 识别图片任务，避免前端误判为视频
+  const isImageTask = task.task_type === 'text2image' || task.task_type === 'image_generation'
+    || (outputAsset && outputAsset.type === 'image');
+  const isImageOutput = outputAsset && outputAsset.type === 'image';
+
   return {
     id: task.id,
     status: task.status,
@@ -63,18 +80,24 @@ function toListItem(task) {
     model: task.model,
     thumbnailUrl: task._signedThumbnail || computeThumbnailUrl(task),
     coverUrl: task._signedThumbnail || task.cover_url || (outputAsset ? outputAsset.url : null) || null,
-    videoUrl: playUrl || task.output_url || null,
-    playUrl: playUrl || task.output_url || null,
+    // 图片任务的 videoUrl/playUrl 应为 null，不提供视频播放入口
+    videoUrl: isImageTask ? null : (playUrl || task.output_url || null),
+    playUrl: isImageTask ? null : (playUrl || task.output_url || null),
     duration: task.duration || null,
     progress: task.progress || 0,
     errorMsg: task.error_msg || null,
     createdAt: task.created_at,
+    // Phase UI-AICreation-02-B-1-G-P: 图片输出资产增加 mediaType / mime 字段
+    mediaType: isImageOutput ? 'image' : (outputAsset ? outputAsset.type : null),
+    mime: isImageOutput ? (outputAsset.mime_type || 'image/png') : null,
     outputAsset: outputAsset ? {
       id: outputAsset.id,
       url: outputAsset.url,
-      play_url: playUrl || outputAsset.url,
+      play_url: isImageOutput ? null : (playUrl || outputAsset.url),
       thumbnail: outputAsset.thumbnail,
       type: outputAsset.type,
+      mediaType: outputAsset.type === 'image' ? 'image' : (outputAsset.type || null),
+      mime: outputAsset.type === 'image' ? (outputAsset.mime_type || 'image/png') : null,
       duration: outputAsset.duration
     } : null
   };
@@ -127,6 +150,33 @@ async function toDetailWithPlayUrl(task) {
       console.error(
         `[VideoGeneration] toDetailWithPlayUrl failed for asset ${task.outputAsset.id}: ${err.message}`
       );
+    }
+  }
+
+  // Phase UI-AICreation-02-B-1-G-O: 签名图片输出 URL（私有 Bucket 需签名 URL 才能预览）
+  if (task.outputAsset && task.outputAsset.type === 'image' && task.outputAsset.url) {
+    try {
+      const signedUrl = await ossService.getSignedUrl(task.outputAsset.url);
+      if (signedUrl && task.outputAsset.dataValues) {
+        task.outputAsset.dataValues.url = signedUrl;
+      }
+    } catch (err) {
+      console.error(
+        `[VideoGeneration] toDetailWithPlayUrl image URL sign failed for task ${task.id}: ${err.message}`
+      );
+    }
+
+    if (task.outputAsset.thumbnail) {
+      try {
+        const signedThumb = await ossService.getSignedUrl(task.outputAsset.thumbnail);
+        if (signedThumb && task.outputAsset.dataValues) {
+          task.outputAsset.dataValues.thumbnail = signedThumb;
+        }
+      } catch (err) {
+        console.error(
+          `[VideoGeneration] toDetailWithPlayUrl image thumbnail sign failed for task ${task.id}: ${err.message}`
+        );
+      }
     }
   }
 
@@ -243,6 +293,203 @@ async function generateVideoPlayUrl(asset) {
  */
 function notDeleted() {
   return { deleted_at: { [Op.eq]: null } };
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  内部函数：图片 OSS 存储 + Asset 闭环
+// ═══════════════════════════════════════════════════════════════════
+
+/**
+ * 从 URL 下载图片，返回 buffer、mimeType、size
+ *
+ * @param {string} imageUrl - 图片 URL
+ * @returns {Promise<{ buffer: Buffer, mimeType: string, size: number }>}
+ */
+function downloadImage(imageUrl) {
+  return new Promise((resolve, reject) => {
+    let parsedUrl;
+    try {
+      parsedUrl = new (require('url').URL)(imageUrl);
+    } catch (_) {
+      reject(new Error('Invalid image URL: cannot parse'));
+      return;
+    }
+
+    if (parsedUrl.protocol !== 'http:' && parsedUrl.protocol !== 'https:') {
+      reject(new Error(`Invalid image URL scheme: ${parsedUrl.protocol}`));
+      return;
+    }
+
+    const transport = parsedUrl.protocol === 'https:' ? https : http;
+
+    const req = transport.get(imageUrl, { timeout: 60000 }, (res) => {
+      // 处理重定向
+      if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
+        downloadImage(res.headers.location).then(resolve).catch(reject);
+        return;
+      }
+
+      if (res.statusCode !== 200) {
+        reject(new Error(`Image download failed: HTTP ${res.statusCode}`));
+        return;
+      }
+
+      const contentType = (res.headers['content-type'] || 'image/png')
+        .toLowerCase().split(';')[0].trim();
+
+      // 校验是否为图片类型
+      if (!contentType.startsWith('image/')) {
+        reject(new Error(`Invalid image content type: ${contentType}`));
+        return;
+      }
+
+      const chunks = [];
+      let totalSize = 0;
+
+      res.on('data', (chunk) => {
+        totalSize += chunk.length;
+        if (totalSize > 50 * 1024 * 1024) { // 50MB max
+          req.destroy();
+          reject(new Error('Image too large: exceeded 50MB'));
+          return;
+        }
+        chunks.push(chunk);
+      });
+
+      res.on('end', () => {
+        const buffer = Buffer.concat(chunks);
+        if (buffer.length === 0) {
+          reject(new Error('Downloaded image is empty'));
+          return;
+        }
+        resolve({ buffer, mimeType: contentType, size: buffer.length });
+      });
+
+      res.on('error', (err) => {
+        reject(new Error(`Image download stream error: ${err.message}`));
+      });
+    });
+
+    req.setTimeout(60000, () => {
+      req.destroy();
+      reject(new Error('Image download timeout'));
+    });
+
+    req.on('error', (err) => {
+      reject(new Error(`Image download request error: ${err.message}`));
+    });
+  });
+}
+
+/**
+ * 生成图片 OSS 存储 key
+ */
+function generateImageOssKey(enterpriseId, mimeType) {
+  const date = new Date();
+  const dateStr = date.getFullYear()
+    + String(date.getMonth() + 1).padStart(2, '0')
+    + String(date.getDate()).padStart(2, '0');
+  const uuid = crypto.randomUUID
+    ? crypto.randomUUID()
+    : Date.now().toString(36) + Math.random().toString(36).substring(2, 10);
+
+  let ext = '.png';
+  if (mimeType) {
+    const parts = mimeType.split('/');
+    if (parts[1]) ext = '.' + parts[1].replace('jpeg', 'jpg');
+  }
+
+  return `enterprises/${enterpriseId}/images/${dateStr}/${uuid}${ext}`;
+}
+
+/**
+ * 将 DashScope 图片转存到自有 OSS，创建 Asset 并关联 GenerationTask
+ *
+ * 幂等：若 task 已有 output_asset_id 则跳过
+ *
+ * @param {Object} task - GenerationTask 实例（含 update/reload 方法）
+ * @param {number} enterpriseId
+ * @param {number} userId
+ * @param {string} imageUrl - DashScope 返回的图片 URL
+ * @returns {Promise<Object>} 更新后的 task
+ */
+async function storeImageAndCreateAsset(task, enterpriseId, userId, imageUrl) {
+  // ── 幂等检查：已有关联 Asset 则直接返回 ──────────────────────
+  if (task.output_asset_id) {
+    return task;
+  }
+
+  // ── 1. 下载图片 ──────────────────────────────────────────────
+  let downloadResult;
+  try {
+    downloadResult = await downloadImage(imageUrl);
+  } catch (downloadError) {
+    console.error(`[VideoGeneration] Image download failed for task ${task.id}: ${downloadError.message}`);
+    await task.update({
+      status: 'failed',
+      error_msg: formatErrorMsg('IMAGE_DOWNLOAD_FAILED', downloadError.message),
+      completed_at: new Date()
+    });
+    await task.reload();
+    return task;
+  }
+
+  // ── 2. 上传 OSS ──────────────────────────────────────────────
+  const ossKey = generateImageOssKey(enterpriseId, downloadResult.mimeType);
+  try {
+    await ossService.putFile(ossKey, downloadResult.buffer, downloadResult.mimeType);
+  } catch (ossError) {
+    console.error(`[VideoGeneration] Image OSS upload failed for task ${task.id}: ${ossError.message}`);
+    await task.update({
+      status: 'failed',
+      error_msg: formatErrorMsg('OSS_UPLOAD_FAILED', 'Failed to upload image to storage'),
+      completed_at: new Date()
+    });
+    await task.reload();
+    return task;
+  }
+
+  const accessUrl = ossService.getFileUrl(ossKey);
+
+  // ── 3. 创建图片 Asset ───────────────────────────────────────
+  let asset;
+  try {
+    asset = await Asset.create({
+      enterprise_id: enterpriseId,
+      user_id: userId,
+      type: 'image',
+      name: generateImageName(task),
+      url: accessUrl,
+      thumbnail: accessUrl,
+      size: downloadResult.size,
+      mime_type: downloadResult.mimeType,
+      width: task.width || null,
+      height: task.height || null,
+      category: 'ai_generated',
+      audit_status: 'pass'
+    });
+  } catch (assetError) {
+    console.error(`[VideoGeneration] Image Asset creation failed for task ${task.id}: ${assetError.message}`);
+    await task.update({
+      status: 'failed',
+      error_msg: formatErrorMsg('ASSET_CREATE_FAILED', 'Failed to create image asset'),
+      completed_at: new Date()
+    });
+    await task.reload();
+    return task;
+  }
+
+  // ── 4. 更新 GenerationTask 关联 ─────────────────────────────
+  await task.update({
+    output_asset_id: asset.id,
+    output_url: accessUrl,
+    status: 'success',
+    progress: 100,
+    completed_at: new Date()
+  });
+  await task.reload();
+
+  return task;
 }
 
 // ═══════════════════════════════════════════════════════════════════
@@ -501,9 +748,11 @@ exports.createImageTask = async (req, res) => {
     // ── 2. 组装 options ──────────────────────────────────────────
     // Phase UI-AICreation-02-B-1-G-M-E: 文生图像固定生成1张图片
     // qwen-image-3.0-pro multimodal-generation 端点每次生成1张（同步）
+    // Phase UI-AICreation-02-B-1-G-M-I: 传递 modelId 用于备用模型选择
     const options = {
       style: style || 'realistic',
-      ratio: ratio || '16:9'
+      ratio: ratio || '16:9',
+      modelId: modelId || null
     };
 
     // ── 3. 调用 GenerationService.generateImage() ────────────────
@@ -635,7 +884,7 @@ exports.listTasks = async (req, res) => {
         {
           model: Asset,
           as: 'outputAsset',
-          attributes: ['id', 'url', 'thumbnail', 'type', 'duration'],
+          attributes: ['id', 'url', 'thumbnail', 'type', 'duration', 'mime_type'],
           required: false
         }
       ],
@@ -664,7 +913,35 @@ exports.listTasks = async (req, res) => {
         }
       }
 
-      // 5b. Sprint 5.9: 签名缩略图 URL（与 computeThumbnailUrl 逻辑一致）
+      // 5b. Phase UI-AICreation-02-B-1-G-O: 签名图片输出 URL（私有 Bucket 需签名 URL 才能预览）
+      if (row.outputAsset && row.outputAsset.type === 'image' && row.outputAsset.url) {
+        try {
+          const signedUrl = await ossService.getSignedUrl(row.outputAsset.url);
+          if (signedUrl) {
+            row.outputAsset.dataValues.url = signedUrl;
+          }
+        } catch (err) {
+          // 降级：签名失败时使用原始 URL（不影响列表渲染）
+          console.warn(
+            `[VideoGeneration] listTasks image URL sign failed for asset ${row.outputAsset.id}: ${err.message}`
+          );
+        }
+
+        if (row.outputAsset.thumbnail) {
+          try {
+            const signedThumb = await ossService.getSignedUrl(row.outputAsset.thumbnail);
+            if (signedThumb) {
+              row.outputAsset.dataValues.thumbnail = signedThumb;
+            }
+          } catch (err) {
+            console.warn(
+              `[VideoGeneration] listTasks image thumbnail sign failed: ${err.message}`
+            );
+          }
+        }
+      }
+
+      // 5c. Sprint 5.9: 签名缩略图 URL（与 computeThumbnailUrl 逻辑一致）
       const thumbUrl = computeThumbnailUrl(row);
       if (thumbUrl) {
         try {
@@ -770,8 +1047,20 @@ exports.getTask = async (req, res) => {
 
     // ── 3. success 但无 output_asset_id → 补做存储闭环 ─────────
     if (task.status === 'success' && !task.output_asset_id) {
-      // Phase UI-AICreation-02-B-1-G-M-G: 图片任务不进入视频存储闭环
+      // Phase UI-AICreation-02-B-1-G-N: 图片任务 → 图片存储闭环
       if (task.task_type === 'text2image' || task.task_type === 'image_generation') {
+        if (task.output_url) {
+          const storedTask = await storeImageAndCreateAsset(
+            task, enterpriseId, userId, task.output_url
+          );
+          const reloaded = await GenerationTask.findByPk(storedTask.id, {
+            include: [
+              { model: Asset, as: 'sourceAsset', attributes: ['id', 'name', 'url', 'thumbnail', 'type', 'width', 'height'], required: false },
+              { model: Asset, as: 'outputAsset', attributes: ['id', 'name', 'url', 'thumbnail', 'type', 'duration', 'width', 'height', 'size', 'mime_type'], required: false }
+            ]
+          });
+          return res.success(await toDetailWithPlayUrl(reloaded || storedTask));
+        }
         return res.success(await toDetailWithPlayUrl(task));
       }
       if (task.output_url) {
@@ -867,10 +1156,23 @@ exports.getTask = async (req, res) => {
           await task.reload();
         }
 
-        // ── 同步结果为 success → 转存视频到自有 OSS ──────────────
+        // ── 同步结果为 success → 转存到自有 OSS ──────────────
         if (task.status === 'success' && !task.output_asset_id) {
-          // Phase UI-AICreation-02-B-1-G-M-G: 图片任务不进入视频存储闭环
+          // Phase UI-AICreation-02-B-1-G-N: 图片任务 → 图片存储闭环
           if (task.task_type === 'text2image' || task.task_type === 'image_generation') {
+            const imageUrl = task.output_url || statusResult.outputUrl;
+            if (imageUrl) {
+              const storedTask = await storeImageAndCreateAsset(
+                task, enterpriseId, userId, imageUrl
+              );
+              const reloaded = await GenerationTask.findByPk(storedTask.id, {
+                include: [
+                  { model: Asset, as: 'sourceAsset', attributes: ['id', 'name', 'url', 'thumbnail', 'type', 'width', 'height'], required: false },
+                  { model: Asset, as: 'outputAsset', attributes: ['id', 'name', 'url', 'thumbnail', 'type', 'duration', 'width', 'height', 'size', 'mime_type'], required: false }
+                ]
+              });
+              return res.success(await toDetailWithPlayUrl(reloaded || storedTask));
+            }
             const reloaded = await GenerationTask.findByPk(task.id, {
               include: [
                 { model: Asset, as: 'sourceAsset', attributes: ['id', 'name', 'url', 'thumbnail', 'type', 'width', 'height'], required: false },

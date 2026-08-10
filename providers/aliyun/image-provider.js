@@ -16,6 +16,7 @@
 
 const dashscopeClient = require('./dashscope-client');
 const { resolveModel, ALIYUN_CONFIG } = require('./config');
+const registry = require('../../config/ai-model-registry');
 const ProviderError = require('../../utils/ProviderError');
 
 class AliyunImageProvider {
@@ -101,11 +102,29 @@ class AliyunImageProvider {
 
   /**
    * 文生图
+   *
+   * Phase UI-AICreation-02-B-1-G-M-I: 支持通过 options.modelId 覆盖模型
+   * 用于备用模型切换，当主模型(qwen-image-3.0-pro)限流时选择 qwen-image-plus
    */
   async _createImageGeneration(prompt, model, options) {
+    // Phase UI-AICreation-02-B-1-G-M-I: 如果 options.modelId 指定了其他模型，使用该模型的 apiModelName
+    let effectiveModel = model;
+    if (options.modelId) {
+      const overrideConfig = registry.getModelConfig(options.modelId);
+      if (overrideConfig && overrideConfig.apiModelName) {
+        effectiveModel = overrideConfig.apiModelName;
+        console.log(
+          `[AliyunImageProvider] Model override | ` +
+          `templateModel=${model} | ` +
+          `overrideModel=${effectiveModel} | ` +
+          `modelId=${options.modelId}`
+        );
+      }
+    }
+
     const result = await this.client.createTextToImageTask({
       prompt: prompt.trim(),
-      model,
+      model: effectiveModel,
       size: options.size,
       n: options.n
     });
@@ -128,7 +147,7 @@ class AliyunImageProvider {
       taskId: result.taskId,
       results: result.results,
       provider: this.provider,
-      model,
+      model: effectiveModel,
       status: result.status
     };
     console.log(

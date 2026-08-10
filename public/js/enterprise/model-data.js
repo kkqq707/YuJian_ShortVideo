@@ -92,7 +92,7 @@
           throw new Error('Registry API not available — ensure api.js is loaded before model-data.js');
         }
 
-        // 并行获取 templates 和 capabilities
+        // 并行获取 templates、models 和 capabilities
         var results = await Promise.all([
           registryAPI.getTemplates().catch(function (err) {
             console.warn('[ModelData] Templates fetch failed:', err);
@@ -101,11 +101,17 @@
           registryAPI.getCapabilities().catch(function (err) {
             console.warn('[ModelData] Capabilities fetch failed:', err);
             return null;
+          }),
+          // Phase UI-AICreation-02-B-1-G-M-I: 同时获取所有模型（含无 template 的备用模型）
+          registryAPI.getModels().catch(function (err) {
+            console.warn('[ModelData] Models fetch failed:', err);
+            return null;
           })
         ]);
 
         var templates = results[0];
         var capabilities = results[1];
+        var allModels = results[2];
 
         // 检查数据完整性
         if (!templates || !templates.length) {
@@ -116,11 +122,12 @@
         if (state.setAiModelsData) {
           state.setAiModelsData(
             templates || [],
-            capabilities || []
+            capabilities || [],
+            allModels || []
           );
         } else {
           // Fallback: 直接写入（当 state.js accessor 不可用时）
-          buildAndSetDirect(templates || [], capabilities || []);
+          buildAndSetDirect(templates || [], capabilities || [], allModels || []);
         }
 
         if (state.aiModels) {
@@ -177,7 +184,7 @@
 
   // ─── Fallback: 直接构建状态（当 accessor 不可用时）─────────────
 
-  function buildAndSetDirect(templates, capabilities) {
+  function buildAndSetDirect(templates, capabilities, allModels) {
     if (!state.aiModels) return;
 
     var models = {};
@@ -202,6 +209,24 @@
           }
           if (capabilityToModels[m.capability].indexOf(m.id) === -1) {
             capabilityToModels[m.capability].push(m.id);
+          }
+        }
+      }
+    }
+
+    // Phase UI-AICreation-02-B-1-G-M-I: 合并全部模型（含备用模型）
+    if (allModels && allModels.length) {
+      for (var j = 0; j < allModels.length; j++) {
+        var am = allModels[j];
+        if (am.id && !models[am.id]) {
+          models[am.id] = am;
+        }
+        if (am.id && am.capability) {
+          if (!capabilityToModels[am.capability]) {
+            capabilityToModels[am.capability] = [];
+          }
+          if (capabilityToModels[am.capability].indexOf(am.id) === -1) {
+            capabilityToModels[am.capability].push(am.id);
           }
         }
       }

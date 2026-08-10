@@ -39,7 +39,7 @@
  *   const status = await aliyunProvider.checkTaskStatus(taskId);
  */
 
-const { resolveModelForTemplate, getModelConfig } = require('../config/ai-model-registry');
+const { resolveModelForTemplate, getModelConfig, getAllModels } = require('../config/ai-model-registry');
 const ProviderError = require('../utils/ProviderError');
 
 // 委托给现有 aliyun/ 子 Provider（复用已验证的 HTTP 客户端能力）
@@ -120,20 +120,37 @@ class AliyunBailianProvider {
       `result.resultsCount=${result.results ? result.results.length : 0} | ` +
       `result.status=${result.status}`
     );
+
+    // Phase UI-AICreation-02-B-1-G-M-I: 使用 image-provider 实际返回的 model
+    // 当通过 options.modelId 选择了备用模型时，result.model 可能有别于 modelConfig.apiModelName
+    const effectiveModel = (result && result.model) || modelConfig.apiModelName;
+
+    // Resolve effective modelId from apiModelName if model was overridden
+    let resolvedModelId = modelConfig.id;
+    if (result && result.model && result.model !== modelConfig.apiModelName) {
+      const allModels = getAllModels();
+      const matched = allModels.find(m => m.apiModelName === result.model);
+      if (matched) {
+        resolvedModelId = matched.id;
+      }
+    }
+
     const returnValue = {
       taskId: result.taskId,
       results: result.results || null,
       provider: this.name,
-      model: modelConfig.apiModelName,
-      modelId: modelConfig.id,
+      model: effectiveModel,
+      modelId: resolvedModelId,
       status: result.status,
       outputType: 'image'
     };
+
     console.log(
       `[DEBUG-QWEN-IMAGE] AliyunBailianProvider.generateImage return | ` +
       `taskId=${returnValue.taskId} | ` +
       `hasResults=${!!returnValue.results} | ` +
-      `resultsCount=${returnValue.results ? returnValue.results.length : 0}`
+      `resultsCount=${returnValue.results ? returnValue.results.length : 0} | ` +
+      `model=${effectiveModel}`
     );
     // ── DEBUG END ────────────────────────────────────────────────────────────
 

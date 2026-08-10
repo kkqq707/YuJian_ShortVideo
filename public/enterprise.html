@@ -3572,6 +3572,7 @@
             'image2video': '图片动态化',
             'text2video': '宣传视频生成',
             'text2image': '商业图片生成',
+            'image_generation': '商业图片生成',
             'image_edit': '图片智能编辑',
             'ref2video': '图片动态化',
             'digital_human': '数字人口播',
@@ -3628,7 +3629,7 @@
         function renderMyWorks() {
             return '<div class="page-header">' +
                 '<h3 style="font-size:18px;font-weight:700"><i class="fas fa-film" style="margin-right:8px;color:var(--primary-light)"></i>我的作品</h3>' +
-                '<p style="font-size:13px;color:var(--text-sub);margin-top:4px">查看和管理您的AI生成视频作品</p>' +
+                '<p style="font-size:13px;color:var(--text-sub);margin-top:4px">查看和管理您的AI生成作品</p>' +
                 '</div>' +
                 '<div id="worksContent" class="loading-skeleton">' +
                 '<i class="fas fa-spinner fa-pulse"></i> 加载中...' +
@@ -3729,15 +3730,21 @@
 
         // ─── 渲染单个作品卡片 ──────────────────────────────
         function renderWorkCard(item) {
+            // Phase UI-AICreation-02-B-1-G-P: 识别图片作品，防止按视频渲染
+            var isImageTask = item.taskType === 'text2image' || item.taskType === 'image_generation'
+                || (item.outputAsset && item.outputAsset.type === 'image')
+                || (item.mediaType === 'image');
             var typeLabel = formatTaskType(item.taskType);
             var statusLabel = formatWorkStatus(item.status);
             var dateStr = formatWorkDate(item.createdAt);
             var promptText = item.prompt || '';
             var escapedPrompt = escapeHtml(promptText);
-            var durationStr = formatDuration(item.duration);
+            var durationStr = isImageTask ? '' : formatDuration(item.duration);
             // Sprint 5.6: 优先使用签名 playUrl，私有Bucket播放需要签名URL
-            var videoPlayUrl = item.playUrl || item.videoUrl || '';
-            var hasVideo = videoPlayUrl && item.status === 'success';
+            // 图片任务不应有 videoUrl/playUrl，但防御性检查 outputAsset.type
+            var videoPlayUrl = isImageTask ? '' : (item.playUrl || item.videoUrl || '');
+            var hasVideo = !isImageTask && videoPlayUrl && item.status === 'success';
+            var hasImage = isImageTask && item.status === 'success';
             var hasThumb = item.thumbnailUrl || item.coverUrl;
             var thumbUrl = hasThumb || '';
 
@@ -3747,7 +3754,9 @@
 
             var playOverlayHtml = hasVideo
                 ? '<div class="play-overlay"><i class="fas fa-play-circle"></i></div>'
-                : '';
+                : (hasImage
+                    ? '<div class="play-overlay" style="opacity:0.7"><i class="fas fa-search-plus"></i></div>'
+                    : '');
 
             var actionsHtml = '';
             if (hasVideo) {
@@ -3756,15 +3765,24 @@
                     item.id + '\', \'' + escapeJsString(promptText || 'AI视频') + '\')" title="播放">' +
                     '<i class="fas fa-play"></i></button>';
             }
+            if (hasImage) {
+                // 图片作品：查看原图按钮
+                actionsHtml += '<button class="btn btn-outline btn-sm-icon" onclick="event.stopPropagation();previewWorkImage(\'' +
+                    item.id + '\', \'' + escapeJsString(promptText || 'AI图片') + '\')" title="查看原图">' +
+                    '<i class="fas fa-search-plus"></i></button>';
+            }
             actionsHtml += '<button class="btn btn-outline btn-sm-icon" onclick="event.stopPropagation();showWorkDetail(\'' +
                 item.id + '\')" title="详情"><i class="fas fa-info-circle"></i></button>';
             actionsHtml += '<button class="btn btn-outline btn-sm-icon" onclick="event.stopPropagation();deleteWork(\'' +
                 item.id + '\', \'' + escapeJsString(promptText || 'AI视频') + '\')" title="删除" style="color:var(--danger)">' +
                 '<i class="fas fa-trash"></i></button>';
 
-            var thumbClickAttr = hasVideo
-                ? ' onclick="playWorkVideo(\'' + item.id + '\', \'' + escapeJsString(promptText || 'AI视频') + '\')"'
-                : '';
+            var thumbClickAttr = '';
+            if (hasVideo) {
+                thumbClickAttr = ' onclick="playWorkVideo(\'' + item.id + '\', \'' + escapeJsString(promptText || 'AI视频') + '\')"';
+            } else if (hasImage) {
+                thumbClickAttr = ' onclick="previewWorkImage(\'' + item.id + '\', \'' + escapeJsString(promptText || 'AI图片') + '\')"';
+            }
 
             var isProcessing = item.status === 'processing' || item.status === 'pending';
             var isFailed = item.status === 'failed';
@@ -3773,7 +3791,7 @@
             // 进度条 HTML（processing/pending 状态）
             var progressHtml = '';
             if (isProcessing) {
-                var progressLabel = item.status === 'pending' ? '排队中' : '正在生成视频';
+                var progressLabel = item.status === 'pending' ? '排队中' : (isImageTask ? '正在生成图片' : '正在生成视频');
                 progressHtml = '<div class="work-progress">' +
                     '<div class="work-progress-bar">' +
                     '<div class="work-progress-fill" style="width:' + progressPct + '%"></div>' +
@@ -3871,13 +3889,20 @@
         async function showWorkDetail(taskId) {
             try {
                 var task = await YuJianAPI.get('/enterprise/video-generation/tasks/' + taskId);
+                // Phase UI-AICreation-02-B-1-G-P: 识别图片作品
+                var isImage = task.taskType === 'text2image' || task.taskType === 'image_generation'
+                    || (task.outputAsset && task.outputAsset.type === 'image')
+                    || (task.mediaType === 'image');
                 var typeLabel = formatTaskType(task.taskType);
                 var statusLabel = formatWorkStatus(task.status);
                 var dateStr = formatWorkDate(task.createdAt);
-                var durationStr = formatDuration(task.duration);
+                var durationStr = isImage ? '' : formatDuration(task.duration);
                 var promptText = task.prompt || '无';
-                // Sprint 5.6: 优先使用签名 playUrl
-                var videoPlayUrl = task.playUrl || task.videoUrl || '';
+                // Sprint 5.6: 优先使用签名 playUrl（图片任务不展示视频播放按钮）
+                var videoPlayUrl = isImage ? '' : (task.playUrl || task.videoUrl || '');
+                var imageUrl = isImage
+                    ? ((task.outputAsset && task.outputAsset.url) || task.output_url || '')
+                    : '';
 
                 var content = '<div style="display:flex;flex-direction:column;gap:12px;font-size:13px">' +
                     '<div><strong style="color:var(--text-sub)">创作类型：</strong>' + escapeHtml(typeLabel) + '</div>' +
@@ -3887,6 +3912,9 @@
                     '<div><strong style="color:var(--text-sub)">提示词：</strong></div>' +
                     '<div style="background:rgba(255,255,255,0.04);padding:10px;border-radius:6px;line-height:1.6;max-height:120px;overflow-y:auto">' +
                     escapeHtml(promptText) + '</div>' +
+                    (imageUrl
+                        ? '<div style="margin-top:4px"><img src="' + escapeHtml(imageUrl) + '" alt="生成图片" style="max-width:100%;max-height:300px;border-radius:8px;object-fit:contain;background:rgba(0,0,0,0.3)" loading="lazy" onerror="this.style.display=\'none\'"></div>'
+                        : '') +
                     (videoPlayUrl ? '<div style="margin-top:4px"><button class="btn btn-primary btn-sm" onclick="closeModal();playWorkVideo(\'' +
                         taskId + '\', \'' + escapeJsString(promptText) + '\')"><i class="fas fa-play"></i> 播放视频</button></div>' : '') +
                     '</div>';
@@ -3901,6 +3929,34 @@
                 } else {
                     showToast('获取详情失败，请稍后重试', 'error');
                 }
+            }
+        }
+
+        // ─── 图片预览（Phase UI-AICreation-02-B-1-G-P）─────────
+        async function previewWorkImage(taskId, title) {
+            var decodedTitle = decodeURIComponent(title || 'AI图片');
+            try {
+                var task = await YuJianAPI.get('/enterprise/video-generation/tasks/' + taskId);
+                var outputAsset = task.outputAsset;
+                var imageUrl = outputAsset && outputAsset.url
+                    ? outputAsset.url
+                    : (task.output_url || '');
+
+                if (!imageUrl) {
+                    showToast('图片资源不可用', 'error');
+                    return;
+                }
+
+                // 简易图片预览弹窗
+                var content = '<div style="text-align:center">' +
+                    '<img src="' + escapeHtml(imageUrl) + '" alt="' + escapeHtml(decodedTitle) + '" ' +
+                    'style="max-width:100%;max-height:70vh;border-radius:8px;object-fit:contain;background:rgba(0,0,0,0.3)" ' +
+                    'loading="lazy" onerror="this.parentElement.innerHTML=\'<p style=color:var(--danger)>图片加载失败</p>\'">' +
+                    '</div>';
+                openModal(decodedTitle, encodeURIComponent(content));
+            } catch (err) {
+                console.error('[previewWorkImage] 获取图片失败:', err);
+                showToast('获取图片失败，请稍后重试', 'error');
             }
         }
 

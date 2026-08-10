@@ -17,6 +17,7 @@
  *   │ wan2.1-i2v                   │ image_to_video        │ video    │
  *   │ wan2.1-ref2video             │ reference_to_video    │ video    │
  *   │ qwen-image                   │ image_generation      │ image    │
+ *   │ qwen-image-backup            │ image_generation      │ image    │
  *   │ qwen-image-edit              │ image_edit            │ image    │
  *   │ wanx-digital-human           │ digital_human         │ video    │
  *   └──────────────────────────────┴──────────────────────┴──────────┘
@@ -182,6 +183,37 @@ const models = {
     apiPath: '/api/v1/services/aigc/multimodal-generation/generation',
   },
 
+  // Phase UI-AICreation-02-B-1-G-M-I: 备用文生图模型
+  // qwen-image-3.0-pro 主模型在限流(429)时切到此模型继续生成
+  'qwen-image-backup': {
+    id: 'qwen-image-backup',
+    name: 'Qwen-Image Plus 备用图片生成',
+    displayName: 'qwen-image-plus',
+    family: 'qwen-image',
+    provider: 'aliyun',
+    capability: CAPABILITY.IMAGE_GENERATION,
+    outputType: 'image',
+    apiModelName: 'qwen-image-plus',
+
+    description: '备用文生图模型，当主模型(qwen-image-3.0-pro)限流时使用，适合产品展示、营销素材',
+    category: 'image',
+    categoryLabel: '图片生成',
+    icon: '🖼️',
+    sort: 1.5,
+
+    // 参数约束
+    maxPromptLength: 2000,
+    supportedSizes: ['1024*1024', '1024*768', '768*1024', '1024*576'],
+    defaultSize: '1024*1024',
+    maxBatchSize: 4,
+
+    // 定价
+    pricing: { pointsPerUnit: 1, unit: 'image' },
+
+    // API 端点（与 qwen-image 相同，使用 multimodal-generation）
+    apiPath: '/api/v1/services/aigc/multimodal-generation/generation',
+  },
+
   'qwen-image-edit': {
     id: 'qwen-image-edit',
     name: 'Qwen-Image 图片智能编辑',
@@ -276,7 +308,7 @@ const capabilityMap = buildCapabilityMap();
 //   text_to_video:        ['wan2.1-t2v'],
 //   image_to_video:       ['wan2.1-i2v'],
 //   reference_to_video:   ['wan2.1-ref2video'],
-//   image_generation:     ['qwen-image'],
+//   image_generation:     ['qwen-image', 'qwen-image-backup'],
 //   image_edit:           ['qwen-image-edit'],
 //   digital_human:        ['wanx-digital-human'],
 // }
