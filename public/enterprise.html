@@ -781,11 +781,11 @@
             const container = document.getElementById('mainContent');
             switch (page) {
                 case 'dashboard': container.innerHTML = renderDashboard(); break;
-                case 'studio': container.innerHTML = renderStudio(); initTemplateSelector('#studioTemplateContainer', 'studioPrompt', 'video'); studioInitModelSelect('ref2video'); /* Phase UI-AICreation-02-B-2.2-B: 初始化 DOM 隔离 */ studioUpdateStepBadges('ref2video'); studioUpdatePromptDOM('ref2video'); studioUpdateParamVisibility('ref2video'); break;
+                case 'studio': container.innerHTML = renderStudio(); initTemplateSelector('#studioTemplateContainer', 'studioPrompt', 'reference_to_video'); studioInitModelSelect('ref2video'); /* Phase UI-AICreation-02-B-2.2-B: 初始化 DOM 隔离 */ studioUpdateStepBadges('ref2video'); studioUpdatePromptDOM('ref2video'); studioUpdateParamVisibility('ref2video'); break;
                 case 'storyboard': container.innerHTML = renderStoryboardPage(); break;
-                case 'text2video': container.innerHTML = renderText2Video(); initTemplateSelector('#t2vTemplateContainer', 't2vPrompt', 'video'); break;
-                case 'image2video': container.innerHTML = renderImage2Video(); initTemplateSelector('#i2vTemplateContainer', 'i2vPrompt', 'video'); break;
-                case 'ref2video': container.innerHTML = renderStudio(); initTemplateSelector('#studioTemplateContainer', 'studioPrompt', 'video'); (function(){var c=document.querySelector('.yj-studio-type-card[data-type="ref2video"]');studioSelectType(c,'ref2video');})(); break;
+                case 'text2video': container.innerHTML = renderText2Video(); initTemplateSelector('#t2vTemplateContainer', 't2vPrompt', 'text_to_video'); break;
+                case 'image2video': container.innerHTML = renderImage2Video(); initTemplateSelector('#i2vTemplateContainer', 'i2vPrompt', 'image_to_video'); i2vRefreshModelSelect(); break;
+                case 'ref2video': container.innerHTML = renderStudio(); initTemplateSelector('#studioTemplateContainer', 'studioPrompt', 'reference_to_video'); (function(){var c=document.querySelector('.yj-studio-type-card[data-type="ref2video"]');studioSelectType(c,'ref2video');})(); break;
                 case 'digitalhuman': renderDigitalHumanAsync(container); break;
                 case 'imageGen': container.innerHTML = renderImageGen(); initTemplateSelector('#imgGenTemplateContainer', 'imgGenPrompt', 'image'); break;
                 case 'projects': container.innerHTML = renderProjects(); break;
@@ -963,6 +963,9 @@
             var modelSelect = document.getElementById('studioModel');
             if (!modelSelect) return;
 
+            // ★ Phase UI-AICreation-02-B-2.4-F: 竞态保护 — 记录请求时的 creationType
+            var requestedType = YJ.state.aiCreation.creationType;
+
             // 确保 Registry 数据已加载
             try {
                 if (window.YJ && YJ.modules && YJ.modules.modelData) {
@@ -970,7 +973,16 @@
                 }
             } catch (e) {
                 console.warn('[Studio] Model data not available:', e.message);
-                modelSelect.innerHTML = '<option value="">模型数据加载失败</option>';
+                // ★ 竞态保护: 仅在 creationType 未变化时更新 DOM
+                if (YJ.state.aiCreation.creationType === requestedType) {
+                    modelSelect.innerHTML = '<option value="">模型数据加载失败</option>';
+                }
+                return;
+            }
+
+            // ★ 竞态保护: 请求完成后检查 creationType 是否已变化
+            if (YJ.state.aiCreation.creationType !== requestedType) {
+                console.log('[Studio] Model select stale — discarding result for', capability, '(current:', YJ.state.aiCreation.creationType, ')');
                 return;
             }
 
@@ -1003,6 +1015,49 @@
         function studioInitModelSelect(creationType) {
             var capability = STUDIO_CAPABILITY_MAP[creationType] || 'image_to_video';
             studioRefreshModelSelect(capability);
+        }
+
+        /**
+         * Phase UI-AICreation-02-B-2.3-I: 独立 image2video 页面模型选择器 Registry 接入
+         * 从 Registry 动态加载 image_to_video capability 的所有模型，填充 #i2vModel
+         */
+        async function i2vRefreshModelSelect() {
+            var modelSelect = document.getElementById('i2vModel');
+            if (!modelSelect) return;
+
+            var capability = 'image_to_video';
+
+            // 确保 Registry 数据已加载
+            try {
+                if (window.YJ && YJ.modules && YJ.modules.modelData) {
+                    await YJ.modules.modelData.ensureLoaded();
+                }
+            } catch (e) {
+                console.warn('[I2V] Model data not available:', e.message);
+                modelSelect.innerHTML = '<option value="">模型数据加载失败</option>';
+                return;
+            }
+
+            if (!YJ.state.isAiModelsReady || !YJ.state.isAiModelsReady()) {
+                modelSelect.innerHTML = '<option value="">模型数据未就绪</option>';
+                return;
+            }
+
+            var models = YJ.state.getModelsByCapability(capability);
+            if (!models || !models.length) {
+                modelSelect.innerHTML = '<option value="">暂无可用模型</option>';
+                return;
+            }
+
+            var html = '';
+            for (var i = 0; i < models.length; i++) {
+                var m = models[i];
+                var selected = (i === 0) ? ' selected' : '';
+                html += '<option value="' + escapeHtml(m.id) + '"' + selected + '>'
+                    + escapeHtml(m.displayName || m.name || m.id) + '</option>';
+            }
+            modelSelect.innerHTML = html;
+            console.log('[I2V] Model select refreshed —', models.length, 'models');
         }
 
         function renderStudio() {
@@ -1080,6 +1135,10 @@
                 + '    <div class="yj-studio-ref-item yj-studio-ref-empty"></div>'
                 + '    <div class="yj-studio-ref-item yj-studio-ref-empty"></div>'
                 + '  </div>'
+                + '  <div class="yj-studio-material-divider"><span>或</span></div>'
+                + '  <button class="yj-btn yj-btn-outline yj-studio-asset-btn" onclick="openAssetPicker({type:\'image\', callback: studioRefOnAssetPicked})">'
+                + '    <i class="fas fa-folder-open"></i> 从素材库选择'
+                + '  </button>'
                 + '  <input type="file" id="studioRefFileInput" accept="image/jpeg,image/png,image/webp" style="display:none" multiple onchange="studioHandleRefImageSelect(event)">'
                 + '</div>'
                 // ── Step 3: Prompt区域 ──
@@ -1114,6 +1173,17 @@
                 + '        </select>'
                 + '      </div>'
                 + '    </div>'
+                // Phase UI-AICreation-02-B-2.3-F: 画面比例 — 所有模式共享，独立于视频参数组
+                + '    <div class="yj-studio-param-row" id="studioAspectRatioRow">'
+                + '      <div class="yj-studio-param-item" id="studioAspectRatioItem">'
+                + '        <label>画面比例</label>'
+                + '        <select id="studioAspectRatio" class="yj-studio-select" onchange="studioOnParamChange()">'
+                + '          <option value="16:9" selected>16:9 横屏</option>'
+                + '          <option value="9:16">9:16 竖屏</option>'
+                + '          <option value="1:1">1:1 方形</option>'
+                + '        </select>'
+                + '      </div>'
+                + '    </div>'
                 // ★ Phase UI-AICreation-02-B-2.2-B: 视频专属参数分组
                 + '    <div id="studioVideoParamsGroup">'
                 + '    <div class="yj-studio-param-row" id="studioVideoDurationRow">'
@@ -1132,14 +1202,6 @@
                 + '          <option value="low">低 — 微动</option>'
                 + '          <option value="medium" selected>中 — 适中</option>'
                 + '          <option value="high">高 — 强烈</option>'
-                + '        </select>'
-                + '      </div>'
-                + '      <div class="yj-studio-param-item" id="studioAspectRatioItem">'
-                + '        <label>画面比例</label>'
-                + '        <select id="studioAspectRatio" class="yj-studio-select" onchange="studioOnParamChange()">'
-                + '          <option value="16:9" selected>16:9 横屏</option>'
-                + '          <option value="9:16">9:16 竖屏</option>'
-                + '          <option value="1:1">1:1 方形</option>'
                 + '        </select>'
                 + '      </div>'
                 + '    </div>'
@@ -1257,6 +1319,8 @@
             }
 
             YJ.state.aiCreation.creationType = type;
+            // Phase UI-AICreation-02-B-2.4-I: 持久化创作类型，刷新后保持子模式
+            try { localStorage.setItem('enterprise_studio_creationType', type); } catch (e) { /* ignore */ }
             document.querySelectorAll('.yj-studio-type-card').forEach(function(c) {
                 c.classList.remove('active');
             });
@@ -1269,7 +1333,8 @@
             }
 
             // ★ Phase UI-AICreation-02-B-2.3-D-3: 同步刷新 Prompt 模板
-            var templateCapability = (type === 'imageGen') ? 'image' : 'video';
+            var STUDIO_TPL_CAP_MAP = { imageGen: 'image', text2video: 'text_to_video', image2video: 'image_to_video', ref2video: 'reference_to_video' };
+var templateCapability = STUDIO_TPL_CAP_MAP[type] || 'image_to_video';
             initTemplateSelector('#studioTemplateContainer', 'studioPrompt', templateCapability);
 
             // ── Phase 2-C-2-4-C-3-2: 素材清理（拆分规则） ──
@@ -1359,7 +1424,27 @@
                 height: asset.height || 0
             });
 
-            showToast('已选择素材：' + (asset.name || '未命名'), 'success');
+        }
+
+        // ★ Phase UI-AICreation-03-C-2: ref2video 素材库选择回调
+        function studioRefOnAssetPicked(asset) {
+            var refImages = YJ.state.aiCreation.referenceImages;
+            if (refImages.length >= 5) {
+                showToast('最多添加5张参考图片', 'warning');
+                return;
+            }
+
+            refImages.push({
+                url: asset.thumbnailUrl || asset.url,
+                uploadedUrl: asset.url,
+                uploadedAssetId: asset.id,
+                name: asset.name || '素材库图片',
+                sourceMode: 'asset',
+                file: null
+            });
+
+            renderRefImageGrid();
+            showToast('已从素材库添加参考图片', 'success');
         }
 
         // ─── 显示预览 ───────────────────────────────────
@@ -1539,6 +1624,8 @@
             try {
                 for (var i = 0; i < images.length; i++) {
                     var item = images[i];
+                    // 素材库图片已有 OSS URL，跳过上传
+                    if (item.sourceMode === 'asset' && item.uploadedUrl) continue;
                     // 已上传的跳过，禁止重复上传
                     if (item.uploadedUrl) continue;
 
@@ -1702,9 +1789,6 @@
 
             // ── 模型选择器: 所有模式可见 ──
             if (modelRow) modelRow.style.display = '';
-
-            // ── 画面比例: 所有模式可见 ──
-            if (aspectRatioItem) aspectRatioItem.style.display = '';
 
             switch (type) {
                 case 'imageGen':
@@ -2479,7 +2563,7 @@
                             <div class="form-group">
                                 <label>模型</label>
                                 <select id="i2vModel">
-                                    <option value="happyhorse-i2v" selected>HappyHorse 图片转视频</option>
+                                    <option value="">加载中...</option>
                                 </select>
                             </div>
                             <div class="form-group">
@@ -4586,13 +4670,13 @@
             // 更新 UI
             showAssetPreview(asset);
 
-            // 关闭弹层
-            closeAssetPicker();
-
-            // 触发回调
+            // 触发回调（必须在 closeAssetPicker 之前，因为 closeAssetPicker 会清除 callback）
             if (typeof ASSET_PICKER.callback === 'function') {
                 ASSET_PICKER.callback(asset);
             }
+
+            // 关闭弹层
+            closeAssetPicker();
 
             showToast('已选择素材：' + (asset.name || '未命名'), 'success');
         }
@@ -4995,7 +5079,7 @@
                 var taskInput = {
                     sourceAssetId: I2V_STATE.assetId,
                     prompt: promptCheck.cleaned,
-                    model: modelEl ? modelEl.value : 'happyhorse-i2v',
+                    model: modelEl ? modelEl.value : 'wan2.1-i2v',
                     duration: durationEl ? parseInt(durationEl.value) : 5
                 };
 

@@ -712,6 +712,103 @@ exports.createTask = async (req, res) => {
 };
 
 /**
+ * POST /api/enterprise/video-generation/text-to-video
+ *
+ * Phase UI-AICreation-07-B: 文生视频专用接口
+ *
+ * 复用 generationService.createGenerationTask() 新架构，
+ * 支持 prompt、negativePrompt、duration、params、model。
+ *
+ * 与 createTask（图生视频）的区别：
+ *   - 不要求 sourceAssetId（文生视频无需输入图片）
+ *   - 默认 templateId = 'text_to_video'
+ *
+ * 请求体：
+ *   prompt         - 正向提示词（必填）
+ *   negativePrompt - 负向提示词（可选）
+ *   duration       - 视频时长（可选，默认 5s）
+ *   params         - 扩展参数（可选）：aspectRatio, motionStrength, cameraMovement, quality
+ *   model          - 模型ID（可选，用于覆盖模板默认模型）
+ *
+ * 流程：
+ *   Controller
+ *     ↓ (参数校验)
+ *   GenerationService.createGenerationTask()
+ *     ↓ (模板解析 + 任务创建)
+ *   Aliyun Provider → video-provider._createTextToVideo()
+ *     ↓ (模型匹配 + API 调用)
+ *   DashScope Client → dashscopeService.submitText2Video()
+ *     ↓ (HTTP 通信)
+ *   DashScope API
+ */
+exports.createTextToVideoTask = async (req, res) => {
+  try {
+    const enterpriseId = req.user.enterpriseId;
+    const userId = req.user.userId;
+    const { prompt, negativePrompt, duration, params, model } = req.body;
+
+    // ── 1. 参数校验（Controller 层）─────────────────────────────
+    if (!prompt || typeof prompt !== 'string' || !prompt.trim()) {
+      return res.fail('提示词不能为空');
+    }
+    if (prompt.trim().length > 2000) {
+      return res.fail('提示词不能超过2000字');
+    }
+
+    // ── 2. 调用 GenerationService 创建任务 ──────────────────────
+    console.log(
+      `[VideoGeneration] createTextToVideoTask REQUEST | ` +
+      `enterpriseId=${enterpriseId} | ` +
+      `prompt_len=${prompt.trim().length} | ` +
+      `has_negative=${!!negativePrompt} | ` +
+      `model=${model || 'N/A'} | ` +
+      `duration=${duration || 'N/A'} | ` +
+      `has_params=${!!params} | ` +
+      `time=${new Date().toISOString()}`
+    );
+
+    const result = await generationService.createGenerationTask({
+      enterpriseId,
+      userId,
+      templateId: 'text_to_video',
+      prompt: prompt.trim(),
+      negativePrompt,
+      duration,
+      model,
+      options: params
+    });
+
+    // ── 3. 返回结果 ────────────────────────────────────────────
+    return res.success({
+      id: result.id,
+      task_id: result.taskId,
+      status: result.status,
+      provider: result.provider,
+      model: result.model,
+      created_at: result.createdAt
+    });
+  } catch (error) {
+    console.error(
+      `[VideoGeneration] createTextToVideoTask ERROR | ` +
+      `name=${error.name || 'Unknown'} | ` +
+      `message=${error.message || '(no message)'} | ` +
+      `code=${error.code || 'N/A'} | ` +
+      `statusCode=${error.statusCode || 'N/A'} | ` +
+      `provider=${error.provider || 'N/A'} | ` +
+      `retryable=${error.retryable !== undefined ? error.retryable : 'N/A'} | ` +
+      `time=${new Date().toISOString()}`
+    );
+
+    // ProviderError 返回脱敏后的错误信息
+    if (error.name === 'ProviderError') {
+      return res.fail(error.message, error.statusCode || 500);
+    }
+
+    return res.fail('服务器内部错误', 500);
+  }
+};
+
+/**
  * POST /api/enterprise/video-generation/text-to-image
  *
  * Phase UI-AICreation-02-B-1-A: 图片生成接口

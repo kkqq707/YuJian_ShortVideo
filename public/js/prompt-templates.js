@@ -3,20 +3,26 @@
  *
  * Sprint 4.3: 静态前端模板，降低用户 Prompt 编写门槛
  * Phase UI-AICreation-02-B-2.3-D-1: 按 capability 分类过滤
+ * Phase UI-AICreation-06-D: 按四模块专业化拆分 capability
  *
  * 使用方式：
  *   // 渲染模板卡片到指定容器（无过滤 — 兼容旧行为）
  *   YuJianPromptTemplates.render('.template-selector', 'i2vPrompt');
  *
- *   // 渲染时按 capability 过滤
- *   YuJianPromptTemplates.render('.template-selector', 'studioPrompt', 'video');    // 仅视频模板
- *   YuJianPromptTemplates.render('.template-selector', 'imgGenPrompt', 'image');   // 仅图片模板
+ *   // 渲染时按 capability 过滤（四模块独立）
+ *   YuJianPromptTemplates.render('.template-selector', 'studioPrompt', 'image');              // 图片生成
+ *   YuJianPromptTemplates.render('.template-selector', 'studioPrompt', 'text_to_video');      // 文生视频
+ *   YuJianPromptTemplates.render('.template-selector', 'studioPrompt', 'image_to_video');     // 图生视频
+ *   YuJianPromptTemplates.render('.template-selector', 'studioPrompt', 'reference_to_video'); // 参考生视频
+ *
+ *   // 兼容旧 'video' 传参（自动展开为三个视频 capability）
+ *   YuJianPromptTemplates.render('.template-selector', 'studioPrompt', 'video');
  *
  *   // 获取所有模板
  *   YuJianPromptTemplates.getTemplates();
  *
  *   // 按 capability 获取模板
- *   YuJianPromptTemplates.getTemplatesByCapability('video');
+ *   YuJianPromptTemplates.getTemplatesByCapability('image_to_video');
  */
 
 (function () {
@@ -27,55 +33,104 @@
   /**
    * 创作模板列表
    *
-   * 每个模板必须声明 capability 字段：
-   *   'video' — 适用于视频类生成（image_to_video / text_to_video / reference_to_video）
-   *   'image' — 适用于图片类生成（image_generation）
-   *
-   * 原 6 个模板均为视频场景设计（描述动态/运镜效果），归属 'video'
+   * 每个模板必须声明 capability 字段，与四模块一一对应：
+   *   'image'              — 图片生成（imageGen）
+   *   'text_to_video'      — 文生视频（text2video）：描述场景全貌+运镜
+   *   'image_to_video'     — 图生视频（image2video）：描述运动/动态效果
+   *   'reference_to_video' — 参考生视频（ref2video）：描述特征融合+风格统一
    */
   var TEMPLATES = [
+    // ── text_to_video（text2video·文生视频）─────────────────
     {
       id: 'movie-blockbuster',
       name: '电影大片',
       icon: '🎬',
-      capability: 'video',
+      capability: 'text_to_video',
       prompt: '电影级光影，镜头缓慢推进，画面富有史诗感，色彩浓郁饱满，浅景深虚化背景，人物主体突出，柔和的胶片颗粒质感，24fps电影帧率，动态模糊自然流畅'
     },
     {
       id: 'portrait-photo',
       name: '人物写真',
       icon: '👤',
-      capability: 'video',
+      capability: 'text_to_video',
       prompt: '人物保持自然优雅的微动作，发丝轻柔飘动，眼神温和有光，背景光斑缓缓旋转，画面有呼吸感，柔焦效果，整体氛围温暖治愈，高端写真质感'
     },
     {
       id: 'product-ad',
       name: '产品广告',
       icon: '🛍',
-      capability: 'video',
+      capability: 'text_to_video',
       prompt: '产品主体精致展示，光影在产品表面流动，镜头以产品为中心环绕旋转，背景干净简约，粒子光效点缀，高端广告质感，画面明亮通透'
     },
     {
       id: 'chinese-anime',
       name: '国风动画',
       icon: '🏮',
-      capability: 'video',
+      capability: 'text_to_video',
       prompt: '中国传统水墨风格动画，墨色浓淡渐变晕染，笔触流动自然，古风元素灵动飘逸，画面留白有韵味，绢本质感，暖色调光晕，诗意氛围'
-    },
-    {
-      id: 'product-showcase',
-      name: '产品展示',
-      icon: '📦',
-      capability: 'video',
-      prompt: '产品360度旋转展示，镜头平滑环绕，细节特写切换流畅，光线均匀柔和，纯色背景突出产品，画面干净专业，电商展示风格'
     },
     {
       id: 'game-cg',
       name: '游戏CG',
       icon: '🎮',
-      capability: 'video',
+      capability: 'text_to_video',
       prompt: '游戏CG级别渲染，画面具有强烈的视觉冲击力，粒子特效绚丽，光影对比强烈，动态运镜充满力量感，色彩鲜艳饱和，次世代游戏画面质感'
     },
+
+    // ── image_to_video（image2video·图生视频）──────────────
+    {
+      id: 'product-showcase',
+      name: '产品展示',
+      icon: '📦',
+      capability: 'image_to_video',
+      prompt: '产品360度旋转展示，镜头平滑环绕，细节特写切换流畅，光线均匀柔和，纯色背景突出产品，画面干净专业，电商展示风格'
+    },
+    {
+      id: 'i2v-subtle-motion',
+      name: '微动感',
+      icon: '🌊',
+      capability: 'image_to_video',
+      prompt: '画面保持轻微动态，发丝和衣物自然飘动，背景元素缓缓流动，画面有呼吸感，柔焦效果，自然光线变化，轻微的粒子浮动点缀'
+    },
+    {
+      id: 'i2v-camera-push',
+      name: '镜头推进',
+      icon: '🎥',
+      capability: 'image_to_video',
+      prompt: '镜头缓慢向前推进，画面景深逐渐变化，主体细节依次呈现，电影级运镜节奏，平滑稳定的视角移动，空间感逐步增强'
+    },
+    {
+      id: 'i2v-portrait-cinematic',
+      name: '人物电影感',
+      icon: '🎭',
+      capability: 'image_to_video',
+      prompt: '人物保持自然优雅的微动作，眼神温和有光，发丝轻柔飘动，浅景深虚化背景，柔和的胶片颗粒质感，电影级光影氛围，画面有呼吸感'
+    },
+
+    // ── reference_to_video（ref2video·参考生视频）───────────
+    {
+      id: 'ref2v-consistent-fusion',
+      name: '特征融合',
+      icon: '🖼️',
+      capability: 'reference_to_video',
+      prompt: '基于参考图特征进行融合生成，保持人物面部特征一致，画面风格统一，多图特征自然过渡，光影色调一致，动态流畅不突兀，整体协调自然'
+    },
+    {
+      id: 'ref2v-style-transfer',
+      name: '风格迁移',
+      icon: '🎨',
+      capability: 'reference_to_video',
+      prompt: '将参考图的风格特征应用到生成的视频中，保持风格统一性，色彩基调一致，笔触纹理特征延续，画面整体协调，艺术风格鲜明，视觉连贯'
+    },
+    {
+      id: 'ref2v-scene-compose',
+      name: '场景组合',
+      icon: '🎬',
+      capability: 'reference_to_video',
+      prompt: '参考图元素重新组合到动态场景中，各参考特征在画面中协调呈现，镜头平滑过渡，场景氛围统一，元素融合自然不违和，整体视觉和谐'
+    },
+
+    // ── image（imageGen·图片生成）────────────────────────────
     {
       id: 'image-portrait',
       name: '人物肖像',
@@ -113,8 +168,10 @@
    *
    * @param {string|Element} container    - 容器选择器或 DOM 元素
    * @param {string}          targetInputId - 目标 prompt 输入框的 id
-   * @param {string}          [capability]  - 可选，按 capability 过滤模板 ('video' | 'image')
-   *                                          不传则渲染全部模板（兼容旧行为）
+   * @param {string}          [capability]  - 可选，按 capability 过滤模板：
+   *                                          'image' | 'text_to_video' | 'image_to_video' | 'reference_to_video'
+   *                                          传 'video' 兼容旧行为（展开为三个视频 capability）
+   *                                          不传则渲染全部模板
    */
   function render(container, targetInputId, capability) {
     var el = typeof container === 'string'
@@ -131,10 +188,22 @@
       return;
     }
 
+    // ── Phase UI-AICreation-06-D: 向后兼容 'video' capability ──
+    // 旧 'video' 展开为三个细粒度视频 capability，待调用方全部迁移后移除
+    var COMPAT_VIDEO_CAPABILITIES = ['text_to_video', 'image_to_video', 'reference_to_video'];
+
     // ── Phase UI-AICreation-02-B-2.3-D-1: 按 capability 过滤 ──
-    var filtered = capability
-      ? TEMPLATES.filter(function (tmpl) { return tmpl.capability === capability; })
-      : TEMPLATES;
+    var filtered;
+    if (!capability) {
+      filtered = TEMPLATES;
+    } else if (capability === 'video') {
+      // 兼容旧 'video' 传参 — 展开为全部视频子类型
+      filtered = TEMPLATES.filter(function (tmpl) {
+        return COMPAT_VIDEO_CAPABILITIES.indexOf(tmpl.capability) !== -1;
+      });
+    } else {
+      filtered = TEMPLATES.filter(function (tmpl) { return tmpl.capability === capability; });
+    }
 
     // 构建模板卡片 HTML
     var html = '<div class="template-selector">';
@@ -246,11 +315,19 @@
   /**
    * 按 capability 获取模板列表
    *
-   * @param {string} capability - 'video' | 'image'
+   * @param {string} capability — 'image' | 'text_to_video' | 'image_to_video' | 'reference_to_video'
+   *                              传 'video' 兼容旧行为（展开为三个视频 capability）
    * @returns {object[]} 匹配的模板数组
    */
   function getTemplatesByCapability(capability) {
     if (!capability) return TEMPLATES.slice();
+    // Phase UI-AICreation-06-D: 向后兼容 'video'
+    if (capability === 'video') {
+      var COMPAT_VIDEO_CAPABILITIES = ['text_to_video', 'image_to_video', 'reference_to_video'];
+      return TEMPLATES.filter(function (tmpl) {
+        return COMPAT_VIDEO_CAPABILITIES.indexOf(tmpl.capability) !== -1;
+      });
+    }
     return TEMPLATES.filter(function (tmpl) { return tmpl.capability === capability; });
   }
 

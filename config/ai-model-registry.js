@@ -466,7 +466,7 @@ const capabilityMap = buildCapabilityMap();
 // 生成结果:
 // {
 //   text_to_video:        ['wan2.1-t2v'],
-//   image_to_video:       ['wan2.1-i2v'],
+//   image_to_video:       ['wan2.1-i2v', 'wan2.7-i2v'],
 //   reference_to_video:   ['wan2.1-ref2video'],
 //   image_generation:     ['qwen-image', 'qwen-image-backup', 'qwen-image-2.0-pro', 'qwen-image-2.0', 'wan2.7-image-pro', 'wan2.7-image'],
 //   image_edit:           ['qwen-image-edit'],
@@ -496,6 +496,14 @@ const templates = [
     description: '对现有图片进行智能编辑、优化和风格转换',
     icon: '✏️',
     sort: 2,
+  },
+  {
+    id: 'image_to_video_wan27',
+    modelId: 'wan2.7-i2v',
+    name: 'Wan2.7 图片动态化',
+    description: 'Wan2.7图生视频模型，更高画质与动态表现，将静态图片转换为高质量动态视频',
+    icon: '🎬',
+    sort: 2.8,
   },
   {
     id: 'image_to_video',

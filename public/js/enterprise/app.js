@@ -154,10 +154,43 @@
     switch (page) {
       case 'dashboard': container.innerHTML = (typeof renderDashboard === 'function' ? renderDashboard() : '<div class="card"><div class="card-body">页面开发中</div></div>'); break;
       case 'storyboard': container.innerHTML = (typeof renderStoryboardPage === 'function' ? renderStoryboardPage() : '<div class="card"><div class="card-body">页面开发中</div></div>'); break;
-      case 'text2video': container.innerHTML = (typeof renderText2Video === 'function' ? renderText2Video() : '<div class="card"><div class="card-body">页面开发中</div></div>'); initTemplateSelector('#t2vTemplateContainer', 't2vPrompt', 'video'); break;
-      case 'image2video': container.innerHTML = (typeof renderImage2Video === 'function' ? renderImage2Video() : '<div class="card"><div class="card-body">页面开发中</div></div>'); initTemplateSelector('#i2vTemplateContainer', 'i2vPrompt', 'video'); break;
-      case 'studio': container.innerHTML = (typeof renderStudio === 'function' ? renderStudio() : renderFallback('AI创作中心')); initTemplateSelector('#studioTemplateContainer', 'studioPrompt', 'video'); break;
-      case 'ref2video': container.innerHTML = (typeof renderStudio === 'function' ? renderStudio() : renderFallback('AI创作中心')); initTemplateSelector('#studioTemplateContainer', 'studioPrompt', 'video'); setTimeout(function () { if (typeof studioSelectType === 'function') { var card = document.querySelector('.yj-studio-type-card[data-type="ref2video"]'); if (card) studioSelectType(card, 'ref2video'); } }, 0); break;
+      case 'text2video': container.innerHTML = (typeof renderStudio === 'function' ? renderStudio() : renderFallback('AI创作中心')); initTemplateSelector('#studioTemplateContainer', 'studioPrompt', 'text_to_video'); if (typeof studioSelectType === 'function') { var card = document.querySelector('.yj-studio-type-card[data-type="text2video"]'); if (card) studioSelectType(card, 'text2video'); } break;
+      case 'image2video': container.innerHTML = (typeof renderStudio === 'function' ? renderStudio() : renderFallback('AI创作中心')); initTemplateSelector('#studioTemplateContainer', 'studioPrompt', 'image_to_video'); if (typeof studioSelectType === 'function') { var card = document.querySelector('.yj-studio-type-card[data-type="image2video"]'); if (card) studioSelectType(card, 'image2video'); } break;
+      case 'studio':
+        container.innerHTML = (typeof renderStudio === 'function' ? renderStudio() : renderFallback('AI创作中心'));
+        // Phase UI-AICreation-02-B-2.4-H: 根据当前 creationType 初始化 DOM 隔离
+        (function () {
+          var validTypes = ['image2video', 'text2video', 'ref2video', 'imageGen'];
+          // Phase UI-AICreation-02-B-2.4-I: 从 localStorage 恢复子模式，刷新后保持
+          var savedType = null;
+          try { savedType = localStorage.getItem('enterprise_studio_creationType'); } catch (e) { /* ignore */ }
+          var creationType;
+          if (savedType && validTypes.indexOf(savedType) !== -1) {
+            creationType = savedType;
+          } else {
+            creationType = (window.YJ && YJ.state && YJ.state.aiCreation && YJ.state.aiCreation.creationType) || 'image2video';
+          }
+          if (validTypes.indexOf(creationType) === -1) creationType = 'image2video';
+          // 同步回内存状态
+          if (window.YJ && YJ.state && YJ.state.aiCreation) {
+            YJ.state.aiCreation.creationType = creationType;
+          }
+          // Phase UI-AICreation-06-E: 根据恢复的 creationType 精确映射模板 capability
+          var TPL_CAP = { imageGen: 'image', text2video: 'text_to_video', image2video: 'image_to_video', ref2video: 'reference_to_video' };
+          var capability = TPL_CAP[creationType] || 'image_to_video';
+          initTemplateSelector('#studioTemplateContainer', 'studioPrompt', capability);
+          // 修正 renderStudio 硬编码 ref2video active 的卡片状态
+          document.querySelectorAll('.yj-studio-type-card').forEach(function (c) { c.classList.remove('active'); });
+          var activeCard = document.querySelector('.yj-studio-type-card[data-type="' + creationType + '"]');
+          if (activeCard) activeCard.classList.add('active');
+          // DOM 隔离初始化
+          if (typeof studioInitModelSelect === 'function') studioInitModelSelect(creationType);
+          if (typeof studioUpdateStepBadges === 'function') studioUpdateStepBadges(creationType);
+          if (typeof studioUpdatePromptDOM === 'function') studioUpdatePromptDOM(creationType);
+          if (typeof studioUpdateParamVisibility === 'function') studioUpdateParamVisibility(creationType);
+        })();
+        break;
+      case 'ref2video': container.innerHTML = (typeof renderStudio === 'function' ? renderStudio() : renderFallback('AI创作中心')); initTemplateSelector('#studioTemplateContainer', 'studioPrompt', 'reference_to_video'); if (typeof studioSelectType === 'function') { var card = document.querySelector('.yj-studio-type-card[data-type="ref2video"]'); if (card) studioSelectType(card, 'ref2video'); } break;
       case 'digitalhuman':
         if (typeof renderDigitalHumanAsync === 'function') {
           renderDigitalHumanAsync(container);
@@ -167,7 +200,7 @@
           container.innerHTML = '<div class="card"><div class="card-body">页面开发中</div></div>';
         }
         break;
-      case 'imageGen': container.innerHTML = (typeof renderImageGen === 'function' ? renderImageGen() : '<div class="card"><div class="card-body">页面开发中</div></div>'); initTemplateSelector('#imgGenTemplateContainer', 'imgGenPrompt', 'image'); break;
+      case 'imageGen': container.innerHTML = (typeof renderStudio === 'function' ? renderStudio() : renderFallback('AI创作中心')); initTemplateSelector('#studioTemplateContainer', 'studioPrompt', 'image'); if (typeof studioSelectType === 'function') { var card = document.querySelector('.yj-studio-type-card[data-type="imageGen"]'); if (card) studioSelectType(card, 'imageGen'); } break;
       case 'projects': container.innerHTML = (typeof renderProjects === 'function' ? renderProjects() : '<div class="card"><div class="card-body">页面开发中</div></div>'); break;
       case 'project-detail': {
         var pid = APP.currentProjectId;

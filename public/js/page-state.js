@@ -22,6 +22,7 @@
   var VALID_PAGES = [
     'dashboard',    // 首页
     'assets',       // 资产
+    'studio',       // AI创作中心（统一入口）
     'ref2video',    // AI生成
     'text2video',   // 文生视频
     'image2video',  // 图生视频

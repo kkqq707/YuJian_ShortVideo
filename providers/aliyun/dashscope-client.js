@@ -75,7 +75,9 @@ class DashScopeClient {
         prompt: params.prompt,
         model: params.model,
         size: params.size || '1080p',
-        duration: params.duration || 5
+        duration: params.duration || 5,
+        negativePrompt: params.negativePrompt,
+        params: params.extraParams
       });
 
       if (!result.output?.task_id) {

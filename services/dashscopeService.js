@@ -351,9 +351,10 @@ class DashScopeService {
     }
 
     // ── 组装请求体 ───────────────────────────────────────────
-    // happyhorse 系列模型使用 input.media 格式，其他模型使用 input.img_url
+    // happyhorse 系列和 wan2.7-i2v 模型使用 input.media 格式，其他模型使用 input.img_url
     const happyhorseI2vModelName = registry.getApiModelName('wan2.1-i2v');
-    const isHappyhorse = resolvedModel === happyhorseI2vModelName;
+    const wan27I2vModelName = registry.getApiModelName('wan2.7-i2v');
+    const usesMediaInput = resolvedModel === happyhorseI2vModelName || resolvedModel === wan27I2vModelName;
 
     const requestBody = {
       model: resolvedModel,
@@ -363,7 +364,7 @@ class DashScopeService {
       parameters: {}
     };
 
-    if (isHappyhorse) {
+    if (usesMediaInput) {
       requestBody.input.media = [
         { type: 'first_frame', url: imageUrl.trim() }
       ];
@@ -602,7 +603,7 @@ class DashScopeService {
    * Backward compat: 文生视频
    * @deprecated Sprint 3.2 将迁移至统一 createTask 接口
    */
-  async submitText2Video({ prompt, model, size, duration } = {}) {
+  async submitText2Video({ prompt, model, size, duration, negativePrompt, params = {} } = {}) {
     const resolvedModel = model || registry.getApiModelName('wan2.1-t2v');
     const body = {
       model: resolvedModel,
@@ -613,8 +614,29 @@ class DashScopeService {
       }
     };
 
+    // ── Phase UI-AICreation-07-B: 支持 negativePrompt ────────────
+    if (negativePrompt) {
+      body.input.negative_prompt = negativePrompt.trim();
+    }
+
+    // ── Phase UI-AICreation-07-B: 合并扩展参数（aspectRatio, motionStrength 等）──
+    if (params && typeof params === 'object') {
+      const knownParamKeys = ['resolution', 'ratio', 'seed', 'fps', 'camera', 'motion', 'size', 'duration'];
+      for (const key of knownParamKeys) {
+        if (params[key] !== undefined && params[key] !== null) {
+          body.parameters[key] = params[key];
+        }
+      }
+      // 非标准参数也透传
+      for (const [key, value] of Object.entries(params)) {
+        if (!knownParamKeys.includes(key) && value !== undefined && value !== null) {
+          body.parameters[key] = value;
+        }
+      }
+    }
+
     if (process.env.NODE_ENV === 'development') {
-      console.log(`[DashScope] submitText2Video (compat) | model=${resolvedModel}`);
+      console.log(`[DashScope] submitText2Video (compat) | model=${resolvedModel} | has_negative=${!!negativePrompt}`);
     }
 
     const result = await this.requestWithRetry(

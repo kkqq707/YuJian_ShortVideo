@@ -261,14 +261,20 @@
       updateGenTimeline('process');
       submitText.textContent = '生成中...';
 
-      // Sprint 4.7: 前端只传 templateId, prompt, sourceAssetId
-      // model 由后端 GenerationService → Provider Router → Aliyun Config 自动解析
+      // Phase UI-AICreation-02-B-2.4-C: Resolve model from Registry template→model mapping
+      // 前端显式传递 model，确保 wan2.7-i2v 等非默认模型能正确传递到后端
+      var modelConfig = (state.getModelByTemplateId && state.getModelByTemplateId(templateId)) || null;
+      var resolvedModel = (modelConfig && modelConfig.id) ? modelConfig.id : null;
+
       var taskInput = {
         sourceAssetId: state.generation.assetId || state.generation.sourceAssetId,
         prompt: prompt,
         templateId: templateId,
         duration: 5
       };
+      if (resolvedModel) {
+        taskInput.model = resolvedModel;
+      }
 
       var task;
       if (api.Generation && api.Generation.createTask) {

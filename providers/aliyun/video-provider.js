@@ -86,7 +86,7 @@ class AliyunVideoProvider {
 
       case 'text_to_video':
         return this._createTextToVideo(
-          prompt.trim(), modelConfig.model, duration, options
+          prompt.trim(), effectiveModel, duration, negativePrompt, options
         );
 
       default:
@@ -163,12 +163,14 @@ class AliyunVideoProvider {
   /**
    * 文生视频
    */
-  async _createTextToVideo(prompt, model, duration, options) {
+  async _createTextToVideo(prompt, model, duration, negativePrompt, options = {}) {
     const result = await this.client.createTextToVideoTask({
       prompt,
       model,
       size: options.size || '1080p',
-      duration: duration || 5
+      duration: duration || 5,
+      negativePrompt,
+      extraParams: options
     });
 
     return {

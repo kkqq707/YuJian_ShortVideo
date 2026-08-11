@@ -173,13 +173,18 @@
      * @returns {Promise<Object>}
      */
     createTextToVideoTask: function (taskInput) {
-      // Phase 2-C-1-D: 接入后端文生视频接口
+      // Phase UI-AICreation-07-B: 迁移到新架构 endpoint
       // modelId → model 字段转换（参照 createRefToVideoTask）
       var body = {
         prompt: taskInput.prompt || '',
         duration: taskInput.duration || 5,
         params: taskInput.params || {}
       };
+
+      // Phase UI-AICreation-07-B: 传递 negativePrompt
+      if (taskInput.negativePrompt) {
+        body.negativePrompt = taskInput.negativePrompt;
+      }
 
       if (taskInput.modelId && YJ.state && YJ.state.aiModels && YJ.state.aiModels.models) {
         var modelConfig = YJ.state.aiModels.models[taskInput.modelId];
@@ -188,7 +193,7 @@
         }
       }
 
-      return YuJianAPI.post('/enterprise/tasks/text2video', body);
+      return YuJianAPI.post('/enterprise/video-generation/text-to-video', body);
     },
 
     /**
