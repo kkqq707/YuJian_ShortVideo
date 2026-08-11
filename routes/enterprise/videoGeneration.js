@@ -26,6 +26,9 @@ router.post('/text-to-image', controller.createImageTask);
 // POST /api/enterprise/video-generation/text-to-video — 文生视频任务（Phase UI-AICreation-07-B）
 router.post('/text-to-video', controller.createTextToVideoTask);
 
+// POST /api/enterprise/video-generation/ref-to-video — 参考生视频任务（Phase UI-AICreation-07-E）
+router.post('/ref-to-video', controller.createRefToVideoTask);
+
 // DELETE /api/enterprise/video-generation/tasks/:id — 软删除作品（Sprint 3.3）
 //      更新 deleted_at=NOW()，不物理删除、不删 Asset、不删 OSS 文件
 router.delete('/tasks/:id', controller.deleteTask);

@@ -628,7 +628,8 @@ class GenerationService {
       'image_generation': 'text2image',
       'image_edit': 'text2image',
       'image_to_video': 'image2video',
-      'text_to_video': 'text2video'
+      'text_to_video': 'text2video',
+      'reference_to_video': 'ref2video'
     };
     return map[capability] || 'image2video';
   }

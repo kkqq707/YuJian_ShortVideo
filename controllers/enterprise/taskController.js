@@ -129,7 +129,7 @@ exports.ref2Video = async (req, res) => {
   if (images.length > 5) return res.fail('参考生视频最多支持5张参考图片');
 
   const refModels = getModelsByCapability('reference_to_video');
-  const resolvedModel = model || (refModels.length > 0 ? refModels[0].apiModelName : registry.getApiModelName('wan2.1-i2v'));
+  const resolvedModel = model || (refModels.length > 0 ? refModels[0].apiModelName : registry.getApiModelName('wan2.1-ref2video'));
   const selectedDuration = duration || 5;
 
   // 积分校验

@@ -917,6 +917,7 @@
             isUploading: false,
             isGenerating: false,
             textPrompt: '',              // Phase 2-C-1-D: 文生视频提示词
+            negativePrompt: '',         // Phase UI-AICreation-07-C: 负向提示词
         };
 
         // ─── Phase 2-C-1-B: 双写同步 → YJ.state.aiCreation ───
@@ -935,6 +936,7 @@
                     isUploading: STUDIO_STATE.isUploading,
                     isGenerating: STUDIO_STATE.isGenerating,
                     textPrompt: STUDIO_STATE.textPrompt,
+                    negativePrompt: STUDIO_STATE.negativePrompt,
                 });
             }
         }
@@ -1153,6 +1155,16 @@
                 + '    placeholder="描述期望的画面内容、风格、运镜方式..."'
                 + '    oninput="studioUpdatePromptCount()"'
                 + '    data-mode-placeholder="true"></textarea>'
+                // Phase UI-AICreation-07-C: 负向提示词输入
+                + '  <div class="yj-studio-prompt-negative" id="studioNegativePromptWrap" style="margin-top:12px">'
+                + '    <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px">'
+                + '      <label style="font-size:13px;color:var(--text-sub);font-weight:500">负向提示词</label>'
+                + '      <span style="font-size:11px;color:var(--text-muted)">（描述不希望出现的画面内容）</span>'
+                + '    </div>'
+                + '    <textarea id="studioNegativePrompt" class="yj-studio-prompt-textarea" rows="2"'
+                + '      placeholder="例如：模糊、变形、低质量、噪点、水印..."'
+                + '      style="min-height:60px"></textarea>'
+                + '  </div>'
                 + '  <div class="yj-studio-prompt-footer">'
                 + '    <span class="yj-studio-prompt-counter"><span id="studioPromptCount">0</span>/2000</span>'
                 + '  </div>'
@@ -1306,6 +1318,9 @@
             // ★ Phase UI-AICreation-02-B-2.2-A: 保存当前模式的 DOM prompt 到状态
             var promptEl = document.getElementById('studioPrompt');
             var currentPrompt = promptEl ? promptEl.value : '';
+            // Phase UI-AICreation-07-C: 保存负向提示词 DOM 值
+            var negPromptEl = document.getElementById('studioNegativePrompt');
+            var currentNegPrompt = negPromptEl ? negPromptEl.value : '';
 
             // ★ Phase UI-AICreation-02-B-2.2-A: 保存当前模式状态 → 旧命名空间
             if (prevType && YJ.state.saveAiCreationModeState) {
@@ -1314,6 +1329,11 @@
                     YJ.state.aiCreation.ref2videoPrompt = currentPrompt;
                 } else {
                     YJ.state.aiCreation.textPrompt = currentPrompt;
+                }
+                // Phase UI-AICreation-07-C: 保存负向提示词
+                // Phase UI-AICreation-07-G P2-1: 扩展 ref2video 也保存 negativePrompt
+                if (prevType === 'text2video' || prevType === 'ref2video') {
+                    YJ.state.aiCreation.negativePrompt = currentNegPrompt;
                 }
                 YJ.state.saveAiCreationModeState(prevType);
             }
@@ -1370,6 +1390,10 @@ var templateCapability = STUDIO_TPL_CAP_MAP[type] || 'image_to_video';
                 var modeState = YJ.state.getAiCreationModeState(type);
                 if (promptEl && modeState && modeState.prompt !== undefined && modeState.prompt !== null) {
                     promptEl.value = modeState.prompt;
+                }
+                // Phase UI-AICreation-07-C: 恢复负向提示词到 DOM
+                if (negPromptEl && modeState && modeState.negativePrompt !== undefined && modeState.negativePrompt !== null) {
+                    negPromptEl.value = modeState.negativePrompt;
                 }
             }
 
@@ -1612,7 +1636,9 @@ var templateCapability = STUDIO_TPL_CAP_MAP[type] || 'image_to_video';
 
         // ★ Phase 2-C-2-4-C-3-3-A: ref2video 参考图片批量上传
         // Phase 2-D-3.4-B.3-B: 迁移至 YJ.state.aiCreation
-        async function studioUploadRefImages() {
+        // Phase UI-AICreation-07-G P2-3: 串行上传改为 Promise.all 并行上传
+        // Phase UI-AICreation-07-G P2-4: 添加进度反馈 (完成数/总数)
+        async function studioUploadRefImages(statusEl) {
             var images = YJ.state.aiCreation.referenceImages;
             if (!images || !images.length) {
                 showToast('请先添加参考图片', 'warning');
@@ -1621,17 +1647,36 @@ var templateCapability = STUDIO_TPL_CAP_MAP[type] || 'image_to_video';
 
             YJ.state.aiCreation.isUploading = true;
 
-            try {
-                for (var i = 0; i < images.length; i++) {
-                    var item = images[i];
-                    // 素材库图片已有 OSS URL，跳过上传
-                    if (item.sourceMode === 'asset' && item.uploadedUrl) continue;
-                    // 已上传的跳过，禁止重复上传
-                    if (item.uploadedUrl) continue;
+            // 筛选需要上传的图片（素材库图片/已上传图片跳过）
+            var imagesToUpload = [];
+            for (var i = 0; i < images.length; i++) {
+                var item = images[i];
+                // 素材库图片已有 OSS URL，跳过上传
+                if (item.sourceMode === 'asset' && item.uploadedUrl) continue;
+                // 已上传的跳过，禁止重复上传
+                if (item.uploadedUrl) continue;
+                imagesToUpload.push(item);
+            }
 
-                    var result = await YuJianUpload.uploadImage(item.file);
-                    item.uploadedUrl = result.url;
-                    item.uploadedAssetId = result.assetId;
+            try {
+                if (imagesToUpload.length > 0) {
+                    var total = imagesToUpload.length;
+                    var completed = 0;
+                    if (statusEl) {
+                        statusEl.textContent = '正在上传参考图片 (' + completed + '/' + total + ')';
+                    }
+
+                    var uploadPromises = imagesToUpload.map(function(item) {
+                        return YuJianUpload.uploadImage(item.file).then(function(result) {
+                            item.uploadedUrl = result.url;
+                            item.uploadedAssetId = result.assetId;
+                            completed++;
+                            if (statusEl) {
+                                statusEl.textContent = '正在上传参考图片 (' + completed + '/' + total + ')';
+                            }
+                        });
+                    });
+                    await Promise.all(uploadPromises);
                 }
             } catch (err) {
                 YJ.state.aiCreation.isUploading = false;
@@ -1767,6 +1812,13 @@ var templateCapability = STUDIO_TPL_CAP_MAP[type] || 'image_to_video';
             }
             if (hintEl && hints[type]) {
                 hintEl.textContent = hints[type];
+            }
+
+            // Phase UI-AICreation-07-C: 负向提示词 text2video / ref2video 模式显示
+            // Phase UI-AICreation-07-G P2-1: 扩展 ref2video 也显示 negativePrompt
+            var negWrap = document.getElementById('studioNegativePromptWrap');
+            if (negWrap) {
+                negWrap.style.display = (type === 'text2video' || type === 'ref2video') ? 'block' : 'none';
             }
         }
 
@@ -1973,10 +2025,9 @@ var templateCapability = STUDIO_TPL_CAP_MAP[type] || 'image_to_video';
                     // ★ Phase 2-C-2-4-C-3-3-B: ref2video 真实生成分支
                     var _refDurationVal = parseInt(document.getElementById('studioDuration').value) || 5;
 
-                    // 上传参考图片到 OSS
-                    if (statusText) statusText.textContent = '正在上传参考图片...';
+                    // 上传参考图片到 OSS（进度反馈由 studioUploadRefImages 内部更新）
                     if (generateText) generateText.textContent = '上传中...';
-                    var _uploadedUrls = await studioUploadRefImages();
+                    var _uploadedUrls = await studioUploadRefImages(statusText);
                     if (!_uploadedUrls) {
                         // 上传失败 — 恢复状态但不清空参考图片
                         YJ.state.aiCreation.isGenerating = false;
@@ -1990,10 +2041,25 @@ var templateCapability = STUDIO_TPL_CAP_MAP[type] || 'image_to_video';
                     if (statusText) statusText.textContent = '正在生成，请耐心等待...';
                     if (generateText) generateText.textContent = '生成中...';
 
+                    // ★ 读取统一参数（与 image2video/text2video 一致）
+                    var _refAspectRatioVal = (document.getElementById('studioAspectRatio') || {}).value || '16:9';
+                    var _refMotionStrengthVal = (document.getElementById('studioMotionStrength') || {}).value || 'medium';
+                    var _refCameraMovementVal = (document.getElementById('studioCameraMovement') || {}).value || 'static';
+                    var _refQualityVal = (document.getElementById('studioQuality') || {}).value || 'standard';
+
+                    var _refUnifiedParams = {
+                        aspectRatio: _refAspectRatioVal,
+                        motionStrength: _refMotionStrengthVal,
+                        cameraMovement: _refCameraMovementVal,
+                        quality: _refQualityVal
+                    };
+
                     var _refTaskInput = {
                         referenceImages: _uploadedUrls,
                         prompt: prompt,
                         duration: _refDurationVal,
+                        params: _refUnifiedParams,
+                        negativePrompt: (document.getElementById('studioNegativePrompt')?.value || '').trim(),
                         modelId: selectedModelId
                     };
 
@@ -2018,7 +2084,8 @@ var templateCapability = STUDIO_TPL_CAP_MAP[type] || 'image_to_video';
                         prompt: prompt,
                         duration: durationVal,
                         params: unifiedParams,
-                        modelId: selectedModelId
+                        modelId: selectedModelId,
+                        negativePrompt: (document.getElementById('studioNegativePrompt')?.value || '').trim()
                     };
 
                     if (creationType === 'image2video') {
@@ -2334,6 +2401,7 @@ var templateCapability = STUDIO_TPL_CAP_MAP[type] || 'image_to_video';
             STUDIO_STATE.isGenerating = false;
             STUDIO_STATE.currentTaskId = null;
             STUDIO_STATE.textPrompt = '';
+            STUDIO_STATE.negativePrompt = '';              // Phase UI-AICreation-07-C
             syncStudioToAiCreation();
 
             // Phase 2-C-2-4-C-3-2: 清理两套素材
@@ -2345,6 +2413,10 @@ var templateCapability = STUDIO_TPL_CAP_MAP[type] || 'image_to_video';
 
             if (generateBtn) generateBtn.disabled = false;
             if (generateText) generateText.textContent = '开始生成';
+
+            // Phase UI-AICreation-07-C: 清空负向提示词 DOM
+            var negPromptEl = document.getElementById('studioNegativePrompt');
+            if (negPromptEl) negPromptEl.value = '';
 
             studioResetResult();
         }

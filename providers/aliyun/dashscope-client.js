@@ -113,7 +113,9 @@ class DashScopeClient {
         images: params.images,
         prompt: params.prompt,
         model: params.model,
-        duration: params.duration || 5
+        duration: params.duration || 5,
+        negativePrompt: params.negativePrompt,
+        params: params.extraParams
       });
 
       if (!result.output?.task_id) {

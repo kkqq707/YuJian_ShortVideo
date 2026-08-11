@@ -63,12 +63,12 @@ const models = {
   'wan2.1-t2v': {
     id: 'wan2.1-t2v',
     name: 'Wan2.1 文生视频',
-    displayName: 'happyhorse-t2v',
+    displayName: 'happyhorse-1.1-t2v',
     family: 'wan2.1',
     provider: 'aliyun',
     capability: CAPABILITY.TEXT_TO_VIDEO,
     outputType: 'video',
-    apiModelName: 'happyhorse-t2v',
+    apiModelName: 'happyhorse-1.1-t2v',
 
     description: '通过文字描述直接生成高质量视频，零素材创作',
     category: 'video',
@@ -159,15 +159,46 @@ const models = {
     apiPath: '/api/v1/services/aigc/video-generation/video-synthesis',
   },
 
+  'wan2.7-t2v': {
+    id: 'wan2.7-t2v',
+    name: 'Wan2.7 文生视频',
+    displayName: 'wan2.7-t2v',
+    family: 'wan2.7',
+    provider: 'aliyun',
+    capability: CAPABILITY.TEXT_TO_VIDEO,
+    outputType: 'video',
+    apiModelName: 'wan2.7-t2v',
+
+    description: 'Wan2.7 文生视频模型（基础版），快速出片，适合日常创意视频',
+    category: 'video',
+    categoryLabel: '视频生成',
+    icon: '📽️',
+    sort: 4.5,
+
+    // 参数约束
+    maxPromptLength: 2000,
+    defaultDuration: 5,
+    maxDuration: 30,
+    supportedSizes: ['1080p', '720p'],
+    defaultSize: '1080p',
+    requireImage: false,
+
+    // 定价
+    pricing: { pointsPerUnit: 8, unit: 'second' },
+
+    // API 端点
+    apiPath: '/api/v1/services/aigc/video-generation/video-synthesis',
+  },
+
   'wan2.1-ref2video': {
     id: 'wan2.1-ref2video',
     name: 'Wan2.1 参考生视频',
-    displayName: 'happyhorse-1.1-i2v',
+    displayName: 'happyhorse-1.1-r2v',
     family: 'wan2.1',
     provider: 'aliyun',
     capability: CAPABILITY.REFERENCE_TO_VIDEO,
     outputType: 'video',
-    apiModelName: 'happyhorse-1.1-i2v',
+    apiModelName: 'happyhorse-1.1-r2v',
 
     description: '通过多张参考图融合生成视频，保持多图特征一致性',
     category: 'video',
@@ -187,6 +218,39 @@ const models = {
 
     // 定价
     pricing: { pointsPerUnit: 12, unit: 'second' },
+
+    // API 端点
+    apiPath: '/api/v1/services/aigc/video-generation/video-synthesis',
+  },
+
+  'wan2.7-r2v': {
+    id: 'wan2.7-r2v',
+    name: 'Wan2.7 参考生视频',
+    displayName: 'wan2.7-r2v',
+    family: 'wan2.7',
+    provider: 'aliyun',
+    capability: CAPABILITY.REFERENCE_TO_VIDEO,
+    outputType: 'video',
+    apiModelName: 'wan2.7-r2v',
+
+    description: 'Wan2.7 参考生视频模型（基础版），多图参考快速生成视频',
+    category: 'video',
+    categoryLabel: '视频生成',
+    icon: '🖼️',
+    sort: 5.5,
+
+    // 参数约束
+    maxPromptLength: 2000,
+    defaultDuration: 5,
+    maxDuration: 30,
+    supportedSizes: ['720P', '480P'],
+    defaultSize: '720P',
+    requireImage: true,
+    minImages: 2,
+    maxImages: 5,
+
+    // 定价
+    pricing: { pointsPerUnit: 8, unit: 'second' },
 
     // API 端点
     apiPath: '/api/v1/services/aigc/video-generation/video-synthesis',
@@ -522,12 +586,28 @@ const templates = [
     sort: 4,
   },
   {
+    id: 'text_to_video_wan27',
+    modelId: 'wan2.7-t2v',
+    name: 'Wan2.7 文生视频',
+    description: 'Wan2.7 文生视频模型（基础版），快速出片',
+    icon: '📽️',
+    sort: 4.5,
+  },
+  {
     id: 'ref_to_video',
     modelId: 'wan2.1-ref2video',
     name: '参考生视频',
     description: '通过多张参考图融合生成视频，保持多图特征一致性',
     icon: '🖼️',
     sort: 5,
+  },
+  {
+    id: 'ref_to_video_wan27',
+    modelId: 'wan2.7-r2v',
+    name: 'Wan2.7 参考生视频',
+    description: 'Wan2.7 参考生视频模型（基础版），多图参考快速生成',
+    icon: '🖼️',
+    sort: 5.5,
   },
   {
     id: 'digital_human',

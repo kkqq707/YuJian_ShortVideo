@@ -219,8 +219,14 @@
       var body = {
         images: taskInput.referenceImages || [],
         prompt: taskInput.prompt || '',
-        duration: taskInput.duration || 5
+        duration: taskInput.duration || 5,
+        params: taskInput.params || {}
       };
+
+      // Phase UI-AICreation-07-C: 传递 negativePrompt
+      if (taskInput.negativePrompt) {
+        body.negativePrompt = taskInput.negativePrompt;
+      }
 
       // Registry-driven model resolution: modelId → apiModelName
       if (taskInput.modelId && YJ.state && YJ.state.aiModels && YJ.state.aiModels.models) {
@@ -230,7 +236,8 @@
         }
       }
 
-      return YuJianAPI.post('/enterprise/tasks/ref2video', body);
+      // Phase UI-AICreation-07-E: 切换到新端点
+      return YuJianAPI.post('/enterprise/video-generation/ref-to-video', body);
     },
 
     /**

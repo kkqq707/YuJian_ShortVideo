@@ -673,13 +673,33 @@ class DashScopeService {
    * Backward compat: 参考生视频（核心功能）
    * @deprecated Sprint 3.2 将迁移
    */
-  async submitRef2Video({ images, prompt, model, duration } = {}) {
-    const resolvedModel = model || registry.getApiModelName('wan2.1-i2v');
+  async submitRef2Video({ images, prompt, model, duration, negativePrompt, params = {} } = {}) {
+    const resolvedModel = model || registry.getApiModelName('wan2.1-ref2video');
     const body = {
       model: resolvedModel,
       input: { prompt: prompt || '', images },
       parameters: { duration: duration || 5 }
     };
+
+    // ── 支持 negativePrompt ──
+    if (negativePrompt) {
+      body.input.negative_prompt = negativePrompt.trim();
+    }
+
+    // ── 支持扩展参数透传 ──
+    if (params && typeof params === 'object') {
+      const knownParamKeys = ['resolution', 'ratio', 'seed', 'fps', 'camera', 'motion', 'size', 'duration'];
+      for (const key of knownParamKeys) {
+        if (params[key] !== undefined && params[key] !== null) {
+          body.parameters[key] = params[key];
+        }
+      }
+      for (const [key, value] of Object.entries(params)) {
+        if (!knownParamKeys.includes(key) && value !== undefined && value !== null) {
+          body.parameters[key] = value;
+        }
+      }
+    }
 
     if (process.env.NODE_ENV === 'development') {
       console.log(`[DashScope] submitRef2Video (compat) | model=${resolvedModel}`);

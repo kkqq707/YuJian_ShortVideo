@@ -809,6 +809,101 @@ exports.createTextToVideoTask = async (req, res) => {
 };
 
 /**
+ * POST /api/enterprise/video-generation/ref-to-video
+ *
+ * Phase UI-AICreation-07-E: 参考生视频专用接口
+ *
+ * 复用 generationService.createGenerationTask() 新架构，
+ * 支持 prompt、negativePrompt、images、duration、params、model。
+ *
+ * 与 createTask（图生视频）的区别：
+ *   - 不要求 sourceAssetId（参考生视频上传多图后直接传递 URLs）
+ *   - 默认 templateId = 'ref_to_video'
+ *   - 传递 images 数组而非单一 imageUrl
+ *
+ * 请求体：
+ *   images         - 参考图片 URL 数组（必填）
+ *   prompt         - 正向提示词（必填）
+ *   negativePrompt - 负向提示词（可选）
+ *   duration       - 视频时长（可选，默认 5s）
+ *   params         - 扩展参数（可选）
+ *   model          - 模型ID（可选）
+ */
+exports.createRefToVideoTask = async (req, res) => {
+  try {
+    const enterpriseId = req.user.enterpriseId;
+    const userId = req.user.userId;
+    const { images, prompt, negativePrompt, duration, params, model } = req.body;
+
+    // ── 1. 参数校验 ──
+    if (!images || !Array.isArray(images) || images.length < 2) {
+      return res.fail('参考生视频至少需要2张参考图片');
+    }
+    if (images.length > 5) {
+      return res.fail('参考生视频最多支持5张参考图片');
+    }
+    if (!prompt || typeof prompt !== 'string' || !prompt.trim()) {
+      return res.fail('提示词不能为空');
+    }
+    if (prompt.trim().length > 2000) {
+      return res.fail('提示词不能超过2000字');
+    }
+
+    // ── 2. 调用 GenerationService 创建任务 ──
+    console.log(
+      `[VideoGeneration] createRefToVideoTask REQUEST | ` +
+      `enterpriseId=${enterpriseId} | ` +
+      `prompt_len=${prompt.trim().length} | ` +
+      `images_count=${images.length} | ` +
+      `has_negative=${!!negativePrompt} | ` +
+      `model=${model || 'N/A'} | ` +
+      `duration=${duration || 'N/A'} | ` +
+      `has_params=${!!params} | ` +
+      `time=${new Date().toISOString()}`
+    );
+
+    const result = await generationService.createGenerationTask({
+      enterpriseId,
+      userId,
+      templateId: 'ref_to_video',
+      prompt: prompt.trim(),
+      negativePrompt,
+      images,
+      duration,
+      model,
+      options: params
+    });
+
+    // ── 3. 返回结果 ──
+    return res.success({
+      id: result.id,
+      task_id: result.taskId,
+      status: result.status,
+      provider: result.provider,
+      model: result.model,
+      created_at: result.createdAt
+    });
+  } catch (error) {
+    console.error(
+      `[VideoGeneration] createRefToVideoTask ERROR | ` +
+      `name=${error.name || 'Unknown'} | ` +
+      `message=${error.message || '(no message)'} | ` +
+      `code=${error.code || 'N/A'} | ` +
+      `statusCode=${error.statusCode || 'N/A'} | ` +
+      `provider=${error.provider || 'N/A'} | ` +
+      `retryable=${error.retryable !== undefined ? error.retryable : 'N/A'} | ` +
+      `time=${new Date().toISOString()}`
+    );
+
+    if (error.name === 'ProviderError') {
+      return res.fail(error.message, error.statusCode || 500);
+    }
+
+    return res.fail('服务器内部错误', 500);
+  }
+};
+
+/**
  * POST /api/enterprise/video-generation/text-to-image
  *
  * Phase UI-AICreation-02-B-1-A: 图片生成接口

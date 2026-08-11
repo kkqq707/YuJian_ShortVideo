@@ -89,6 +89,12 @@ class AliyunVideoProvider {
           prompt.trim(), effectiveModel, duration, negativePrompt, options
         );
 
+      case 'reference_to_video':
+        return this._createImageToVideo(
+          prompt.trim(), imageUrl, images,
+          negativePrompt, effectiveModel, duration, options
+        );
+
       default:
         throw new ProviderError(
           this.provider, 'UNSUPPORTED_CAPABILITY',
@@ -138,7 +144,9 @@ class AliyunVideoProvider {
         images,
         prompt,
         model,
-        duration: duration || 5
+        duration: duration || 5,
+        negativePrompt,
+        extraParams: options
       });
     } else {
       // 单图 → 使用 image2video

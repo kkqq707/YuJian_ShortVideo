@@ -97,6 +97,7 @@
       isGenerating: false,          // 生成中标志
       // Phase 2-C-1-D: 文生视频专用字段
       textPrompt: '',               // 文生视频提示词
+      negativePrompt: '',           // Phase UI-AICreation-07-C: 负向提示词
       // Phase 2-C-2-4-C-3-1: ref2video 状态字段
       ref2videoPrompt: '',          // 参考生视频描述
       referenceSubjects: [],        // 参考主体列表
@@ -120,6 +121,7 @@
 
       text2video: {
         prompt: '',                    // 文生视频提示词
+        negativePrompt: '',            // Phase UI-AICreation-07-C: 负向提示词
         params: {
           aspectRatio: '16:9',
           duration: 5,
@@ -435,6 +437,7 @@
     ac.isUploading = false;
     ac.isGenerating = false;
     ac.textPrompt = '';
+    ac.negativePrompt = '';                        // Phase UI-AICreation-07-C
     // Phase 2-C-2-4-C-3-1: Reset ref2video fields
     ac.ref2videoPrompt = '';
     ac.referenceSubjects = [];
@@ -453,6 +456,7 @@
     // Phase UI-AICreation-02-B-2.2-A: Reset all per-mode namespaces
     ac.text2video = {
       prompt: '',
+      negativePrompt: '',                            // Phase UI-AICreation-07-C
       params: { aspectRatio: '16:9', duration: 5, motionStrength: 'medium', cameraMovement: 'static', quality: 'standard' }
     };
     ac.image2video = {
@@ -550,6 +554,7 @@
     switch (mode) {
       case 'text2video':
         ns.prompt = ac.textPrompt || '';
+        ns.negativePrompt = ac.negativePrompt || '';   // Phase UI-AICreation-07-C
         ns.params = Object.assign({}, ac.params);
         // text2video doesn't need video-specific params, but we keep all for consistency
         break;
@@ -565,6 +570,7 @@
         break;
       case 'ref2video':
         ns.prompt = ac.ref2videoPrompt || '';
+        ns.negativePrompt = ac.negativePrompt || '';   // Phase UI-AICreation-07-G P2-1
         ns.referenceSubjects = (ac.referenceSubjects || []).slice();
         ns.referenceImages = (ac.referenceImages || []).slice();
         ns.params = Object.assign({}, ac.params);
@@ -590,6 +596,7 @@
     switch (mode) {
       case 'text2video':
         ac.textPrompt = ns.prompt || '';
+        ac.negativePrompt = ns.negativePrompt || '';   // Phase UI-AICreation-07-C
         ac.params = Object.assign({}, ns.params);
         break;
       case 'image2video':
@@ -604,6 +611,7 @@
         break;
       case 'ref2video':
         ac.ref2videoPrompt = ns.prompt || '';
+        ac.negativePrompt = ns.negativePrompt || '';   // Phase UI-AICreation-07-G P2-1
         ac.referenceSubjects = (ns.referenceSubjects || []).slice();
         ac.referenceImages = (ns.referenceImages || []).slice();
         ac.params = Object.assign({}, ns.params);
@@ -650,6 +658,7 @@
     var defaults = {
       text2video: {
         prompt: '',
+        negativePrompt: '',                            // Phase UI-AICreation-07-C
         params: { aspectRatio: '16:9', duration: 5, motionStrength: 'medium', cameraMovement: 'static', quality: 'standard' }
       },
       image2video: {
@@ -658,7 +667,7 @@
         params: { aspectRatio: '16:9', duration: 5, motionStrength: 'medium', cameraMovement: 'static', quality: 'standard' }
       },
       ref2video: {
-        prompt: '', referenceSubjects: [], referenceImages: [],
+        prompt: '', negativePrompt: '', referenceSubjects: [], referenceImages: [],
         params: { aspectRatio: '16:9', duration: 5, motionStrength: 'medium', cameraMovement: 'static', quality: 'standard' }
       },
       imageGen: {
