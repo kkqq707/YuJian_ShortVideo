@@ -131,7 +131,7 @@
     // Thumb click behavior
     var thumbClickAction = '';
     if (assetType === 'image') {
-      thumbClickAction = ' onclick="event.stopPropagation();openImagePreview(\'' + itemId + '\')" style="cursor:pointer"';
+      thumbClickAction = ' onclick="event.stopPropagation();previewAsset(\'' + itemId + '\')" style="cursor:pointer"';
     } else if (assetType === 'video') {
       thumbClickAction = ' onclick="event.stopPropagation();playAssetVideo(\'' + itemId + '\')" style="cursor:pointer"';
     } else {

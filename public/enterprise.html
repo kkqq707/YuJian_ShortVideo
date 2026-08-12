@@ -5672,10 +5672,12 @@ var templateCapability = STUDIO_TPL_CAP_MAP[type] || 'image_to_video';
                 genCountHtml = '<div class="asset-gen-count">已生成 <strong>' + genCount + '</strong> 个作品</div>';
             }
 
-            // Sprint 4.4 Patch6: 缩略图点击行为 — 图片类型打开纯预览，其他类型打开详情
+            // Sprint 4.4 Patch6: 缩略图点击行为 — 图片预览 / 视频播放 / 其他详情
             var thumbClickAction = '';
             if (assetType === 'image') {
-                thumbClickAction = ' onclick="event.stopPropagation();openImagePreview(\'' + itemId + '\')" style="cursor:pointer"';
+                thumbClickAction = ' onclick="event.stopPropagation();previewAsset(\'' + itemId + '\')" style="cursor:pointer"';
+            } else if (assetType === 'video') {
+                thumbClickAction = ' onclick="event.stopPropagation();playAssetVideo(\'' + itemId + '\')" style="cursor:pointer"';
             } else {
                 thumbClickAction = ' onclick="event.stopPropagation();previewAsset(\'' + itemId + '\')" style="cursor:pointer"';
             }
