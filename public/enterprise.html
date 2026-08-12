@@ -4142,10 +4142,9 @@ var templateCapability = STUDIO_TPL_CAP_MAP[type] || 'image_to_video';
             var videoPlayUrl = isImageTask ? '' : (item.playUrl || item.videoUrl || '');
             var hasVideo = !isImageTask && videoPlayUrl && item.status === 'success';
             var hasImage = isImageTask && item.status === 'success';
-            var hasThumb = item.thumbnailUrl || item.coverUrl;
-            var thumbUrl = hasThumb || '';
+            var thumbUrl = resolveThumbnailUrl(item) || '';
 
-            var thumbHtml = hasThumb
+            var thumbHtml = thumbUrl
                 ? '<img src="' + escapeHtml(thumbUrl) + '" alt="缩略图" loading="lazy" onerror="this.parentElement.innerHTML=\'<i class=\\\'fas fa-image no-thumb\\\'></i>\'">'
                 : '<i class="fas fa-image no-thumb"></i>';
 
@@ -4430,21 +4429,17 @@ var templateCapability = STUDIO_TPL_CAP_MAP[type] || 'image_to_video';
         async function playWorkVideo(taskId, title) {
             var decodedTitle = decodeURIComponent(title || '视频播放');
             try {
-                // 获取任务详情以拿到 outputAsset
+                // KL-B: 获取任务详情以拿到 outputAsset.id，然后委托给统一播放核心
                 var task = await YuJianAPI.get('/enterprise/video-generation/tasks/' + taskId);
                 var outputAsset = task.outputAsset;
+
                 if (outputAsset && outputAsset.id) {
-                    var playUrl = await resolveAssetPlayableUrl({
-                        id: outputAsset.id,
-                        type: 'video',
-                        url: outputAsset.url || task.output_url
-                    });
-                    if (playUrl) {
-                        playVideo(playUrl, decodedTitle);
-                        return;
-                    }
+                    // 委托给素材库播放核心（含缓存查找 + getPlayUrl 签名 + playVideo）
+                    await playAssetVideo(outputAsset.id);
+                    return;
                 }
-                // 降级：使用任务中的 playUrl
+
+                // 降级：无 outputAsset 时使用任务的播放 URL
                 var fallbackUrl = task.playUrl || task.videoUrl || task.output_url || '';
                 if (fallbackUrl) {
                     playVideo(fallbackUrl, decodedTitle);
@@ -5641,7 +5636,7 @@ var templateCapability = STUDIO_TPL_CAP_MAP[type] || 'image_to_video';
             var typeBadge = { image: 'IMG', video: 'MP4', audio: 'MP3', other: 'FILE' }[assetType] || 'FILE';
             var name = (item && item.name) || '未命名素材';
             var dateStr = formatWorkDate((item && item.createdAt) || null);
-            var thumbUrl = (item && item.thumbnailUrl) || (item && item.url) || '';
+            var thumbUrl = resolveThumbnailUrl(item) || '';
             var sizeStr = formatAssetSize((item && item.size) || 0);
             var escapedName = escapeHtml(name);
             var safeName = escapedName.replace(/'/g, "\\'");
@@ -5902,8 +5897,7 @@ var templateCapability = STUDIO_TPL_CAP_MAP[type] || 'image_to_video';
         // ─── Sprint 4.2: 资产详情 Modal ────────────────────
         var CURRENT_ASSET_DETAIL = null; // { id, url, name, ... }
 
-        // ─── Sprint 5.8: 播放URL缓存 ──────────────────────────
-        var PLAY_URL_CACHE = {};
+        // KL-B: PLAY_URL_CACHE 统一使用 utils.js 版本
 
         // ─── 预览资产（Sprint 4.2: 改为打开详情模态框）──────
         // Sprint 4.4 Patch5: 统一图片URL解析
@@ -5912,51 +5906,8 @@ var templateCapability = STUDIO_TPL_CAP_MAP[type] || 'image_to_video';
             return asset.thumbnailUrl || asset.url || asset.fileUrl || asset.path || '';
         }
 
-        // ─── Sprint 5.8: 统一资源播放URL解析 ──────────────────
-        /**
-         * 获取资产的可播放 URL（带签名）
-         *
-         * 规则：
-         *   - video: 调用 AssetAPI.getPlayUrl(asset.id) 获取签名 URL
-         *   - image: 调用 AssetAPI.getPlayUrl(asset.id) 获取签名 URL
-         *   - 禁止直接使用 asset.url 进行视频播放
-         *
-         * @param {Object} asset - 资产对象（必须有 id、type 字段）
-         * @returns {Promise<string>} 签名后的可播放 URL
-         */
-        async function resolveAssetPlayableUrl(asset) {
-            if (!asset || !asset.id) return '';
-
-            // 检查缓存（6.5天内有效，API返回7天签名）
-            var cached = PLAY_URL_CACHE[asset.id];
-            if (cached && cached.expiresAt > Date.now()) {
-                return cached.url;
-            }
-
-            try {
-                var api = (window.EnterpriseAPI && window.EnterpriseAPI.Asset) ||
-                          (window.YJ && window.YJ.api && window.YJ.api.Asset);
-                if (!api || !api.getPlayUrl) {
-                    console.warn('[resolveAssetPlayableUrl] AssetAPI.getPlayUrl 不可用，使用降级URL');
-                    return asset.url || '';
-                }
-
-                var result = await api.getPlayUrl(asset.id);
-                var url = (result && result.url) || asset.url || '';
-
-                // 缓存结果（6.5天，给12小时缓冲避免刚好过期）
-                PLAY_URL_CACHE[asset.id] = {
-                    url: url,
-                    expiresAt: Date.now() + 561600 * 1000
-                };
-
-                return url;
-            } catch (err) {
-                console.error('[resolveAssetPlayableUrl] 获取播放URL失败:', err.message || err);
-                // 降级：返回资产原始 URL
-                return asset.url || '';
-            }
-        }
+        // KL-B: resolveAssetPlayableUrl 统一使用 utils.js 版本（window.resolveAssetPlayableUrl）
+        // 删除本文件重复实现，避免 PLAY_URL_CACHE 双份不互通
 
         // Sprint 4.4 Patch5: 统一 API 响应格式转换
         function normalizeAssetResponse(data) {

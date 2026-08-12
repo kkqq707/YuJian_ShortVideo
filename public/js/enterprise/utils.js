@@ -130,6 +130,31 @@
   // ─── Sprint 5.8: 播放URL缓存 ──────────────────────────────
   var PLAY_URL_CACHE = {};
 
+  // ─── 统一 Thumbnail 解析（H1） ────────────────────────────
+  /**
+   * 统一资源缩略图 URL 解析
+   *
+   * 规则（按优先级）：
+   *   thumbnailUrl → coverUrl → sourceAsset.thumbnailUrl → sourceAsset.url → null
+   *
+   * @param {Object} item - 资源对象（素材或作品）
+   * @returns {string|null} 缩略图 URL
+   */
+  function resolveThumbnailUrl(item) {
+    if (!item) return null;
+    // 1. 直接缩略图
+    if (item.thumbnailUrl) return item.thumbnailUrl;
+    // 2. 视频封面（ffmpeg 提取）
+    if (item.coverUrl) return item.coverUrl;
+    // 3. 关联素材的缩略图（作品 → outputAsset / sourceAsset）
+    if (item.outputAsset && item.outputAsset.thumbnailUrl) return item.outputAsset.thumbnailUrl;
+    if (item.sourceAsset && item.sourceAsset.thumbnailUrl) return item.sourceAsset.thumbnailUrl;
+    // 4. 关联素材的原始 URL（最后回退）
+    if (item.outputAsset && item.outputAsset.url) return item.outputAsset.url;
+    if (item.sourceAsset && item.sourceAsset.url) return item.sourceAsset.url;
+    return null;
+  }
+
   // ─── 素材预览 URL 解析 ───────────────────────────────────
   function getAssetPreviewUrl(asset) {
     if (!asset) return '';
@@ -233,6 +258,7 @@
     fallbackCopyText: fallbackCopyText,
     normalizeAssetResponse: normalizeAssetResponse,
     getAssetPreviewUrl: getAssetPreviewUrl,
+    resolveThumbnailUrl: resolveThumbnailUrl,
     resolveAssetPlayableUrl: resolveAssetPlayableUrl,
     clearPlayUrlCache: clearPlayUrlCache,
     safeFetch: safeFetch
@@ -270,6 +296,9 @@
   }
   if (typeof window.getAssetPreviewUrl === 'undefined') {
     window.getAssetPreviewUrl = getAssetPreviewUrl;
+  }
+  if (typeof window.resolveThumbnailUrl === 'undefined') {
+    window.resolveThumbnailUrl = resolveThumbnailUrl;
   }
   if (typeof window.resolveAssetPlayableUrl === 'undefined') {
     window.resolveAssetPlayableUrl = resolveAssetPlayableUrl;

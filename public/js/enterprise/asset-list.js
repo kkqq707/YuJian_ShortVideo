@@ -22,6 +22,7 @@
   var formatWorkDate = utils.formatWorkDate || window.formatWorkDate;
   var formatAssetSize = utils.formatAssetSize || window.formatAssetSize;
   var safeFetch = utils.safeFetch || window.safeFetch;
+  var resolveThumbnailUrl = utils.resolveThumbnailUrl || window.resolveThumbnailUrl;
 
   var TYPE_MAP = (state.TYPE_MAP) || {
     'image': '图片', 'video': '视频', 'audio': '音频', 'other': '其他'
@@ -92,7 +93,7 @@
     var typeBadge = { image: 'IMG', video: 'MP4', audio: 'MP3', other: 'FILE' }[assetType] || 'FILE';
     var name = (item && item.name) || '未命名素材';
     var dateStr = formatWorkDate((item && item.createdAt) || null);
-    var thumbUrl = (item && item.thumbnailUrl) || (item && item.url) || '';
+    var thumbUrl = resolveThumbnailUrl(item) || '';
     var sizeStr = formatAssetSize((item && item.size) || 0);
     var escapedName = escapeHtml(name);
     var safeName = escapedName.replace(/'/g, "\\'");
