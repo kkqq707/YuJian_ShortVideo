@@ -352,7 +352,7 @@ class DashScopeService {
 
     // ── 组装请求体 ───────────────────────────────────────────
     // happyhorse 系列和 wan2.7-i2v 模型使用 input.media 格式，其他模型使用 input.img_url
-    const happyhorseI2vModelName = registry.getApiModelName('wan2.1-i2v');
+    const happyhorseI2vModelName = registry.getApiModelName('happyhorse-1.1-i2v');
     const wan27I2vModelName = registry.getApiModelName('wan2.7-i2v');
     const usesMediaInput = resolvedModel === happyhorseI2vModelName || resolvedModel === wan27I2vModelName;
 
@@ -600,16 +600,46 @@ class DashScopeService {
   // ═══════════════════════════════════════════════════════════════
 
   /**
+   * 将人类可读的 size 标签转换为 DashScope API 接受的像素尺寸格式。
+   *
+   * DashScope text2video API 要求 W*H 或 WxH 像素格式（如 1080*1920），
+   * 不接受人类可读标签（如 1080p、720p）。
+   *
+   * 映射：
+   *   1080p → 1080*1920（竖屏 9:16）
+   *   720p  → 720*1280（竖屏 9:16）
+   *   已是 W*H/WxH 格式 → 透传
+   *   未知格式 → 透传（保持原样）
+   *
+   * @param {string} sizeLabel - size 标签或像素格式
+   * @returns {string} DashScope 兼容的 size 格式
+   */
+  _convertSizeLabel(sizeLabel) {
+    if (!sizeLabel || typeof sizeLabel !== 'string') return sizeLabel;
+    const SIZE_MAP = {
+      '1080p': '1080*1920',
+      '720p': '720*1280'
+    };
+    // 如果已在映射表中，返回映射值
+    if (SIZE_MAP[sizeLabel]) return SIZE_MAP[sizeLabel];
+    // 如果已是 W*H 或 WxH 格式，直接透传
+    if (/^\d+[\*x]\d+$/i.test(sizeLabel)) return sizeLabel;
+    // 未知格式保持原样
+    return sizeLabel;
+  }
+
+  /**
    * Backward compat: 文生视频
    * @deprecated Sprint 3.2 将迁移至统一 createTask 接口
    */
   async submitText2Video({ prompt, model, size, duration, negativePrompt, params = {} } = {}) {
-    const resolvedModel = model || registry.getApiModelName('wan2.1-t2v');
+    const resolvedModel = model || registry.getApiModelName('happyhorse-1.1-t2v');
+    const resolvedSize = size || '1080p';
     const body = {
       model: resolvedModel,
       input: { prompt: prompt || '' },
       parameters: {
-        size: size || '1080p',
+        size: this._convertSizeLabel(resolvedSize),
         duration: duration || 5
       }
     };
@@ -674,10 +704,13 @@ class DashScopeService {
    * @deprecated Sprint 3.2 将迁移
    */
   async submitRef2Video({ images, prompt, model, duration, negativePrompt, params = {} } = {}) {
-    const resolvedModel = model || registry.getApiModelName('wan2.1-ref2video');
+    const resolvedModel = model || registry.getApiModelName('happyhorse-1.1-r2v');
+    const media = (images && Array.isArray(images))
+      ? images.map(url => ({ type: 'reference_image', url }))
+      : [];
     const body = {
       model: resolvedModel,
-      input: { prompt: prompt || '', images },
+      input: { prompt: prompt || '', media },
       parameters: { duration: duration || 5 }
     };
 
@@ -745,7 +778,7 @@ class DashScopeService {
    */
   async text2Image({ prompt, model, size, n } = {}) {
     const body = {
-      model: model || registry.getApiModelName('qwen-image'),
+      model: model || registry.getApiModelName('qwen-image-3.0-pro'),
       input: { prompt: prompt || '' },
       parameters: {
         size: size || '1024*1024',

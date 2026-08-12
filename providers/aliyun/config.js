@@ -36,7 +36,7 @@ const ALIYUN_CONFIG = {
 
   // 默认视频模型（仅从 .env 文件读取）
   get defaultVideoModel() {
-    return apiKeys.DASHSCOPE_VIDEO_MODEL || registry.getApiModelName('wan2.1-i2v');
+    return apiKeys.DASHSCOPE_VIDEO_MODEL || registry.getApiModelName('happyhorse-1.1-i2v');
   },
 
   // 请求超时（毫秒）

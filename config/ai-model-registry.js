@@ -13,12 +13,12 @@
  *   ┌──────────────────────────────┬──────────────────────┬──────────┐
  *   │ modelId                      │ capability            │ output   │
  *   ├──────────────────────────────┼──────────────────────┼──────────┤
- *   │ wan2.1-t2v                   │ text_to_video         │ video    │
- *   │ wan2.1-i2v                   │ image_to_video        │ video    │
+ *   │ happyhorse-1.1-t2v           │ text_to_video         │ video    │
+ *   │ happyhorse-1.1-i2v           │ image_to_video        │ video    │
  *   │ wan2.7-i2v                   │ image_to_video        │ video    │
- *   │ wan2.1-ref2video             │ reference_to_video    │ video    │
- *   │ qwen-image                   │ image_generation      │ image    │
- *   │ qwen-image-backup            │ image_generation      │ image    │
+ *   │ happyhorse-1.1-r2v           │ reference_to_video    │ video    │
+ *   │ qwen-image-3.0-pro           │ image_generation      │ image    │
+ *   │ qwen-image-plus              │ image_generation      │ image    │
  *   │ qwen-image-2.0-pro           │ image_generation      │ image    │
  *   │ qwen-image-2.0               │ image_generation      │ image    │
  *   │ wan2.7-image-pro             │ image_generation      │ image    │
@@ -29,7 +29,7 @@
  *
  * 使用方式：
  *   const registry = require('./config/ai-model-registry');
- *   const config = registry.getModelConfig('wan2.1-t2v');
+ *   const config = registry.getModelConfig('happyhorse-1.1-t2v');
  */
 
 // ═══════════════════════════════════════════════════════════════════════
@@ -60,8 +60,8 @@ const CAPABILITY = {
 const models = {
   // ── Wan2.1 系列 ─────────────────────────────────────────────────
 
-  'wan2.1-t2v': {
-    id: 'wan2.1-t2v',
+  'happyhorse-1.1-t2v': {
+    id: 'happyhorse-1.1-t2v',
     name: 'Wan2.1 文生视频',
     displayName: 'happyhorse-1.1-t2v',
     family: 'wan2.1',
@@ -91,8 +91,8 @@ const models = {
     apiPath: '/api/v1/services/aigc/video-generation/video-synthesis',
   },
 
-  'wan2.1-i2v': {
-    id: 'wan2.1-i2v',
+  'happyhorse-1.1-i2v': {
+    id: 'happyhorse-1.1-i2v',
     name: 'Wan2.1 图生视频',
     displayName: 'happyhorse-1.1-i2v',
     family: 'wan2.1',
@@ -190,8 +190,8 @@ const models = {
     apiPath: '/api/v1/services/aigc/video-generation/video-synthesis',
   },
 
-  'wan2.1-ref2video': {
-    id: 'wan2.1-ref2video',
+  'happyhorse-1.1-r2v': {
+    id: 'happyhorse-1.1-r2v',
     name: 'Wan2.1 参考生视频',
     displayName: 'happyhorse-1.1-r2v',
     family: 'wan2.1',
@@ -258,8 +258,8 @@ const models = {
 
   // ── Qwen-Image 系列 ──────────────────────────────────────────────
 
-  'qwen-image': {
-    id: 'qwen-image',
+  'qwen-image-3.0-pro': {
+    id: 'qwen-image-3.0-pro',
     name: 'Qwen-Image 商业图片生成',
     displayName: 'qwen-image-3.0-pro',
     family: 'qwen-image',
@@ -289,8 +289,8 @@ const models = {
 
   // Phase UI-AICreation-02-B-1-G-U: qwen-image-3.0-pro 不再是默认模型，默认改为 qwen-image-2.0-pro
   // qwen-image-3.0-pro 主模型在限流(429)时切到此模型继续生成
-  'qwen-image-backup': {
-    id: 'qwen-image-backup',
+  'qwen-image-plus': {
+    id: 'qwen-image-plus',
     name: 'Qwen-Image Plus 备用图片生成',
     displayName: 'qwen-image-plus',
     family: 'qwen-image',
@@ -529,10 +529,10 @@ function buildCapabilityMap() {
 const capabilityMap = buildCapabilityMap();
 // 生成结果:
 // {
-//   text_to_video:        ['wan2.1-t2v'],
-//   image_to_video:       ['wan2.1-i2v', 'wan2.7-i2v'],
-//   reference_to_video:   ['wan2.1-ref2video'],
-//   image_generation:     ['qwen-image', 'qwen-image-backup', 'qwen-image-2.0-pro', 'qwen-image-2.0', 'wan2.7-image-pro', 'wan2.7-image'],
+//   text_to_video:        ['happyhorse-1.1-t2v', 'wan2.7-t2v'],
+//   image_to_video:       ['happyhorse-1.1-i2v', 'wan2.7-i2v'],
+//   reference_to_video:   ['happyhorse-1.1-r2v', 'wan2.7-r2v'],
+//   image_generation:     ['qwen-image-3.0-pro', 'qwen-image-plus', 'qwen-image-2.0-pro', 'qwen-image-2.0', 'wan2.7-image-pro', 'wan2.7-image'],
 //   image_edit:           ['qwen-image-edit'],
 //   digital_human:        ['wanx-digital-human'],
 // }
@@ -571,7 +571,7 @@ const templates = [
   },
   {
     id: 'image_to_video',
-    modelId: 'wan2.1-i2v',
+    modelId: 'happyhorse-1.1-i2v',
     name: '图片动态化',
     description: '将静态图片转换为动态视频，赋予画面生命力',
     icon: '🎬',
@@ -579,7 +579,7 @@ const templates = [
   },
   {
     id: 'text_to_video',
-    modelId: 'wan2.1-t2v',
+    modelId: 'happyhorse-1.1-t2v',
     name: '宣传视频生成',
     description: '通过文字描述直接生成宣传视频，零素材创作',
     icon: '📽️',
@@ -595,7 +595,7 @@ const templates = [
   },
   {
     id: 'ref_to_video',
-    modelId: 'wan2.1-ref2video',
+    modelId: 'happyhorse-1.1-r2v',
     name: '参考生视频',
     description: '通过多张参考图融合生成视频，保持多图特征一致性',
     icon: '🖼️',
@@ -691,7 +691,7 @@ validateAllModels();
 /**
  * 根据模型 ID 获取完整配置
  *
- * @param {string} modelId — 模型 ID（如 'wan2.1-t2v', 'qwen-image'）
+ * @param {string} modelId — 模型 ID（如 'happyhorse-1.1-t2v', 'qwen-image-3.0-pro'）
  * @returns {Object|null} 模型配置对象（浅拷贝），未找到返回 null
  */
 function getModelConfig(modelId) {

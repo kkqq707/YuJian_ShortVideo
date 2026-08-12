@@ -17,7 +17,7 @@ exports.text2Video = async (req, res) => {
 
   // 使用 ai-model-registry 获取模型
   const textModels = getModelsByCapability('text_to_video');
-  const resolvedModel = model || (textModels.length > 0 ? textModels[0].apiModelName : registry.getApiModelName('wan2.1-t2v'));
+  const resolvedModel = model || (textModels.length > 0 ? textModels[0].apiModelName : registry.getApiModelName('happyhorse-1.1-t2v'));
 
   const enterprise = await Enterprise.findByPk(req.user.enterpriseId);
   const pointsPerSecond = await dashscopeService.getPointsPerSecond(resolvedModel);
@@ -65,7 +65,7 @@ exports.image2Video = async (req, res) => {
   // 动态从 registry 获取图生视频模型列表（Phase 2-C-1-E-5）
   const imgModels = getModelsByCapability('image_to_video');
   const validApiModelNames = imgModels.map(m => m.apiModelName);
-  const defaultModel = imgModels.length > 0 ? imgModels[0].apiModelName : registry.getApiModelName('wan2.1-i2v');
+  const defaultModel = imgModels.length > 0 ? imgModels[0].apiModelName : registry.getApiModelName('happyhorse-1.1-i2v');
   const selectedModel = model || defaultModel;
   if (!validApiModelNames.includes(selectedModel)) {
     return res.fail('不支持的模型，仅支持阿里云百炼模型');
@@ -129,7 +129,7 @@ exports.ref2Video = async (req, res) => {
   if (images.length > 5) return res.fail('参考生视频最多支持5张参考图片');
 
   const refModels = getModelsByCapability('reference_to_video');
-  const resolvedModel = model || (refModels.length > 0 ? refModels[0].apiModelName : registry.getApiModelName('wan2.1-ref2video'));
+  const resolvedModel = model || (refModels.length > 0 ? refModels[0].apiModelName : registry.getApiModelName('happyhorse-1.1-r2v'));
   const selectedDuration = duration || 5;
 
   // 积分校验
