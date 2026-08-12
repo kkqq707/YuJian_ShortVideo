@@ -24,7 +24,14 @@ const GenerationTask = sequelize.define('GenerationTask', {
     comment: '第三方 Provider 任务ID（如 DashScope task_id）'
   },
   task_type: {
-    type: DataTypes.ENUM('text2video', 'image2video', 'ref2video', 'digital_human', 'text2image', 'video_edit'),
+    type: DataTypes.ENUM(
+      'text2video', 'image2video', 'ref2video',
+      'digital_human', 'text2image', 'video_edit',
+      // ↓ Phase 004-Step4-A1 新增: DigitalHuman Pipeline 层 ↓
+      'vision_analysis',    // Vision 视觉理解
+      'script_generation',  // Script 脚本生成
+      'tts_generation'      // TTS 语音合成
+    ),
     allowNull: false,
     comment: '任务类型'
   },

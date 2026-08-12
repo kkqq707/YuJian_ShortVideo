@@ -15,6 +15,8 @@ const DramaEpisode = require('./DramaEpisode');
 const DramaScene = require('./DramaScene');
 const DramaCharacter = require('./DramaCharacter');
 const DramaShot = require('./DramaShot');
+const PipelineTask = require('./PipelineTask');
+const ScriptRecord = require('./ScriptRecord');
 
 // 关联关系
 Agent.hasMany(Enterprise, { foreignKey: 'agent_id' });
@@ -123,6 +125,57 @@ Asset.hasMany(DramaCharacter, {
 DramaProject.hasMany(DramaCharacter, { foreignKey: 'project_id' });
 DramaCharacter.belongsTo(DramaProject, { foreignKey: 'project_id' });
 
+// ─── DigitalHuman Pipeline 关联（Phase 004-Step4-A1） ──────────────────
+
+// PipelineTask → Enterprise
+Enterprise.hasMany(PipelineTask, { foreignKey: 'enterprise_id' });
+PipelineTask.belongsTo(Enterprise, { foreignKey: 'enterprise_id' });
+
+// PipelineTask → GenerationTask（4个层任务关联）
+PipelineTask.belongsTo(GenerationTask, {
+  as: 'visionTask',
+  foreignKey: 'vision_task_id',
+  constraints: false
+});
+PipelineTask.belongsTo(GenerationTask, {
+  as: 'scriptTask',
+  foreignKey: 'script_task_id',
+  constraints: false
+});
+PipelineTask.belongsTo(GenerationTask, {
+  as: 'ttsTask',
+  foreignKey: 'tts_task_id',
+  constraints: false
+});
+PipelineTask.belongsTo(GenerationTask, {
+  as: 'dhTask',
+  foreignKey: 'dh_task_id',
+  constraints: false
+});
+
+// PipelineTask → Asset（音频和视频）
+PipelineTask.belongsTo(Asset, {
+  as: 'audioAsset',
+  foreignKey: 'audio_asset_id',
+  constraints: false
+});
+PipelineTask.belongsTo(Asset, {
+  as: 'outputAsset',
+  foreignKey: 'output_asset_id',
+  constraints: false
+});
+
+// PipelineTask → ScriptRecord
+PipelineTask.belongsTo(ScriptRecord, {
+  as: 'scriptRecord',
+  foreignKey: 'script_record_id',
+  constraints: false
+});
+ScriptRecord.belongsTo(PipelineTask, {
+  foreignKey: 'pipeline_task_id',
+  constraints: false
+});
+
 module.exports = {
   sequelize,
   Admin,
@@ -140,5 +193,7 @@ module.exports = {
   DramaEpisode,
   DramaScene,
   DramaCharacter,
-  DramaShot
+  DramaShot,
+  PipelineTask,
+  ScriptRecord
 };

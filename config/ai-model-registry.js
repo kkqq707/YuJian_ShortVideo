@@ -25,6 +25,18 @@
  *   │ wan2.7-image                 │ image_generation      │ image    │
  *   │ qwen-image-edit              │ image_edit            │ image    │
  *   │ wanx-digital-human           │ digital_human         │ video    │
+ *   ├──────────────────────────────┼──────────────────────┼──────────┤
+ *   │ [Phase 004-Step4-B]          │                      │          │
+ *   │ qwen3-vl-plus                │ vision_understanding  │ text     │
+ *   │ qwen3-vl-flash               │ vision_understanding  │ text     │
+ *   │ qwen3.6-plus                 │ script_generation     │ text     │
+ *   │ qwen3.6-flash                │ script_generation     │ text     │
+ *   │ cosyvoice-v3.5-plus          │ tts_generation        │ audio    │
+ *   │ cosyvoice-v1                 │ tts_generation        │ audio    │
+ *   │ qwen3-tts-flash-realtime     │ tts_generation        │ audio    │
+ *   │ sambert-v1                   │ tts_generation        │ audio    │
+ *   │ wan2.2-s2v                   │ digital_human         │ video    │
+ *   │ emo-v1                       │ digital_human         │ video    │
  *   └──────────────────────────────┴──────────────────────┴──────────┘
  *
  * 使用方式：
@@ -48,6 +60,11 @@ const CAPABILITY = {
 
   // 数字人类
   DIGITAL_HUMAN:      'digital_human',
+
+  // DigitalHuman Pipeline — Phase 004-Step4-B
+  VISION_UNDERSTANDING: 'vision_understanding',
+  SCRIPT_GENERATION:    'script_generation',
+  TTS_GENERATION:       'tts_generation',
 };
 
 // ═══════════════════════════════════════════════════════════════════════
@@ -502,6 +519,292 @@ const models = {
 
     // API 端点
     apiPath: '/api/v1/services/aigc/video-generation/digital-human',
+
+    // Phase 004-Step4-B: 旧版万相数字人，保留兼容，新 Pipeline 使用 wan2.2-s2v / emo-v1
+    isDeprecated: true,
+  },
+
+  // ── DigitalHuman Pipeline: Vision Understanding ─────────────────
+
+  'qwen3-vl-plus': {
+    id: 'qwen3-vl-plus',
+    name: 'Qwen3-VL Plus 视觉理解',
+    displayName: 'qwen3-vl-plus',
+    family: 'qwen3-vl',
+    provider: 'aliyun',
+    capability: CAPABILITY.VISION_UNDERSTANDING,
+    outputType: 'text',
+    apiModelName: 'qwen3-vl-plus',
+
+    description: '旗舰视觉理解模型，256K上下文，支持多图分析、OCR、结构化输出。Premium tier — 替代即将退役的 qwen-vl-max',
+    category: 'vision',
+    categoryLabel: '视觉理解',
+    icon: '👁️',
+    sort: 7,
+
+    maxPromptLength: 4000,
+    requireImage: true,
+    minImages: 1,
+    maxImages: 10,
+
+    pricing: { pointsPerUnit: 2, unit: 'request' },
+
+    apiPath: '/api/v1/services/aigc/multimodal-generation/generation',
+  },
+
+  'qwen3-vl-flash': {
+    id: 'qwen3-vl-flash',
+    name: 'Qwen3-VL Flash 视觉理解',
+    displayName: 'qwen3-vl-flash',
+    family: 'qwen3-vl',
+    provider: 'aliyun',
+    capability: CAPABILITY.VISION_UNDERSTANDING,
+    outputType: 'text',
+    apiModelName: 'qwen3-vl-flash',
+
+    description: '快速视觉理解模型，256K上下文，性能与成本平衡。Standard/Budget tier — 替代即将退役的 qwen-vl-plus',
+    category: 'vision',
+    categoryLabel: '视觉理解',
+    icon: '🔍',
+    sort: 7.5,
+
+    maxPromptLength: 4000,
+    requireImage: true,
+    minImages: 1,
+    maxImages: 10,
+
+    pricing: { pointsPerUnit: 1, unit: 'request' },
+
+    apiPath: '/api/v1/services/aigc/multimodal-generation/generation',
+  },
+
+  // ── DigitalHuman Pipeline: Script Generation ────────────────────
+
+  'qwen3.6-plus': {
+    id: 'qwen3.6-plus',
+    name: 'Qwen3.6 Plus 脚本生成',
+    displayName: 'qwen3.6-plus',
+    family: 'qwen3.6',
+    provider: 'aliyun',
+    capability: CAPABILITY.SCRIPT_GENERATION,
+    outputType: 'text',
+    apiModelName: 'qwen3.6-plus',
+
+    description: '主力脚本生成模型，1M上下文，支持Structured Output/Function Calling。当前Premium/Standard tier — 未来可升级至 qwen3.7-max',
+    category: 'script',
+    categoryLabel: '脚本生成',
+    icon: '📝',
+    sort: 8,
+
+    maxPromptLength: 8000,
+
+    pricing: { pointsPerUnit: 2, unit: 'request' },
+
+    apiPath: '/api/v1/services/aigc/text-generation/generation',
+  },
+
+  'qwen3.6-flash': {
+    id: 'qwen3.6-flash',
+    name: 'Qwen3.6 Flash 脚本生成',
+    displayName: 'qwen3.6-flash',
+    family: 'qwen3.6',
+    provider: 'aliyun',
+    capability: CAPABILITY.SCRIPT_GENERATION,
+    outputType: 'text',
+    apiModelName: 'qwen3.6-flash',
+
+    description: '低成本脚本生成模型，1M上下文，适合高吞吐场景。Budget tier',
+    category: 'script',
+    categoryLabel: '脚本生成',
+    icon: '📄',
+    sort: 8.5,
+
+    maxPromptLength: 8000,
+
+    pricing: { pointsPerUnit: 1, unit: 'request' },
+
+    apiPath: '/api/v1/services/aigc/text-generation/generation',
+  },
+
+  // ── DigitalHuman Pipeline: TTS Generation ───────────────────────
+
+  'cosyvoice-v3.5-plus': {
+    id: 'cosyvoice-v3.5-plus',
+    name: 'CosyVoice V3.5 Plus 语音合成',
+    displayName: 'cosyvoice-v3.5-plus',
+    family: 'cosyvoice',
+    provider: 'aliyun',
+    capability: CAPABILITY.TTS_GENERATION,
+    outputType: 'audio',
+    apiModelName: 'cosyvoice-v3.5-plus',
+
+    description: '最新版高表现力语音合成，WebSocket实时流式。Premium tier (preferred) — 需确认账号权限',
+    category: 'tts',
+    categoryLabel: '语音合成',
+    icon: '🔊',
+    sort: 9,
+
+    maxPromptLength: 5000,
+    maxTextLength: 20000,
+    supportedFormats: ['mp3', 'pcm', 'wav'],
+    defaultFormat: 'mp3',
+    protocol: 'websocket',
+
+    pricing: { pointsPerUnit: 3, unit: 'second' },
+
+    apiPath: '/api/v1/services/aigc/tts/synthesis',
+  },
+
+  'cosyvoice-v1': {
+    id: 'cosyvoice-v1',
+    name: 'CosyVoice V1 语音合成',
+    displayName: 'cosyvoice-v1',
+    family: 'cosyvoice',
+    provider: 'aliyun',
+    capability: CAPABILITY.TTS_GENERATION,
+    outputType: 'audio',
+    apiModelName: 'cosyvoice-v1',
+
+    description: 'CosyVoice 第一代语音合成，WebSocket实时流式。Premium tier (legacy compatible) — v1可用但建议升级至v3.5-plus',
+    category: 'tts',
+    categoryLabel: '语音合成',
+    icon: '🔊',
+    sort: 9.2,
+
+    maxPromptLength: 5000,
+    maxTextLength: 20000,
+    supportedFormats: ['mp3', 'pcm', 'wav'],
+    defaultFormat: 'mp3',
+    protocol: 'websocket',
+    legacyCompatible: true,
+
+    pricing: { pointsPerUnit: 2, unit: 'second' },
+
+    apiPath: '/api/v1/services/aigc/tts/synthesis',
+  },
+
+  'qwen3-tts-flash-realtime': {
+    id: 'qwen3-tts-flash-realtime',
+    name: 'Qwen3-TTS Flash 实时语音合成',
+    displayName: 'qwen3-tts-flash-realtime',
+    family: 'qwen3-tts',
+    provider: 'aliyun',
+    capability: CAPABILITY.TTS_GENERATION,
+    outputType: 'audio',
+    apiModelName: 'qwen3-tts-flash-realtime',
+
+    description: '通用实时语音合成（WebSocket流式），非声音设计模型(vd)。Standard tier — 注意：返回binary audio需OSS上传',
+    category: 'tts',
+    categoryLabel: '语音合成',
+    icon: '🗣️',
+    sort: 9.5,
+
+    maxPromptLength: 3000,
+    supportedFormats: ['mp3', 'pcm', 'wav'],
+    defaultFormat: 'mp3',
+    protocol: 'websocket',
+    realtime: true,
+
+    pricing: { pointsPerUnit: 1, unit: 'second' },
+
+    apiPath: '/api/v1/services/aigc/tts/synthesis',
+  },
+
+  'sambert-v1': {
+    id: 'sambert-v1',
+    name: 'Sambert V1 语音合成',
+    displayName: 'sambert-v1',
+    family: 'sambert',
+    provider: 'aliyun',
+    capability: CAPABILITY.TTS_GENERATION,
+    outputType: 'audio',
+    apiModelName: 'sambert-v1',
+
+    description: 'Sambert 语音合成（HTTP SDK）。Budget/Fallback tier — 官方边缘化，仅作兜底，不作为默认TTS',
+    category: 'tts',
+    categoryLabel: '语音合成',
+    icon: '🔈',
+    sort: 9.8,
+
+    maxPromptLength: 3000,
+    supportedFormats: ['mp3', 'wav'],
+    defaultFormat: 'mp3',
+    protocol: 'http',
+    fallbackOnly: true,
+
+    pricing: { pointsPerUnit: 1, unit: 'second' },
+
+    apiPath: '/api/v1/services/aigc/tts/synthesis',
+  },
+
+  // ── DigitalHuman Pipeline: DigitalHuman Video ───────────────────
+
+  'wan2.2-s2v': {
+    id: 'wan2.2-s2v',
+    name: 'Wan2.2 S2V 数字人视频',
+    displayName: 'wan2.2-s2v',
+    family: 'wan2.2',
+    provider: 'aliyun',
+    capability: CAPABILITY.DIGITAL_HUMAN,
+    outputType: 'video',
+    apiModelName: 'wan2.2-s2v',
+
+    description: 'Speech-to-Video 数字人视频生成（Primary）。异步调用，音频驱动，style参数控制场景(speech/singing/performance)。注意：video_url 24h过期须转存OSS',
+    category: 'digital_human',
+    categoryLabel: '数字人',
+    icon: '🎙️',
+    sort: 6.2,
+
+    maxPromptLength: 2000,
+    requireImage: true,
+    requireAudio: true,
+    supportedSizes: ['720P', '480P'],
+    defaultSize: '720P',
+    supportedStyles: ['speech', 'singing', 'performance'],
+    defaultStyle: 'speech',
+    defaultDuration: 10,
+    maxDuration: 20,
+    maxAudioSizeMB: 15,
+    detectModel: 'wan2.2-s2v-detect',
+
+    pricing: { pointsPerUnit: 5, unit: 'second' },
+
+    apiPath: '/api/v1/services/aigc/image2video/video-synthesis',
+  },
+
+  'emo-v1': {
+    id: 'emo-v1',
+    name: 'EMO V1 数字人视频',
+    displayName: 'emo-v1',
+    family: 'emo',
+    provider: 'aliyun',
+    capability: CAPABILITY.DIGITAL_HUMAN,
+    outputType: 'video',
+    apiModelName: 'emo-v1',
+
+    description: 'EMO 数字人视频生成（Fallback）。异步调用，face_bbox必须，1:1→512×512 / 3:4→512×704。并发限制1',
+    category: 'digital_human',
+    categoryLabel: '数字人',
+    icon: '🎭',
+    sort: 6.8,
+
+    maxPromptLength: 2000,
+    requireImage: true,
+    requireAudio: true,
+    requireFaceBbox: true,
+    supportedSizes: ['512*512', '512*704'],
+    defaultSize: '512*512',
+    supportedAspectRatios: ['1:1', '3:4'],
+    styleLevels: ['normal', 'calm', 'active'],
+    defaultStyleLevel: 'normal',
+    defaultDuration: 10,
+    maxDuration: 60,
+    maxConcurrency: 1,
+    detectModel: 'emo-detect-v1',
+
+    pricing: { pointsPerUnit: 3, unit: 'second' },
+
+    apiPath: '/api/v1/services/aigc/image2video/video-synthesis',
   },
 };
 
@@ -527,14 +830,17 @@ function buildCapabilityMap() {
 }
 
 const capabilityMap = buildCapabilityMap();
-// 生成结果:
+// 生成结果（含 Phase 004-Step4-B 扩展）:
 // {
 //   text_to_video:        ['happyhorse-1.1-t2v', 'wan2.7-t2v'],
 //   image_to_video:       ['happyhorse-1.1-i2v', 'wan2.7-i2v'],
 //   reference_to_video:   ['happyhorse-1.1-r2v', 'wan2.7-r2v'],
 //   image_generation:     ['qwen-image-3.0-pro', 'qwen-image-plus', 'qwen-image-2.0-pro', 'qwen-image-2.0', 'wan2.7-image-pro', 'wan2.7-image'],
 //   image_edit:           ['qwen-image-edit'],
-//   digital_human:        ['wanx-digital-human'],
+//   digital_human:        ['wanx-digital-human', 'wan2.2-s2v', 'emo-v1'],
+//   vision_understanding: ['qwen3-vl-plus', 'qwen3-vl-flash'],
+//   script_generation:    ['qwen3.6-plus', 'qwen3.6-flash'],
+//   tts_generation:       ['cosyvoice-v3.5-plus', 'cosyvoice-v1', 'qwen3-tts-flash-realtime', 'sambert-v1'],
 // }
 
 // ═══════════════════════════════════════════════════════════════════════
@@ -616,6 +922,33 @@ const templates = [
     description: '基于真人形象生成数字人口播视频，支持自定义文案和声音',
     icon: '🎙️',
     sort: 6,
+  },
+
+  // ── Phase 004-Step4-B: DigitalHuman Pipeline 新增模板 ──────────
+
+  {
+    id: 'vision_image_analysis',
+    modelId: 'qwen3-vl-plus',
+    name: '视觉图片分析',
+    description: '使用AI视觉理解模型分析图片内容，提取特征、标签、卖点',
+    icon: '👁️',
+    sort: 7,
+  },
+  {
+    id: 'ai_script_generation',
+    modelId: 'qwen3.6-plus',
+    name: 'AI脚本生成',
+    description: '基于视觉分析结果使用大语言模型生成口播脚本',
+    icon: '📝',
+    sort: 8,
+  },
+  {
+    id: 'tts_speech_synthesis',
+    modelId: 'qwen3-tts-flash-realtime',
+    name: 'TTS语音合成',
+    description: '将脚本文字转换为自然语音，支持多种音色和情感控制',
+    icon: '🗣️',
+    sort: 9,
   },
 ];
 
@@ -1019,9 +1352,9 @@ function checkNewModel(modelConfig) {
     errors.push(`Unknown capability: "${modelConfig.capability}". Allowed: ${Object.values(CAPABILITY).join(', ')}`);
   }
 
-  // outputType 校验
-  if (modelConfig.outputType && !['image', 'video'].includes(modelConfig.outputType)) {
-    errors.push(`Invalid outputType: "${modelConfig.outputType}". Must be "image" or "video"`);
+  // outputType 校验 — Phase 004-Step4-B: 扩展为 image/video/text/audio
+  if (modelConfig.outputType && !['image', 'video', 'text', 'audio'].includes(modelConfig.outputType)) {
+    errors.push(`Invalid outputType: "${modelConfig.outputType}". Must be "image", "video", "text", or "audio"`);
   }
 
   return { valid: errors.length === 0, errors };
