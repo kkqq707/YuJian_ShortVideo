@@ -48,7 +48,7 @@
     assets: {
       currentPage: 1,
       total: 0,
-      pageSize: 20,
+      pageSize: 24,
       items: [],
       currentType: '',
       currentKeyword: '',
@@ -174,7 +174,7 @@
     // ── Works State ──────────────────────────────────────
     works: {
       currentPage: 1,
-      pageSize: 12,
+      pageSize: 20,
       total: 0
     },
 

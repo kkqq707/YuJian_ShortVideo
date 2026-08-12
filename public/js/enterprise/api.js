@@ -26,7 +26,7 @@
      */
     getAssets: function (params) {
       params = params || {};
-      var query = '?page=' + (params.page || 1) + '&pageSize=' + (params.pageSize || 20);
+      var query = '?page=' + (params.page || 1) + '&pageSize=' + (params.pageSize || 24);
       if (params.type) query += '&type=' + encodeURIComponent(params.type);
       if (params.keyword) query += '&keyword=' + encodeURIComponent(params.keyword);
       if (params.sort) query += '&sort=' + encodeURIComponent(params.sort);
@@ -125,7 +125,7 @@
      */
     getTasks: function (params) {
       params = params || {};
-      return YuJianAPI.get('/enterprise/video-generation/tasks?page=' + (params.page || 1) + '&pageSize=' + (params.pageSize || 12));
+      return YuJianAPI.get('/enterprise/video-generation/tasks?page=' + (params.page || 1) + '&pageSize=' + (params.pageSize || 20));
     },
 
     /**

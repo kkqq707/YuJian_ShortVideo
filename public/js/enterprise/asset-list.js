@@ -239,7 +239,7 @@
 
       state.total = data.total || 0;
       state.items = data.items || [];
-      state.pageSize = data.pageSize || 20;
+      state.pageSize = data.pageSize || 24;
 
       // Populate asset cache
       (state.items || []).forEach(function (a) {

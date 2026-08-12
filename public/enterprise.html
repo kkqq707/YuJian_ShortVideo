@@ -3988,7 +3988,7 @@ var templateCapability = STUDIO_TPL_CAP_MAP[type] || 'image_to_video';
         var WORKS_STATE = {
             currentPage: 1,
             total: 0,
-            pageSize: 20,
+            pageSize: 12,
             items: [],
             isLoading: false
         };
@@ -4053,7 +4053,7 @@ var templateCapability = STUDIO_TPL_CAP_MAP[type] || 'image_to_video';
                 // API returns { total, page, pageSize, items: [...] }
                 WORKS_STATE.total = data.total || 0;
                 WORKS_STATE.items = data.items || [];
-                WORKS_STATE.pageSize = data.pageSize || 20;
+                WORKS_STATE.pageSize = data.pageSize || 12;
 
                 if (!WORKS_STATE.items.length) {
                     contentEl.innerHTML = '<div class="empty-works">' +
