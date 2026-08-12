@@ -849,7 +849,16 @@ exports.createRefToVideoTask = async (req, res) => {
       return res.fail('提示词不能超过2000字');
     }
 
-    // ── 2. 调用 GenerationService 创建任务 ──
+    // ── 2. 签名图片 URL（私有Bucket需签名URL才能被DashScope下载）─
+    const signedImages = await Promise.all(
+      images.map(url =>
+        ossService.getSignedUrl(url).then(
+          signed => signed || url
+        )
+      )
+    );
+
+    // ── 3. 调用 GenerationService 创建任务 ──
     console.log(
       `[VideoGeneration] createRefToVideoTask REQUEST | ` +
       `enterpriseId=${enterpriseId} | ` +
@@ -868,13 +877,13 @@ exports.createRefToVideoTask = async (req, res) => {
       templateId: 'ref_to_video',
       prompt: prompt.trim(),
       negativePrompt,
-      images,
+      images: signedImages,
       duration,
       model,
       options: params
     });
 
-    // ── 3. 返回结果 ──
+    // ── 4. 返回结果 ──
     return res.success({
       id: result.id,
       task_id: result.taskId,
