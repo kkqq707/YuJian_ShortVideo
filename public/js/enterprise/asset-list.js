@@ -131,6 +131,8 @@
     var thumbClickAction = '';
     if (assetType === 'image') {
       thumbClickAction = ' onclick="event.stopPropagation();openImagePreview(\'' + itemId + '\')" style="cursor:pointer"';
+    } else if (assetType === 'video') {
+      thumbClickAction = ' onclick="event.stopPropagation();playAssetVideo(\'' + itemId + '\')" style="cursor:pointer"';
     } else {
       thumbClickAction = ' onclick="event.stopPropagation();previewAsset(\'' + itemId + '\')" style="cursor:pointer"';
     }
@@ -334,6 +336,73 @@
     if (menu) menu.classList.remove('show');
   }
 
+  // ─── Play Asset Video (Sprint 5.8) ─────────────────────────
+  /**
+   * 直接播放素材库视频
+   * 流程：assetId → 缓存查找 → resolveAssetPlayableUrl → playVideo
+   */
+  async function playAssetVideo(assetId) {
+    if (!assetId) return;
+
+    // 1. 从缓存获取 asset
+    var asset = (state.cache && state.cache[assetId]) ||
+                (window.ASSET_CACHE && window.ASSET_CACHE[assetId]);
+
+    if (!asset) {
+      // 缓存未命中，从 API 获取
+      try {
+        var data;
+        if (api.Asset && api.Asset.getAssetDetail) {
+          data = await api.Asset.getAssetDetail(assetId);
+        } else {
+          data = await safeFetch('/enterprise/assets/' + assetId);
+        }
+        var normalizeAssetResponse = utils.normalizeAssetResponse || window.normalizeAssetResponse;
+        asset = normalizeAssetResponse ? normalizeAssetResponse(data) : data;
+      } catch (err) {
+        console.error('[playAssetVideo] 获取素材失败:', err);
+        if (typeof showToast === 'function') showToast('无法获取视频信息', 'error');
+        return;
+      }
+    }
+
+    if (!asset || asset.type !== 'video') {
+      if (typeof showToast === 'function') showToast('不是有效的视频素材', 'warning');
+      return;
+    }
+
+    // 2. 获取签名播放 URL
+    var resolveAssetPlayableUrl = utils.resolveAssetPlayableUrl || window.resolveAssetPlayableUrl;
+    var playUrl = '';
+
+    if (typeof resolveAssetPlayableUrl === 'function') {
+      try {
+        playUrl = await resolveAssetPlayableUrl(asset);
+      } catch (e) {
+        console.warn('[playAssetVideo] 签名URL解析失败:', e.message);
+      }
+    }
+
+    // 降级
+    if (!playUrl) {
+      playUrl = asset.url || asset.fileUrl || '';
+    }
+
+    if (!playUrl) {
+      if (typeof showToast === 'function') showToast('视频资源不可用', 'error');
+      return;
+    }
+
+    // 3. 调用已有的全屏播放器
+    var title = encodeURIComponent(asset.name || '视频播放');
+    if (typeof window.playVideo === 'function') {
+      window.playVideo(playUrl, title);
+    } else {
+      // 降级：直接打开链接
+      window.open(playUrl, '_blank');
+    }
+  }
+
   // ─── Global click to close menus ──────────────────────────
   document.addEventListener('click', function (e) {
     if (!e.target.closest('.asset-more-btn') && !e.target.closest('.asset-more-menu')) {
@@ -355,7 +424,8 @@
     assetSortChange: assetSortChange,
     clearAssetFilters: clearAssetFilters,
     toggleAssetMenu: toggleAssetMenu,
-    closeAssetMenu: closeAssetMenu
+    closeAssetMenu: closeAssetMenu,
+    playAssetVideo: playAssetVideo
   };
   window.YJ = YJ;
 
@@ -368,6 +438,7 @@
   window.clearAssetFilters = clearAssetFilters;
   window.toggleAssetMenu = toggleAssetMenu;
   window.closeAssetMenu = closeAssetMenu;
+  window.playAssetVideo = playAssetVideo;
 
   console.log('[Enterprise/AssetList] Module initialized');
 })();

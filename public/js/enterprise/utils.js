@@ -151,7 +151,7 @@
   async function resolveAssetPlayableUrl(asset) {
     if (!asset || !asset.id) return '';
 
-    // 检查缓存（55分钟内有效，API返回1小时签名）
+    // 检查缓存（6.5天内有效，API返回7天签名）
     var cached = PLAY_URL_CACHE[asset.id];
     if (cached && cached.expiresAt > Date.now()) {
       return cached.url;
@@ -168,10 +168,10 @@
       var result = await api.getPlayUrl(asset.id);
       var url = (result && result.url) || asset.url || '';
 
-      // 缓存结果（55分钟，给5分钟缓冲避免刚好过期）
+      // 缓存结果（6.5天，给12小时缓冲避免刚好过期）
       PLAY_URL_CACHE[asset.id] = {
         url: url,
-        expiresAt: Date.now() + 55 * 60 * 1000
+        expiresAt: Date.now() + 561600 * 1000
       };
 
       return url;

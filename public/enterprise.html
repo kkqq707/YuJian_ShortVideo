@@ -4329,28 +4329,23 @@ var templateCapability = STUDIO_TPL_CAP_MAP[type] || 'image_to_video';
             }
         }
 
-        // ─── 图片预览（Phase UI-AICreation-02-B-1-G-P）─────────
+        // ─── 图片预览（Phase UI-AICreation-02-B-1-G-P / Phase_UI-AICreation-07-KJ-03）─────────
         async function previewWorkImage(taskId, title) {
-            var decodedTitle = decodeURIComponent(title || 'AI图片');
             try {
                 var task = await YuJianAPI.get('/enterprise/video-generation/tasks/' + taskId);
                 var outputAsset = task.outputAsset;
-                var imageUrl = outputAsset && outputAsset.url
-                    ? outputAsset.url
-                    : (task.output_url || '');
 
-                if (!imageUrl) {
+                if (!outputAsset || (!outputAsset.url && !outputAsset.id)) {
                     showToast('图片资源不可用', 'error');
                     return;
                 }
 
-                // 简易图片预览弹窗
-                var content = '<div style="text-align:center">' +
-                    '<img src="' + escapeHtml(imageUrl) + '" alt="' + escapeHtml(decodedTitle) + '" ' +
-                    'style="max-width:100%;max-height:70vh;border-radius:8px;object-fit:contain;background:rgba(0,0,0,0.3)" ' +
-                    'loading="lazy" onerror="this.parentElement.innerHTML=\'<p style=color:var(--danger)>图片加载失败</p>\'">' +
-                    '</div>';
-                openModal(decodedTitle, encodeURIComponent(content));
+                // Phase_UI-AICreation-07-KJ-03: 使用专用图片预览组件（复用素材库 openImagePreview）
+                // 替代原先的 openModal() 通用弹窗，获得：
+                //   - 暗色全屏毛玻璃背景 + 大图居中
+                //   - resolveAssetPlayableUrl() 签名URL自动解析
+                //   - ESC / 点击背景关闭
+                openImagePreview(outputAsset);
             } catch (err) {
                 console.error('[previewWorkImage] 获取图片失败:', err);
                 showToast('获取图片失败，请稍后重试', 'error');
@@ -5932,7 +5927,7 @@ var templateCapability = STUDIO_TPL_CAP_MAP[type] || 'image_to_video';
         async function resolveAssetPlayableUrl(asset) {
             if (!asset || !asset.id) return '';
 
-            // 检查缓存（55分钟内有效，API返回1小时签名）
+            // 检查缓存（6.5天内有效，API返回7天签名）
             var cached = PLAY_URL_CACHE[asset.id];
             if (cached && cached.expiresAt > Date.now()) {
                 return cached.url;
@@ -5949,10 +5944,10 @@ var templateCapability = STUDIO_TPL_CAP_MAP[type] || 'image_to_video';
                 var result = await api.getPlayUrl(asset.id);
                 var url = (result && result.url) || asset.url || '';
 
-                // 缓存结果（55分钟，给5分钟缓冲避免刚好过期）
+                // 缓存结果（6.5天，给12小时缓冲避免刚好过期）
                 PLAY_URL_CACHE[asset.id] = {
                     url: url,
-                    expiresAt: Date.now() + 55 * 60 * 1000
+                    expiresAt: Date.now() + 561600 * 1000
                 };
 
                 return url;

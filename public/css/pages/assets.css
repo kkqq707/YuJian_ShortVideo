@@ -211,6 +211,11 @@
     color: rgba(255, 255, 255, 0.8);
     text-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
     pointer-events: none;
+    transition: transform 0.2s ease, color 0.2s ease;
+}
+.asset-card:hover .asset-play-icon {
+    transform: scale(1.15);
+    color: #fff;
 }
 .asset-thumb-audio {
     width: 100%;

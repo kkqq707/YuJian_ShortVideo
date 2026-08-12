@@ -10,7 +10,7 @@ const videoStorageService = require('../../services/videoStorageService');
  * Sprint 5.8: 扩展支持图片类型资产签名
  *
  * 私有 OSS Bucket 需要签名 URL 才能直接访问资源。
- * 签名 URL 有效期 1 小时（3600 秒），浏览器可直接使用。
+ * 签名 URL 有效期 7 天（604800 秒），与 OSS 服务默认值一致，浏览器可直接使用。
  *
  * 返回格式：
  *   { url: string, expires: number, type: string }
@@ -58,13 +58,8 @@ exports.playUrl = async (req, res) => {
       });
     }
 
-    // 生成签名 URL（1 小时有效）
-    // 视频：强制 video/mp4 Content-Type 确保浏览器正确播放
-    // 图片：不加 Content-Type 覆盖，让 OSS 自动检测
-    const signOptions = asset.type === 'video'
-      ? { contentType: 'video/mp4' }
-      : {};
-    const signedUrl = await ossService.generateSignedUrl(targetUrl, 3600, signOptions);
+    // 生成签名 URL（7 天有效，与 OSS 服务默认值一致）
+    const signedUrl = await ossService.generateSignedUrl(targetUrl);
 
     if (!signedUrl) {
       // 降级：返回原始 URL
@@ -77,7 +72,7 @@ exports.playUrl = async (req, res) => {
 
     return res.success({
       url: signedUrl,
-      expires: 3600,
+      expires: 604800,
       type: asset.type
     });
   } catch (error) {

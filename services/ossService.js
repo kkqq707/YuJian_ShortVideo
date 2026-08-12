@@ -95,7 +95,7 @@ class OssService {
   // 获取临时签名URL（用于private bucket图片预览）
   // keyOrUrl: OSS object key 或完整OSS URL
   // expires: 签名有效期（秒），默认3600秒（1小时）
-  async getSignedUrl(keyOrUrl, expires = 3600) {
+  async getSignedUrl(keyOrUrl, expires = 604800) {
     await this.init();
     const key = this.extractKeyFromUrl(keyOrUrl);
     if (!key) return null;
@@ -116,7 +116,7 @@ class OssService {
    * @param {Object} [options] - 额外选项（保留参数兼容性，contentType 不再使用）
    * @returns {Promise<string|null>} 签名后的临时访问URL
    */
-  async generateSignedUrl(keyOrUrl, expires = 3600, options = {}) {
+  async generateSignedUrl(keyOrUrl, expires = 604800, options = {}) {
     await this.init();
     const key = this.extractKeyFromUrl(keyOrUrl);
     if (!key) return null;
