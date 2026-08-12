@@ -46,12 +46,23 @@ const ProviderError = require('../utils/ProviderError');
 const aliyunImageProvider = require('./aliyun/image-provider');
 const aliyunVideoProvider = require('./aliyun/video-provider');
 
+// Phase 004-Step4-C: DigitalHuman Pipeline Provider Layer
+const aliyunVisionProvider = require('./aliyun/vision-provider');
+const aliyunScriptProvider = require('./aliyun/script-provider');
+const aliyunTtsProvider = require('./aliyun/tts-provider');
+const aliyunDigitalHumanProvider = require('./aliyun/digital-human-provider');
+
 class AliyunBailianProvider {
   constructor() {
     this.name = 'aliyun';
     this.displayName = '阿里云百炼';
     this.imageProvider = aliyunImageProvider;
     this.videoProvider = aliyunVideoProvider;
+    // Phase 004-Step4-C: DigitalHuman Pipeline providers
+    this.visionProvider = aliyunVisionProvider;
+    this.scriptProvider = aliyunScriptProvider;
+    this.ttsProvider = aliyunTtsProvider;
+    this.digitalHumanProvider = aliyunDigitalHumanProvider;
   }
 
   // ═══════════════════════════════════════════════════════════════════
@@ -335,6 +346,200 @@ class AliyunBailianProvider {
    */
   getModelConfig(modelId) {
     return getModelConfig(modelId);
+  }
+
+  // ═══════════════════════════════════════════════════════════════════
+  //  Phase 004-Step4-C: DigitalHuman Pipeline Provider Methods
+  // ═══════════════════════════════════════════════════════════════════
+
+  /**
+   * analyzeVision — Visual understanding via Vision Provider
+   *
+   * Delegates to aliyun/vision-provider.js
+   *
+   * @param {Object} params
+   * @param {string} params.imageUrl   — Image URL (required)
+   * @param {string} [params.prompt]   — Custom analysis prompt
+   * @param {Array}  [params.images]   — Multiple image URLs
+   * @param {string} [params.modelId]  — Model override ('qwen3-vl-plus' | 'qwen3-vl-flash')
+   * @returns {Promise<{
+   *   model: string, visualDesc: string, features: string[],
+   *   tags: string[], sellingPoints: string[], ocrTexts: string[],
+   *   tokensUsed: number, processingTimeMs: number
+   * }>}
+   * @throws {ProviderError}
+   */
+  async analyzeVision(params) {
+    this._logRequest('analyzeVision', { modelId: params.modelId || 'qwen3-vl-plus' });
+    try {
+      const result = await this.visionProvider.analyze(params);
+      this._logSuccess('analyzeVision', { model: result.model, tokensUsed: result.tokensUsed });
+      return result;
+    } catch (error) {
+      if (error instanceof ProviderError) throw error;
+      throw new ProviderError(
+        this.name, 'VISION_FAILED',
+        `Vision analysis failed: ${error.message}`, false
+      );
+    }
+  }
+
+  /**
+   * generateScript — Script generation via Script Provider
+   *
+   * Delegates to aliyun/script-provider.js
+   *
+   * @param {Object} params
+   * @param {Object} [params.visionResult] — Output from analyzeVision()
+   * @param {string} [params.theme]        — Product/script theme
+   * @param {string} [params.style]        — professional | casual | energetic | warm
+   * @param {number} [params.duration]     — Target duration in seconds
+   * @param {string} [params.productName]  — Product name
+   * @param {string} [params.modelId]      — Model override ('qwen3.6-plus' | 'qwen3.6-flash')
+   * @returns {Promise<{
+   *   title: string, fullText: string, segments: Array,
+   *   totalWords: number, estimatedDuration: number, style: string,
+   *   model: string, tokensUsed: number, processingTimeMs: number
+   * }>}
+   * @throws {ProviderError}
+   */
+  async generateScript(params) {
+    this._logRequest('generateScript', {
+      style: params.style || 'professional',
+      modelId: params.modelId || 'qwen3.6-plus',
+    });
+    try {
+      const result = await this.scriptProvider.generate(params);
+      this._logSuccess('generateScript', {
+        model: result.model,
+        segments: result.segments ? result.segments.length : 0,
+        totalWords: result.totalWords,
+      });
+      return result;
+    } catch (error) {
+      if (error instanceof ProviderError) throw error;
+      throw new ProviderError(
+        this.name, 'SCRIPT_FAILED',
+        `Script generation failed: ${error.message}`, false
+      );
+    }
+  }
+
+  /**
+   * synthesizeSpeech — TTS synthesis via TTS Provider
+   *
+   * Delegates to aliyun/tts-provider.js
+   *
+   * @param {Object} params
+   * @param {string} params.text           — Text to synthesize (required)
+   * @param {string} [params.voiceId]      — Voice ID
+   * @param {string} [params.emotion]      — Emotion
+   * @param {number} [params.speed]        — Speech speed (0.5–2.0)
+   * @param {string} [params.format]       — Output format (mp3, wav, pcm)
+   * @param {string} [params.modelId]      — Model override
+   * @param {number} [params.enterpriseId] — For OSS storage path
+   * @returns {Promise<{
+   *   audioUrl: string, ossKey: string, duration: number, format: string,
+   *   sampleRate: number, fileSize: number, voiceId: string,
+   *   emotion: string, speed: number, model: string, processingTimeMs: number
+   * }>}
+   * @throws {ProviderError}
+   */
+  async synthesizeSpeech(params) {
+    this._logRequest('synthesizeSpeech', {
+      modelId: params.modelId || 'cosyvoice-v3.5-plus',
+      textLen: params.text ? params.text.length : 0,
+    });
+    try {
+      const result = await this.ttsProvider.synthesize(params);
+      this._logSuccess('synthesizeSpeech', {
+        model: result.model,
+        duration: result.duration,
+        fileSize: result.fileSize,
+      });
+      return result;
+    } catch (error) {
+      if (error instanceof ProviderError) throw error;
+      throw new ProviderError(
+        this.name, 'TTS_FAILED',
+        `TTS synthesis failed: ${error.message}`, false
+      );
+    }
+  }
+
+  /**
+   * createDigitalHuman — Digital human video task creation
+   *
+   * Delegates to aliyun/digital-human-provider.js
+   *
+   * @param {Object} params
+   * @param {string} params.imageUrl     — Input image URL (required)
+   * @param {string} params.audioUrl     — Input audio URL (required)
+   * @param {string} [params.style]      — wan2.2-s2v: speech | singing | performance
+   * @param {string} [params.resolution] — Video resolution
+   * @param {Array}  [params.faceBbox]   — emo-v1: [x1, y1, x2, y2]
+   * @param {string} [params.styleLevel] — emo-v1: normal | calm | active
+   * @param {string} [params.modelId]    — Model override
+   * @returns {Promise<{
+   *   taskId: string, provider: string, model: string, status: string
+   * }>}
+   * @throws {ProviderError}
+   */
+  async createDigitalHuman(params) {
+    this._logRequest('createDigitalHuman', {
+      modelId: params.modelId || 'wan2.2-s2v',
+    });
+    try {
+      const result = await this.digitalHumanProvider.createTask(params);
+      this._logSuccess('createDigitalHuman', {
+        taskId: result.taskId,
+        model: result.model,
+      });
+      return result;
+    } catch (error) {
+      if (error instanceof ProviderError) throw error;
+      throw new ProviderError(
+        this.name, 'DIGITAL_HUMAN_FAILED',
+        `Digital human task creation failed: ${error.message}`, false
+      );
+    }
+  }
+
+  /**
+   * getDigitalHumanResult — Wait for async completion + OSS transfer
+   *
+   * @param {string} taskId       — DashScope task ID
+   * @param {number} enterpriseId — Enterprise ID for OSS path
+   * @param {Object} [meta]       — Additional metadata
+   * @returns {Promise<{
+   *   videoUrl: string, videoOssKey: string, coverUrl: string|null,
+   *   dashscopeTaskId: string, duration: number, resolution: string,
+   *   style: string, model: string, fileSize: number, mimeType: string
+   * }>}
+   */
+  async getDigitalHumanResult(taskId, enterpriseId, meta = {}) {
+    this._logRequest('getDigitalHumanResult', { taskId });
+    try {
+      const result = await this.digitalHumanProvider.getResult(taskId, enterpriseId, meta);
+      this._logSuccess('getDigitalHumanResult', { taskId, videoOssKey: result.videoOssKey });
+      return result;
+    } catch (error) {
+      if (error instanceof ProviderError) throw error;
+      throw new ProviderError(
+        this.name, 'DIGITAL_HUMAN_RESULT_FAILED',
+        `Failed to get digital human result: ${error.message}`, false
+      );
+    }
+  }
+
+  /**
+   * getDigitalHumanTaskStatus — Check async digital human task status
+   *
+   * @param {string} taskId — DashScope task ID
+   * @returns {Promise<Object>} Status result
+   */
+  async getDigitalHumanTaskStatus(taskId) {
+    return this.digitalHumanProvider.getTaskStatus(taskId);
   }
 
   // ═══════════════════════════════════════════════════════════════════
