@@ -176,6 +176,11 @@
     display: flex;
     gap: 6px;
     margin-top: 10px;
+    opacity: 0;
+    transition: opacity 0.3s;
+}
+.work-card:hover .work-actions {
+    opacity: 1;
 }
 .work-actions .btn {
     flex: 1;

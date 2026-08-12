@@ -234,7 +234,7 @@ function toDetail(task) {
     params: task.params ? (typeof task.params === 'string' ? JSON.parse(task.params) : task.params) : null,
     videoUrl: outputPlayUrl || task.output_url || null,
     playUrl: outputPlayUrl || task.output_url || null,
-    coverUrl: task.cover_url || (outputAsset ? outputAsset.thumbnail : null) || null,
+    coverUrl: task._signedThumbnail || task.cover_url || (outputAsset ? outputAsset.thumbnail : null) || null,
     duration: task.duration || null,
     width: task.width || null,
     height: task.height || null,
@@ -556,7 +556,7 @@ async function storeVideoAndCreateAsset(task, enterpriseId, userId, videoUrl, co
       type: 'video',
       name: generateVideoName(task),
       url: storageResult.video.url,
-      thumbnail: storageResult.cover.ossKey || storageResult.cover.url || null,
+      thumbnail: storageResult.cover.url || storageResult.cover.ossKey || null,
       size: storageResult.size,
       mime_type: storageResult.mimeType,
       duration: duration || null,
@@ -578,7 +578,7 @@ async function storeVideoAndCreateAsset(task, enterpriseId, userId, videoUrl, co
 
   // ── 3. 更新 GenerationTask 关联 ─────────────────────────────
   // Sprint 5.7: cover_url 优先使用 videoStorageService 生成的封面
-  const finalCoverUrl = storageResult.cover.ossKey || storageResult.cover.url || coverUrl || null;
+  const finalCoverUrl = storageResult.cover.url || storageResult.cover.ossKey || coverUrl || null;
 
   await task.update({
     output_asset_id: asset.id,
@@ -1532,3 +1532,6 @@ exports.getTemplates = async (req, res) => {
     return res.fail('服务器内部错误', 500);
   }
 };
+
+// Phase_UI-AICreation-07-KJ-05-D: 导出 storeVideoAndCreateAsset，供 callbackController 在 DashScope 回调时主动触发视频转存+封面生成
+exports.storeVideoAndCreateAsset = storeVideoAndCreateAsset;

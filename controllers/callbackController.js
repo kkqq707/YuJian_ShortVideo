@@ -17,16 +17,9 @@ exports.dashscopeCallback = async (req, res) => {
     };
 
     if (task_status === 'SUCCEEDED' || task_status === 'success') {
-      updateData.status = 'success';
-      updateData.output_url = output?.video_url || output?.url;
-      updateData.cover_url = output?.cover_url;
-      updateData.duration = usage?.duration || 0;
-      updateData.progress = 100;
-
-      // 计算并扣除积分
+      // 计算并扣除积分（保持原逻辑不变）
       const pointsPerSecond = await dashscopeService.getPointsPerSecond(task.model);
       const pointsCost = Math.ceil((usage?.duration || 5) * pointsPerSecond);
-      updateData.points_cost = pointsCost;
 
       // 扣积分
       await adjustEnterpriseQuota({
@@ -38,15 +31,45 @@ exports.dashscopeCallback = async (req, res) => {
         operatorType: 'system'
       });
 
+      // Phase_UI-AICreation-07-KJ-05-D: DashScope 回调时主动触发视频转存+封面生成
+      // 覆盖 text2video / image2video / ref2video，解决回调无 cover_url 导致列表无封面的问题
+      const VIDEO_TASK_TYPES = ['text2video', 'image2video', 'ref2video'];
+      const videoUrl = output?.video_url || output?.url;
+
+      if (VIDEO_TASK_TYPES.includes(task.task_type) && videoUrl) {
+        // 视频任务：调用 storeVideoAndCreateAsset 下载视频 → 上传 OSS → ffmpeg 提取封面 → 创建 Asset
+        const { storeVideoAndCreateAsset } = require('./enterprise/videoGenerationController');
+        await storeVideoAndCreateAsset(
+          task,
+          task.enterprise_id,
+          task.user_id,
+          videoUrl,
+          output?.cover_url || null,
+          usage?.duration || 0
+        );
+        // storeVideoAndCreateAsset 内部已更新 task（status、output_url、cover_url、output_asset_id）
+        // 补充 points_cost（该字段不在 storeVideoAndCreateAsset 的更新范围内）
+        await task.update({ points_cost: pointsCost });
+      } else {
+        // 非视频任务（如 text2image）：保持原更新逻辑
+        updateData.status = 'success';
+        updateData.output_url = videoUrl;
+        updateData.cover_url = output?.cover_url;
+        updateData.duration = usage?.duration || 0;
+        updateData.progress = 100;
+        updateData.points_cost = pointsCost;
+        await task.update(updateData);
+      }
+
     } else if (task_status === 'FAILED' || task_status === 'failed') {
       updateData.status = 'failed';
       updateData.error_msg = output?.message || '生成失败';
+      await task.update(updateData);
     } else if (task_status === 'RUNNING' || task_status === 'running') {
       updateData.status = 'processing';
       updateData.progress = req.body.task_metrics?.pct || 50;
+      await task.update(updateData);
     }
-
-    await task.update(updateData);
     res.success({ received: true });
 
   } catch (error) {

@@ -158,6 +158,33 @@ exports.uploadSignature = async (req, res) => {
 exports.addRecord = async (req, res) => {
   const { name, url, type, size, thumbnail, width, height, mime_type } = req.body;
 
+  let finalThumbnail = thumbnail || null;
+
+  // Phase_UI-AICreation-07-KJ-05-D: 视频资产无缩略图时，服务端自动提取封面帧
+  // 素材库视频上传时客户端不传 thumbnail，导致列表降级到视频 URL → <img> 渲染破损
+  if ((type === 'video') && !thumbnail && url) {
+    try {
+      // 1. 下载视频（从 OSS URL，downloadVideo 会处理重定向/签名URL）
+      const downloadResult = await videoStorageService.downloadVideo(url);
+
+      // 2. 提取封面帧
+      const coverBuffer = await videoStorageService.extractCoverFrame(downloadResult.buffer);
+
+      // 3. 生成封面 OSS Key 并上传
+      const coverOssKey = videoStorageService.generateCoverOssKey(req.user.enterpriseId);
+      await ossService.putFile(coverOssKey, coverBuffer, 'image/jpeg');
+
+      // 4. 获取封面访问 URL
+      finalThumbnail = ossService.getFileUrl(coverOssKey);
+
+      console.log(`[AssetController] Cover auto-generated for video asset: ${coverOssKey} (${(coverBuffer.length / 1024).toFixed(1)}KB)`);
+    } catch (coverErr) {
+      // 封面生成失败不阻塞资产入库，记录警告
+      console.warn(`[AssetController] Cover auto-generation failed (non-blocking): ${coverErr.message} | code=${coverErr.code || 'N/A'}`);
+      // finalThumbnail 保持 null
+    }
+  }
+
   const asset = await Asset.create({
     enterprise_id: req.user.enterpriseId,
     user_id: req.user.userId,
@@ -165,7 +192,7 @@ exports.addRecord = async (req, res) => {
     url,
     type: type || 'image',
     size,
-    thumbnail,
+    thumbnail: finalThumbnail,
     width,
     height,
     mime_type

@@ -520,4 +520,4 @@ async function downloadAndStore({ videoUrl, enterpriseId, mimeType }) {
   };
 }
 
-module.exports = { downloadAndStore, extractCoverFrame, generateCoverOssKey };
+module.exports = { downloadAndStore, downloadVideo, extractCoverFrame, generateCoverOssKey };
