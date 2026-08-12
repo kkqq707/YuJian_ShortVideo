@@ -79,7 +79,7 @@ function toListItem(task) {
     taskType: task.task_type || null,
     model: task.model,
     thumbnailUrl: task._signedThumbnail || computeThumbnailUrl(task),
-    coverUrl: task._signedThumbnail || task.cover_url || (outputAsset ? outputAsset.url : null) || null,
+    coverUrl: task._signedThumbnail || task.cover_url || (outputAsset && outputAsset.type === 'image' ? outputAsset.url : null) || null,
     // 图片任务的 videoUrl/playUrl 应为 null，不提供视频播放入口
     videoUrl: isImageTask ? null : (playUrl || task.output_url || null),
     playUrl: isImageTask ? null : (playUrl || task.output_url || null),
@@ -126,7 +126,20 @@ function computeThumbnailUrl(task) {
   if (task.sourceAsset && task.sourceAsset.url) {
     return task.sourceAsset.url;
   }
-  // 5. 无缩略图
+  // 5. Phase UI-AICreation-07-KJ-04: ref2video 输入图片回退
+  //    ref2video 没有 sourceAsset，但 input_images 存储了参考图片 URL 数组
+  //    取第一张作为缩略图，与 image2video 的 sourceAsset.url 回退等价
+  if (task.task_type === 'ref2video' && task.input_images) {
+    try {
+      const images = typeof task.input_images === 'string'
+        ? JSON.parse(task.input_images)
+        : task.input_images;
+      if (Array.isArray(images) && images.length > 0 && images[0]) {
+        return images[0];
+      }
+    } catch (_) { /* JSON 解析失败则跳过 */ }
+  }
+  // 6. 无缩略图
   return null;
 }
 
