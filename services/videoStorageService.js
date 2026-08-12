@@ -126,82 +126,149 @@ function generateCoverOssKey(enterpriseId) {
   return `enterprises/${enterpriseId}/covers/${dateStr}/${uuid}-cover.jpg`;
 }
 
+// ─── ffmpeg 可用性缓存 ──────────────────────────────────────────
+let _ffmpegAvailable = null;
+let _ffmpegCheckTime = 0;
+const FFMPEG_CHECK_TTL = 60000; // 1分钟内不重复检查
+
+/**
+ * 检查 ffmpeg 是否可用（带缓存）
+ * @returns {Promise<boolean>}
+ */
+function checkFfmpegAvailable() {
+  const now = Date.now();
+  if (_ffmpegAvailable !== null && (now - _ffmpegCheckTime) < FFMPEG_CHECK_TTL) {
+    return Promise.resolve(_ffmpegAvailable);
+  }
+  return new Promise((resolve) => {
+    execFile('ffmpeg', ['-version'], { timeout: 5000 }, (err) => {
+      _ffmpegAvailable = !err;
+      _ffmpegCheckTime = now;
+      if (err) {
+        console.error(`[VideoStorage] ffmpeg not available: ${err.message}`);
+      }
+      resolve(_ffmpegAvailable);
+    });
+  });
+}
+
 /**
  * 使用 ffmpeg 从视频 buffer 中提取第一帧作为封面
  *
  * 流程：
- *   1. 将 buffer 写入临时文件
- *   2. 调用 ffmpeg 提取第一帧
- *   3. 读取输出的 jpg
- *   4. 清理临时文件
+ *   1. 检查 ffmpeg 是否可用
+ *   2. 将 buffer 写入临时文件
+ *   3. 调用 ffmpeg 提取第一帧
+ *   4. 读取输出的 jpg
+ *   5. 清理临时文件
  *
  * @param {Buffer} videoBuffer - 视频数据
+ * @param {Object} [options] - 可选参数
+ * @param {number} [options.startTime=0] - 提取起始时间（秒），默认第 0 秒
  * @returns {Promise<Buffer>} 封面图片 buffer (jpg)
  */
-function extractCoverFrame(videoBuffer) {
+function extractCoverFrame(videoBuffer, options = {}) {
+  const startTime = options.startTime || 0;
+
   return new Promise((resolve, reject) => {
-    const tmpDir = os.tmpdir();
-    const inputFile = path.join(tmpDir, `vsc_input_${Date.now()}_${Math.random().toString(36).substring(2, 6)}.mp4`);
-    const outputFile = path.join(tmpDir, `vsc_cover_${Date.now()}_${Math.random().toString(36).substring(2, 6)}.jpg`);
-
-    // ── 1. 写入临时文件 ──────────────────────────────────────
-    try {
-      fs.writeFileSync(inputFile, videoBuffer);
-    } catch (writeErr) {
-      return reject(Object.assign(new Error(`Failed to write temp video file: ${writeErr.message}`), {
-        code: 'COVER_TEMP_WRITE_FAILED'
-      }));
-    }
-
-    // ── 2. 调用 ffmpeg 提取第一帧 ─────────────────────────────
-    // -ss 0: 从第 0 秒开始
-    // -vframes 1: 只提取 1 帧
-    // -q:v 2: 高质量 jpg（1-31，越小质量越高）
-    execFile('ffmpeg', [
-      '-ss', '0',
-      '-i', inputFile,
-      '-vframes', '1',
-      '-q:v', '2',
-      '-y',
-      outputFile
-    ], { timeout: 30000 }, (err, stdout, stderr) => {
-      // ── 清理输入文件 ──────────────────────────────────────
-      try { fs.unlinkSync(inputFile); } catch (_) { /* ignore */ }
-
-      if (err) {
-        // 清理可能的输出文件
-        try { fs.unlinkSync(outputFile); } catch (_) { /* ignore */ }
+    // ── 0. 检查 ffmpeg 可用性 ──────────────────────────────────
+    checkFfmpegAvailable().then((available) => {
+      if (!available) {
         return reject(Object.assign(
-          new Error(`ffmpeg cover extraction failed: ${err.message}`),
-          { code: 'COVER_EXTRACTION_FAILED' }
+          new Error('ffmpeg is not installed or not available in PATH'),
+          { code: 'FFMPEG_NOT_FOUND' }
         ));
       }
 
-      // ── 3. 读取输出封面 ────────────────────────────────────
-      let coverBuffer;
+      _doExtract();
+    }).catch(reject);
+
+    function _doExtract() {
+      const tmpDir = os.tmpdir();
+      const rand = Math.random().toString(36).substring(2, 6);
+      const inputFile = path.join(tmpDir, `vsc_input_${Date.now()}_${rand}.mp4`);
+      const outputFile = path.join(tmpDir, `vsc_cover_${Date.now()}_${rand}.jpg`);
+
+      // ── 1. 写入临时文件 ──────────────────────────────────────
       try {
-        coverBuffer = fs.readFileSync(outputFile);
-      } catch (readErr) {
+        fs.writeFileSync(inputFile, videoBuffer);
+      } catch (writeErr) {
+        return reject(Object.assign(
+          new Error(`Failed to write temp video file: ${writeErr.message}`),
+          { code: 'COVER_TEMP_WRITE_FAILED' }
+        ));
+      }
+
+      // ── 2. 调用 ffmpeg 提取帧 ─────────────────────────────────
+      // -ss N: 从第 N 秒开始
+      // -vframes 1: 只提取 1 帧
+      // -q:v 2: 高质量 jpg（1-31，越小质量越高）
+      const ssValue = String(startTime);
+      if (process.env.NODE_ENV === 'development') {
+        console.log(`[VideoStorage] ffmpeg extract cover | ss=${ssValue}s | inputSize=${(videoBuffer.length / 1024 / 1024).toFixed(1)}MB`);
+      }
+      execFile('ffmpeg', [
+        '-ss', ssValue,
+        '-i', inputFile,
+        '-vframes', '1',
+        '-q:v', '2',
+        '-y',
+        outputFile
+      ], { timeout: 30000 }, (err, stdout, stderr) => {
+        // ── 清理输入文件（无论成功失败）────────────────────────
+        try { fs.unlinkSync(inputFile); } catch (_) { /* ignore */ }
+
+        if (err) {
+          // 清理可能的输出文件
+          try { fs.unlinkSync(outputFile); } catch (_) { /* ignore */ }
+
+          // 记录 ffmpeg stderr 便于排查格式兼容性问题
+          const stderrPreview = stderr ? stderr.substring(0, 200).replace(/\n/g, ' | ') : '(no stderr)';
+          const errCode = err.killed ? 'COVER_EXTRACTION_TIMEOUT' : 'COVER_EXTRACTION_FAILED';
+          console.error(
+            `[VideoStorage] ffmpeg cover extraction error | ` +
+            `code=${errCode} | ` +
+            `killed=${!!err.killed} | ` +
+            `signal=${err.signal || 'N/A'} | ` +
+            `message=${err.message} | ` +
+            `stderr=${stderrPreview}`
+          );
+          return reject(Object.assign(
+            new Error(`ffmpeg cover extraction failed [${errCode}]: ${err.message}`),
+            { code: errCode }
+          ));
+        }
+
+        // ── 3. 读取输出封面 ────────────────────────────────────
+        let coverBuffer;
+        try {
+          coverBuffer = fs.readFileSync(outputFile);
+        } catch (readErr) {
+          try { fs.unlinkSync(outputFile); } catch (_) { /* ignore */ }
+          return reject(Object.assign(
+            new Error(`Failed to read cover image: ${readErr.message}`),
+            { code: 'COVER_READ_FAILED' }
+          ));
+        }
+
+        // ── 4. 清理输出文件 ────────────────────────────────────
         try { fs.unlinkSync(outputFile); } catch (_) { /* ignore */ }
-        return reject(Object.assign(
-          new Error(`Failed to read cover image: ${readErr.message}`),
-          { code: 'COVER_READ_FAILED' }
-        ));
-      }
 
-      // ── 4. 清理输出文件 ────────────────────────────────────
-      try { fs.unlinkSync(outputFile); } catch (_) { /* ignore */ }
+        // ── 5. 校验 ────────────────────────────────────────────
+        if (coverBuffer.length < 100) {
+          return reject(Object.assign(
+            new Error(`Cover image too small: ${coverBuffer.length} bytes`),
+            { code: 'COVER_TOO_SMALL' }
+          ));
+        }
 
-      // ── 5. 校验 ────────────────────────────────────────────
-      if (coverBuffer.length < 100) {
-        return reject(Object.assign(
-          new Error(`Cover image too small: ${coverBuffer.length} bytes`),
-          { code: 'COVER_TOO_SMALL' }
-        ));
-      }
+        if (process.env.NODE_ENV === 'development') {
+          console.log(`[VideoStorage] ffmpeg cover extracted: ${(coverBuffer.length / 1024).toFixed(1)}KB`);
+        }
 
-      resolve(coverBuffer);
-    });
+        resolve(coverBuffer);
+      });
+    }
   });
 }
 
@@ -475,26 +542,54 @@ async function downloadAndStore({ videoUrl, enterpriseId, mimeType }) {
     });
   }
 
-  // ── 7. 生成封面（Sprint 5.7: ffmpeg 提取第一帧）─────────────
+  // ── 7. 生成封面（Sprint 5.7: ffmpeg 提取第一帧，带一次重试）──
   let coverOssKey = null;
   let coverUrl = null;
 
-  try {
-    const coverBuffer = await extractCoverFrame(downloadResult.buffer);
-    coverOssKey = generateCoverOssKey(enterpriseId);
-    await ossService.putFile(coverOssKey, coverBuffer, 'image/jpeg');
-    coverUrl = ossService.getFileUrl(coverOssKey);
+  const COVER_RETRY_DELAY_MS = 500;
 
-    if (process.env.NODE_ENV === 'development') {
-      console.log(`[VideoStorage] Cover generated: ${coverOssKey} (${(coverBuffer.length / 1024).toFixed(1)}KB)`);
+  /**
+   * 尝试提取封面并上传 OSS
+   * @param {number} startTime - ffmpeg 起始时间（秒）
+   * @returns {Promise<boolean>} 是否成功
+   */
+  async function attemptCoverExtraction(startTime) {
+    try {
+      const coverBuffer = await extractCoverFrame(downloadResult.buffer, { startTime });
+      coverOssKey = generateCoverOssKey(enterpriseId);
+      await ossService.putFile(coverOssKey, coverBuffer, 'image/jpeg');
+      coverUrl = ossService.getFileUrl(coverOssKey);
+      return true;
+    } catch (coverErr) {
+      console.warn(
+        `[VideoStorage] Cover attempt ss=${startTime}s failed | ` +
+        `message=${coverErr.message} | ` +
+        `code=${coverErr.code || 'N/A'}`
+      );
+      return false;
     }
-  } catch (coverErr) {
-    // 封面生成失败不阻塞视频存储，记录警告
+  }
+
+  // 第一次尝试：提取第 0 秒帧
+  let coverOk = await attemptCoverExtraction(0);
+
+  // 重试：提取第 1 秒帧（跳过可能的全黑/损坏首帧）
+  if (!coverOk) {
+    if (process.env.NODE_ENV === 'development') {
+      console.log(`[VideoStorage] Cover retry after ${COVER_RETRY_DELAY_MS}ms delay...`);
+    }
+    await new Promise(r => setTimeout(r, COVER_RETRY_DELAY_MS));
+    coverOk = await attemptCoverExtraction(1);
+  }
+
+  if (!coverOk) {
     console.warn(
-      `[VideoStorage] Cover generation failed (non-blocking): ${coverErr.message} | ` +
-      `code=${coverErr.code || 'N/A'}`
+      `[VideoStorage] Cover generation failed after 2 attempts (non-blocking) | ` +
+      `videoOssKey=${ossKey}`
     );
     // coverOssKey / coverUrl 保持 null
+  } else if (process.env.NODE_ENV === 'development') {
+    console.log(`[VideoStorage] Cover generated: ${coverOssKey}`);
   }
 
   // ── 8. 生成访问 URL ──────────────────────────────────────────

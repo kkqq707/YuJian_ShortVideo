@@ -506,6 +506,134 @@ async function storeImageAndCreateAsset(task, enterpriseId, userId, imageUrl) {
 }
 
 // ═══════════════════════════════════════════════════════════════════
+//  内部函数：默认封面生成（兜底）
+// ═══════════════════════════════════════════════════════════════════
+
+const zlib = require('zlib');
+
+/**
+ * CRC32 计算（用于 PNG chunk 校验）
+ * @param {Buffer} buf
+ * @returns {number}
+ */
+function crc32(buf) {
+  let crc = 0xFFFFFFFF;
+  for (let i = 0; i < buf.length; i++) {
+    crc ^= buf[i];
+    for (let j = 0; j < 8; j++) {
+      if (crc & 1) {
+        crc = (crc >>> 1) ^ 0xEDB88320;
+      } else {
+        crc = crc >>> 1;
+      }
+    }
+  }
+  return (crc ^ 0xFFFFFFFF) >>> 0;
+}
+
+/**
+ * 创建 PNG chunk
+ * @param {string} type - 4 字符 chunk 类型
+ * @param {Buffer} data - chunk 数据
+ * @returns {Buffer}
+ */
+function createPngChunk(type, data) {
+  const lenBuf = Buffer.alloc(4);
+  lenBuf.writeUInt32BE(data.length, 0);
+  const typeBuf = Buffer.from(type, 'ascii');
+  const crcInput = Buffer.concat([typeBuf, data]);
+  const crcVal = crc32(crcInput);
+  const crcBuf = Buffer.alloc(4);
+  crcBuf.writeUInt32BE(crcVal, 0);
+  return Buffer.concat([lenBuf, typeBuf, data, crcBuf]);
+}
+
+/**
+ * 生成默认视频封面 PNG Buffer（纯色占位图，非文字封面）
+ *
+ * 320x180 深色背景占位封面，适用于所有视频类型（image2video / text2video / ref2video）。
+ * 仅使用 Node.js 内置模块（zlib），无需外部依赖。
+ *
+ * @returns {Buffer} PNG 格式的默认封面图片
+ */
+function generateDefaultCoverBuffer() {
+  const width = 320;
+  const height = 180;
+
+  // 构建原始像素数据（每行: 1 字节 filter + width*3 字节 RGB）
+  const rawRows = [];
+  for (let y = 0; y < height; y++) {
+    const row = Buffer.alloc(1 + width * 3);
+    row[0] = 0; // filter: none
+    for (let x = 0; x < width; x++) {
+      const offset = 1 + x * 3;
+      // 深色灰蓝背景 RGB(22, 24, 32) + 中心区域略亮
+      const cx = Math.abs(x - width / 2) / (width / 2);
+      const cy = Math.abs(y - height / 2) / (height / 2);
+      const dist = Math.sqrt(cx * cx + cy * cy);
+      const brightness = Math.max(0, 1 - dist) * 8;
+      row[offset] = 22 + brightness;     // R
+      row[offset + 1] = 24 + brightness; // G
+      row[offset + 2] = 32 + brightness; // B
+    }
+    rawRows.push(row);
+  }
+  const rawData = Buffer.concat(rawRows);
+
+  // zlib 压缩
+  const compressed = zlib.deflateSync(rawData);
+
+  // PNG 签名
+  const signature = Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]);
+
+  // IHDR: 320x180, 8-bit RGB
+  const ihdrData = Buffer.alloc(13);
+  ihdrData.writeUInt32BE(width, 0);
+  ihdrData.writeUInt32BE(height, 4);
+  ihdrData[8] = 8;  // bit depth
+  ihdrData[9] = 2;  // color type: RGB
+  ihdrData[10] = 0; // compression: deflate
+  ihdrData[11] = 0; // filter: adaptive
+  ihdrData[12] = 0; // interlace: none
+  const ihdr = createPngChunk('IHDR', ihdrData);
+
+  // IDAT
+  const idat = createPngChunk('IDAT', compressed);
+
+  // IEND
+  const iend = createPngChunk('IEND', Buffer.alloc(0));
+
+  return Buffer.concat([signature, ihdr, idat, iend]);
+}
+
+/**
+ * 上传默认封面到 OSS，返回 URL
+ *
+ * @param {number} enterpriseId
+ * @returns {Promise<string|null>} 封面 OSS URL，失败返回 null
+ */
+async function uploadDefaultCover(enterpriseId) {
+  try {
+    const buffer = generateDefaultCoverBuffer();
+    const date = new Date();
+    const dateStr = date.getFullYear()
+      + String(date.getMonth() + 1).padStart(2, '0')
+      + String(date.getDate()).padStart(2, '0');
+    const uuid = crypto.randomUUID
+      ? crypto.randomUUID()
+      : Date.now().toString(36) + Math.random().toString(36).substring(2, 10);
+    const coverOssKey = `enterprises/${enterpriseId}/covers/${dateStr}/${uuid}-default.jpg`;
+    await ossService.putFile(coverOssKey, buffer, 'image/jpeg');
+    const coverUrl = ossService.getFileUrl(coverOssKey);
+    console.log(`[VideoGeneration] Default cover uploaded: ${coverOssKey}`);
+    return coverUrl;
+  } catch (err) {
+    console.error(`[VideoGeneration] Default cover upload failed: ${err.message}`);
+    return null;
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════
 //  内部函数：视频 OSS 存储 + Asset 闭环
 // ═══════════════════════════════════════════════════════════════════
 
@@ -513,6 +641,9 @@ async function storeImageAndCreateAsset(task, enterpriseId, userId, imageUrl) {
  * 将 DashScope 视频转存到自有 OSS，创建 Asset 并关联 GenerationTask
  *
  * 幂等：若 task 已有 output_asset_id 则跳过
+ *
+ * Phase_UI-AICreation-07-KJ-06-B: 当封面提取失败且无 DashScope cover_url 时，
+ * 使用统一默认封面兜底，适用于所有视频类型（image2video / text2video / ref2video）。
  *
  * @param {Object} task - GenerationTask 实例（含 update/reload 方法）
  * @param {number} enterpriseId
@@ -547,6 +678,20 @@ async function storeVideoAndCreateAsset(task, enterpriseId, userId, videoUrl, co
     return task;
   }
 
+  // ── 1.5 默认封面兜底 ─────────────────────────────────────────
+  // Phase_UI-AICreation-07-KJ-06-B:
+  // 当 ffmpeg 封面提取失败（storageResult.cover.url 为空）
+  // 且 DashScope 也未返回 cover_url 时，使用统一默认封面兜底。
+  // 适用于所有视频类型：image2video / text2video / ref2video
+  let fallbackCoverUrl = null;
+  if (!storageResult.cover.url && !coverUrl) {
+    console.warn(
+      `[VideoGeneration] Cover missing for task ${task.id} ` +
+      `(type=${task.task_type}), using default fallback cover`
+    );
+    fallbackCoverUrl = await uploadDefaultCover(enterpriseId);
+  }
+
   // ── 2. 创建视频 Asset ───────────────────────────────────────
   let asset;
   try {
@@ -556,7 +701,7 @@ async function storeVideoAndCreateAsset(task, enterpriseId, userId, videoUrl, co
       type: 'video',
       name: generateVideoName(task),
       url: storageResult.video.url,
-      thumbnail: storageResult.cover.url || storageResult.cover.ossKey || null,
+      thumbnail: storageResult.cover.url || coverUrl || fallbackCoverUrl || null,
       size: storageResult.size,
       mime_type: storageResult.mimeType,
       duration: duration || null,
@@ -578,7 +723,8 @@ async function storeVideoAndCreateAsset(task, enterpriseId, userId, videoUrl, co
 
   // ── 3. 更新 GenerationTask 关联 ─────────────────────────────
   // Sprint 5.7: cover_url 优先使用 videoStorageService 生成的封面
-  const finalCoverUrl = storageResult.cover.url || storageResult.cover.ossKey || coverUrl || null;
+  // Phase_UI-AICreation-07-KJ-06-B: 兜底默认封面
+  const finalCoverUrl = storageResult.cover.url || storageResult.cover.ossKey || coverUrl || fallbackCoverUrl || null;
 
   await task.update({
     output_asset_id: asset.id,
