@@ -11,6 +11,10 @@ router.post('/execute', controller.execute);
 //      返回完整 PipelineTask 信息（状态、进度、当前层、中间结果等）
 router.get('/uuid/:uuid', controller.getByUUID);
 
+// GET  /api/enterprise/pipelines — 查询企业 Pipeline 列表（分页 / 状态过滤 / 软删除）
+//      返回 { total, page, pageSize, items[] }
+router.get('/', controller.listPipelines);
+
 // GET  /api/enterprise/pipelines/:id — 按主键 ID 查询流水线状态
 //      返回完整 PipelineTask 信息（状态、进度、当前层、中间结果等）
 router.get('/:id', controller.getById);

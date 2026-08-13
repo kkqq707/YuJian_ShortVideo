@@ -82,6 +82,57 @@ function formatTaskResponse(task) {
   };
 }
 
+/**
+ * 从 input_params JSON 中摘取列表摘要（白名单：product_name / image_url）
+ *
+ * 安全约束：列表接口只暴露这两个字段，禁止输出完整 input_params、
+ * intermediate_results、run_config、error_msg、enterprise_id、user_id 等敏感内容。
+ *
+ * @param {string|Object|null} inputParams — PipelineTask.input_params
+ * @returns {Object|null} { product_name, image_url }；解析失败返回 null
+ */
+function buildInputSummary(inputParams) {
+  if (!inputParams) return null;
+
+  let params = inputParams;
+  if (typeof inputParams === 'string') {
+    try {
+      params = JSON.parse(inputParams);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  if (!params || typeof params !== 'object') return null;
+
+  return {
+    product_name: params.product_name != null ? params.product_name : null,
+    image_url: params.image_url != null ? params.image_url : null
+  };
+}
+
+/**
+ * 构建 Pipeline 列表轻量项（仅白名单字段）
+ *
+ * 不复用 formatTaskResponse（它会带出 intermediate_results / 完整 input_params 等敏感字段）。
+ *
+ * @param {Object} task — PipelineTask instance
+ * @returns {Object} 轻量列表项
+ */
+function toPipelineListItem(task) {
+  return {
+    id: task.id,
+    pipeline_uuid: task.pipeline_uuid,
+    status: task.status,
+    progress: task.progress != null ? task.progress : 0,
+    current_layer: task.current_layer || null,
+    failed_layer: task.failed_layer || null,
+    input_summary: buildInputSummary(task.input_params),
+    created_at: task.created_at || null,
+    completed_at: task.completed_at || null
+  };
+}
+
 // ═══════════════════════════════════════════════════════════════════════
 //  API 1: POST /api/enterprise/pipelines/execute — 创建并启动流水线
 // ═══════════════════════════════════════════════════════════════════════
@@ -204,6 +255,124 @@ exports.execute = async (req, res) => {
       // Step4-E2 任务2：只暴露业务错误描述，屏蔽内部 DB/Provider 失败细节
       // （SQL / Sequelize / stack / provider 内部错误）。内部日志已在上方
       // console.error 中保留完整 error.message。
+      const isInternalFailure =
+        error.provider === 'system' &&
+        typeof error.code === 'string' &&
+        error.code.endsWith('_FAILED');
+      return res.fail(
+        isInternalFailure ? '服务器内部错误' : error.message,
+        error.statusCode || 500
+      );
+    }
+
+    return res.fail('服务器内部错误', 500);
+  }
+};
+
+// ═══════════════════════════════════════════════════════════════════════
+//  API: GET /api/enterprise/pipelines — 查询企业 Pipeline 列表
+// ═══════════════════════════════════════════════════════════════════════
+
+/**
+ * 查询企业 PipelineTask 列表（分页 / 状态过滤 / 时间过滤 / 软删除）
+ *
+ * 查询参数:
+ *   page        — 页码（默认 1）
+ *   pageSize    — 每页条数（默认 20，上限 100）
+ *   status      — 逗号分隔多状态（如 ?status=success,pending）
+ *   start_date  — created_at 下限（ISO，可选）
+ *   end_date    — created_at 上限（ISO，可选）
+ *
+ * 返回:
+ *   { total, page, pageSize, items[] }
+ *   items 元素为轻量白名单字段，不含 intermediate_results / 完整 input_params
+ */
+exports.listPipelines = async (req, res) => {
+  try {
+    // ── 1. 身份校验 ────────────────────────────────────────────────
+    const enterpriseId = req.user.enterpriseId;
+    if (!enterpriseId) {
+      return res.fail('用户身份信息缺失', 401);
+    }
+
+    // ── 2. 分页参数解析 ────────────────────────────────────────────
+    const page = Math.max(1, parseInt(req.query.page) || 1);
+    const pageSize = Math.min(100, Math.max(1, parseInt(req.query.pageSize) || 20));
+
+    // ── 3. 状态过滤校验（复用 Service 白名单常量）──────────────────
+    const statusParam = req.query.status || null;
+    let statusFilter = null;
+    if (statusParam) {
+      statusFilter = statusParam
+        .split(',')
+        .map(s => s.trim())
+        .filter(s => pipelineTaskService.VALID_STATUSES.includes(s));
+      if (statusFilter.length === 0) {
+        return res.fail('无效的状态筛选参数', 400);
+      }
+    }
+
+    // ── 4. 时间范围解析（可选，非法则 400）────────────────────────
+    let startDate = null;
+    let endDate = null;
+    if (req.query.start_date) {
+      startDate = new Date(req.query.start_date);
+      if (isNaN(startDate.getTime())) {
+        return res.fail('无效的时间范围参数', 400);
+      }
+    }
+    if (req.query.end_date) {
+      endDate = new Date(req.query.end_date);
+      if (isNaN(endDate.getTime())) {
+        return res.fail('无效的时间范围参数', 400);
+      }
+    }
+
+    // ── 5. 查询（企业隔离在 Service 层强制注入）────────────────────
+    console.log(
+      `[PipelineController] listPipelines REQUEST | ` +
+      `enterpriseId=${enterpriseId} | page=${page} | pageSize=${pageSize} | ` +
+      `status=${statusParam || 'N/A'} | ` +
+      `start_date=${req.query.start_date || 'N/A'} | ` +
+      `end_date=${req.query.end_date || 'N/A'} | ` +
+      `time=${new Date().toISOString()}`
+    );
+
+    const { count, rows } = await pipelineTaskService.listPipelineTasks({
+      enterpriseId,
+      statusFilter,
+      startDate,
+      endDate,
+      page,
+      pageSize
+    });
+
+    // ── 6. 轻量映射（不复用 formatTaskResponse）────────────────────
+    const items = rows.map(toPipelineListItem);
+
+    console.log(
+      `[PipelineController] listPipelines RESPONSE | ` +
+      `enterpriseId=${enterpriseId} | total=${count} | items=${items.length} | ` +
+      `time=${new Date().toISOString()}`
+    );
+
+    return res.success({
+      total: count,
+      page,
+      pageSize,
+      items
+    });
+
+  } catch (error) {
+    console.error(
+      `[PipelineController] listPipelines ERROR | ` +
+      `name=${error.name || 'Unknown'} | ` +
+      `message=${error.message || '(no message)'} | ` +
+      `time=${new Date().toISOString()}`
+    );
+
+    if (error.name === 'ProviderError') {
+      // Step4-E2 任务2：只暴露业务错误描述，屏蔽内部 DB/Provider 失败细节
       const isInternalFailure =
         error.provider === 'system' &&
         typeof error.code === 'string' &&

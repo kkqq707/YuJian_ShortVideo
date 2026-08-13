@@ -12,6 +12,9 @@ const videoGenerationRouter = require('./videoGeneration');
 const workspaceRouter = require('./workspace');
 const registryRouter = require('./registry');
 const pipelineRouter = require('../pipeline');
+const avatarRouter = require('./avatars');
+const voiceRouter = require('./voices');
+const scriptRouter = require('./scripts');
 
 router.use(enterpriseAuth);
 
@@ -25,5 +28,8 @@ router.use('/video-generation', videoGenerationRouter);
 router.use('/workspace', workspaceRouter);
 router.use('/registry', registryRouter);
 router.use('/pipelines', pipelineRouter);
+router.use('/avatars', avatarRouter);
+router.use('/voices', voiceRouter);
+router.use('/scripts', scriptRouter);
 
 module.exports = router;

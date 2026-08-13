@@ -29,6 +29,7 @@
 
 const { PipelineTask } = require('../models');
 const ProviderError = require('../utils/ProviderError');
+const { Op } = require('sequelize');
 
 /**
  * PipelineTask 允许的状态白名单
@@ -600,6 +601,90 @@ class PipelineTaskService {
       throw new ProviderError(
         'system', 'UPDATE_FAILED',
         `Failed to mark PipelineTask as failed: ${error.message}`,
+        false, null, error
+      );
+    }
+  }
+
+  // ───────────────────────────────────────────────────────────────────
+  // 9. 列表查询（分页）
+  // ───────────────────────────────────────────────────────────────────
+
+  /**
+   * 查询企业 PipelineTask 列表（分页 / 状态过滤 / 时间过滤 / 软删除）
+   *
+   * 只负责数据库查询，不涉及 HTTP 逻辑 / 参数解析 / 响应组装。
+   *
+   * @param {Object}   params
+   * @param {number}   params.enterpriseId — 企业 ID（必填，隔离）
+   * @param {string[]} [params.statusFilter] — 状态白名单数组（单状态等值 / 多状态 Op.in）
+   * @param {Date}     [params.startDate] — created_at 下限（含）
+   * @param {Date}     [params.endDate]   — created_at 上限（含）
+   * @param {number}   [params.page]      — 页码（默认 1）
+   * @param {number}   [params.pageSize]  — 每页条数（默认 20，上限 100）
+   * @returns {Promise<{count: number, rows: Object[]}>} findAndCountAll 原始返回
+   */
+  async listPipelineTasks({ enterpriseId, statusFilter, startDate, endDate, page, pageSize }) {
+    if (!enterpriseId) {
+      throw new ProviderError('system', 'VALIDATION', 'Enterprise ID is required', false);
+    }
+
+    // ── 企业隔离 + 软删除 ──────────────────────────────────────
+    const where = {
+      enterprise_id: enterpriseId,
+      deleted_at: null
+    };
+
+    // ── 状态过滤（单状态等值 / 多状态 Op.in）───────────────────
+    if (statusFilter && statusFilter.length > 0) {
+      where.status = statusFilter.length === 1
+        ? statusFilter[0]
+        : { [Op.in]: statusFilter };
+    }
+
+    // ── 时间过滤（created_at 范围）────────────────────────────
+    if (startDate || endDate) {
+      where.created_at = {};
+      if (startDate) where.created_at[Op.gte] = startDate;
+      if (endDate) where.created_at[Op.lte] = endDate;
+    }
+
+    try {
+      const { count, rows } = await PipelineTask.findAndCountAll({
+        where,
+        attributes: [
+          'id',
+          'pipeline_uuid',
+          'status',
+          'progress',
+          'current_layer',
+          'failed_layer',
+          'input_params',
+          'created_at',
+          'completed_at'
+        ],
+        order: [['created_at', 'DESC']],
+        offset: (page - 1) * pageSize,
+        limit: pageSize
+      });
+
+      console.log(
+        `[PipelineTaskService] PipelineTask list queried | ` +
+        `enterpriseId=${enterpriseId} | count=${count} | ` +
+        `page=${page} | pageSize=${pageSize} | ` +
+        `time=${new Date().toISOString()}`
+      );
+
+      return { count, rows };
+    } catch (error) {
+      console.error(
+        `[PipelineTaskService] listPipelineTasks FAILED | ` +
+        `enterpriseId=${enterpriseId} | ` +
+        `error=${error.message} | time=${new Date().toISOString()}`
+      );
+      throw new ProviderError(
+        'system', 'QUERY_FAILED',
+        `Failed to list PipelineTasks: ${error.message}`,
         false, null, error
       );
     }

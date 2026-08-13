@@ -24,8 +24,14 @@ const ScriptRecord = sequelize.define('ScriptRecord', {
   },
   pipeline_task_id: {
     type: DataTypes.INTEGER,
+    allowNull: true,
+    comment: '关联 PipelineTask.id（独立草稿为 NULL）'
+  },
+  source_type: {
+    type: DataTypes.ENUM('pipeline', 'ai', 'manual'),
     allowNull: false,
-    comment: '关联 PipelineTask.id'
+    defaultValue: 'pipeline',
+    comment: '来源类型：pipeline=pipeline 内生成 | ai=AI 独立生成 | manual=手写草稿'
   },
   episode_id: {
     type: DataTypes.INTEGER,
@@ -92,12 +98,22 @@ const ScriptRecord = sequelize.define('ScriptRecord', {
     type: DataTypes.ENUM('draft', 'reviewed', 'approved', 'rejected'),
     defaultValue: 'draft',
     comment: '脚本状态：draft=草稿 | reviewed=已审核 | approved=已批准 | rejected=已驳回'
+  },
+
+  // ─── 软删除 ──────────────────────────────────────────
+  deleted_at: {
+    type: DataTypes.DATE,
+    allowNull: true,
+    defaultValue: null,
+    comment: '软删除时间（草稿删除用）'
   }
 }, {
   tableName: 'script_records',
   indexes: [
     { fields: ['pipeline_task_id'] },
-    { fields: ['enterprise_id'] }
+    { fields: ['enterprise_id'] },
+    { fields: ['source_type'] },
+    { fields: ['deleted_at'] }
   ]
 });
 

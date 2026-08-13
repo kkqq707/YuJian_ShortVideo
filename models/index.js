@@ -17,6 +17,8 @@ const DramaCharacter = require('./DramaCharacter');
 const DramaShot = require('./DramaShot');
 const PipelineTask = require('./PipelineTask');
 const ScriptRecord = require('./ScriptRecord');
+const Avatar = require('./Avatar');
+const Voice = require('./Voice');
 
 // 关联关系
 Agent.hasMany(Enterprise, { foreignKey: 'agent_id' });
@@ -176,6 +178,28 @@ ScriptRecord.belongsTo(PipelineTask, {
   constraints: false
 });
 
+// ─── Avatar 关联（Phase 004-Step5-C1） ──────────────────
+Avatar.belongsTo(Enterprise, {
+  foreignKey: 'enterprise_id',
+  constraints: false
+});
+Avatar.belongsTo(Asset, {
+  as: 'imageAsset',
+  foreignKey: 'asset_id',
+  constraints: false
+});
+
+// ─── Voice 关联（Phase 004-Step5-C2） ──────────────────
+Voice.belongsTo(Enterprise, {
+  foreignKey: 'enterprise_id',
+  constraints: false
+});
+Voice.belongsTo(Asset, {
+  as: 'sampleAsset',
+  foreignKey: 'sample_audio_asset_id',
+  constraints: false
+});
+
 module.exports = {
   sequelize,
   Admin,
@@ -195,5 +219,7 @@ module.exports = {
   DramaCharacter,
   DramaShot,
   PipelineTask,
-  ScriptRecord
+  ScriptRecord,
+  Avatar,
+  Voice
 };
