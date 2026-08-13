@@ -28,6 +28,7 @@
 
 const pipelineTaskService = require('../services/pipelineTaskService');
 const pipelineOrchestrator = require('../services/pipelineOrchestrator');
+const pipelineObservabilityService = require('../services/pipelineObservabilityService');
 
 // ═══════════════════════════════════════════════════════════════════════
 //  辅助函数
@@ -336,6 +337,211 @@ exports.getByUUID = async (req, res) => {
       // Step4-E2 任务2：只暴露业务错误描述，屏蔽内部 DB/Provider 失败细节
       // （SQL / Sequelize / stack / provider 内部错误）。内部日志已在上方
       // console.error 中保留完整 error.message。
+      const isInternalFailure =
+        error.provider === 'system' &&
+        typeof error.code === 'string' &&
+        error.code.endsWith('_FAILED');
+      return res.fail(
+        isInternalFailure ? '服务器内部错误' : error.message,
+        error.statusCode || 500
+      );
+    }
+
+    return res.fail('服务器内部错误', 500);
+  }
+};
+
+// ═══════════════════════════════════════════════════════════════════════
+//  API 4: GET /api/enterprise/pipelines/:id/detail — 查询流水线概览
+// ═══════════════════════════════════════════════════════════════════════
+
+/**
+ * 查询流水线概览（基本状态、进度、当前层、timeline 摘要）
+ *
+ * 路径参数:
+ *   id - PipelineTask 主键 ID
+ *
+ * 返回:
+ *   { id, pipeline_uuid, status, progress, current_layer, timeline_summary[] }
+ *
+ * timeline_summary 为四层（vision/script/tts/dh）的紧凑摘要（layer + status）。
+ */
+exports.getPipelineDetail = async (req, res) => {
+  try {
+    const enterpriseId = req.user.enterpriseId;
+    const pipelineId = req.params.id;
+
+    // ── 1. 参数校验 ────────────────────────────────────────────────
+    const id = parseInt(pipelineId);
+    if (!id || isNaN(id) || id <= 0) {
+      return res.fail('无效的 Pipeline ID', 400);
+    }
+
+    // ── 2. 企业隔离校验（不存在 / 越权均返回 404，不泄露存在性）─────
+    const task = await pipelineTaskService.getPipelineTask(id, enterpriseId);
+    if (!task) {
+      return res.fail('流水线任务不存在', 404);
+    }
+
+    // ── 3. 调用 observability service 获取 timeline 摘要 ──────────
+    const timeline = await pipelineObservabilityService.getPipelineTimeline(id);
+    const timelineSummary = timeline && timeline.layers
+      ? timeline.layers.map(l => ({ layer: l.layer, status: l.status }))
+      : [];
+
+    // ── 4. 返回概览 ────────────────────────────────────────────────
+    return res.success({
+      id: task.id,
+      pipeline_uuid: task.pipeline_uuid || null,
+      status: task.status,
+      progress: task.progress != null ? task.progress : 0,
+      current_layer: task.current_layer || null,
+      timeline_summary: timelineSummary
+    });
+
+  } catch (error) {
+    console.error(
+      `[PipelineController] getPipelineDetail ERROR | ` +
+      `name=${error.name || 'Unknown'} | ` +
+      `message=${error.message || '(no message)'} | ` +
+      `time=${new Date().toISOString()}`
+    );
+
+    if (error.name === 'ProviderError') {
+      const isInternalFailure =
+        error.provider === 'system' &&
+        typeof error.code === 'string' &&
+        error.code.endsWith('_FAILED');
+      return res.fail(
+        isInternalFailure ? '服务器内部错误' : error.message,
+        error.statusCode || 500
+      );
+    }
+
+    return res.fail('服务器内部错误', 500);
+  }
+};
+
+// ═══════════════════════════════════════════════════════════════════════
+//  API 5: GET /api/enterprise/pipelines/:id/timeline — 查询流水线执行时间线
+// ═══════════════════════════════════════════════════════════════════════
+
+/**
+ * 查询流水线执行时间线（四层状态、耗时、重试、资产回填）
+ *
+ * 路径参数:
+ *   id - PipelineTask 主键 ID
+ *
+ * 返回:
+ *   { pipeline_uuid, status, progress, layers[] }（由 getPipelineTimeline 推导）
+ */
+exports.getPipelineTimeline = async (req, res) => {
+  try {
+    const enterpriseId = req.user.enterpriseId;
+    const pipelineId = req.params.id;
+
+    // ── 1. 参数校验 ────────────────────────────────────────────────
+    const id = parseInt(pipelineId);
+    if (!id || isNaN(id) || id <= 0) {
+      return res.fail('无效的 Pipeline ID', 400);
+    }
+
+    // ── 2. 企业隔离校验（不存在 / 越权均返回 404，不泄露存在性）─────
+    const task = await pipelineTaskService.getPipelineTask(id, enterpriseId);
+    if (!task) {
+      return res.fail('流水线任务不存在', 404);
+    }
+
+    // ── 3. 调用 observability service 获取时间线 ──────────────────
+    const timeline = await pipelineObservabilityService.getPipelineTimeline(id);
+    if (!timeline) {
+      return res.fail('流水线任务不存在', 404);
+    }
+
+    return res.success(timeline);
+
+  } catch (error) {
+    console.error(
+      `[PipelineController] getPipelineTimeline ERROR | ` +
+      `name=${error.name || 'Unknown'} | ` +
+      `message=${error.message || '(no message)'} | ` +
+      `time=${new Date().toISOString()}`
+    );
+
+    if (error.name === 'ProviderError') {
+      const isInternalFailure =
+        error.provider === 'system' &&
+        typeof error.code === 'string' &&
+        error.code.endsWith('_FAILED');
+      return res.fail(
+        isInternalFailure ? '服务器内部错误' : error.message,
+        error.statusCode || 500
+      );
+    }
+
+    return res.fail('服务器内部错误', 500);
+  }
+};
+
+// ═══════════════════════════════════════════════════════════════════════
+//  API 6: GET /api/enterprise/pipelines/:id/errors — 查询流水线错误诊断
+// ═══════════════════════════════════════════════════════════════════════
+
+/**
+ * 查询流水线最新错误诊断
+ *
+ * 路径参数:
+ *   id - PipelineTask 主键 ID
+ *
+ * 返回:
+ *   { pipeline_id, error: { error_code, failed_layer, retry_count,
+ *                           provider_message, timestamp } | null }
+ */
+exports.getPipelineErrors = async (req, res) => {
+  try {
+    const enterpriseId = req.user.enterpriseId;
+    const pipelineId = req.params.id;
+
+    // ── 1. 参数校验 ────────────────────────────────────────────────
+    const id = parseInt(pipelineId);
+    if (!id || isNaN(id) || id <= 0) {
+      return res.fail('无效的 Pipeline ID', 400);
+    }
+
+    // ── 2. 企业隔离校验（不存在 / 越权均返回 404，不泄露存在性）─────
+    const task = await pipelineTaskService.getPipelineTask(id, enterpriseId);
+    if (!task) {
+      return res.fail('流水线任务不存在', 404);
+    }
+
+    // ── 3. 调用 observability service 获取错误诊断 ────────────────
+    const diagnosis = pipelineObservabilityService.getErrorDiagnosis(id);
+
+    // ── 4. 返回（诊断记录为内存实现，无记录时 error 为 null）──────
+    const error = diagnosis
+      ? {
+          error_code: diagnosis.error_code,
+          failed_layer: diagnosis.failed_layer,
+          retry_count: diagnosis.retry_count,
+          provider_message: diagnosis.provider_message,
+          timestamp: diagnosis.timestamp
+        }
+      : null;
+
+    return res.success({
+      pipeline_id: id,
+      error
+    });
+
+  } catch (error) {
+    console.error(
+      `[PipelineController] getPipelineErrors ERROR | ` +
+      `name=${error.name || 'Unknown'} | ` +
+      `message=${error.message || '(no message)'} | ` +
+      `time=${new Date().toISOString()}`
+    );
+
+    if (error.name === 'ProviderError') {
       const isInternalFailure =
         error.provider === 'system' &&
         typeof error.code === 'string' &&
