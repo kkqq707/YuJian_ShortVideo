@@ -2843,6 +2843,30 @@ var templateCapability = STUDIO_TPL_CAP_MAP[type] || 'image_to_video';
         }
 
         /**
+         * 选择预设数字人形象
+         *
+         * Phase DigitalHuman-Rebuild-004 Step4-G8.2-D:
+         *   预设形象为占位图标，无真实形象图 URL（项目中不存在预设 avatar → image_url 映射）。
+         *   选择时仅记录 avatarId 并清空 imageUrl；生成时若 imageUrl 为空会引导上传自定义形象。
+         *
+         * @param {string} name — 预设形象名称（如 '职场女性-小雅'）
+         */
+        function selectPresetAvatar(name) {
+            if (window.YJ && YJ.state && YJ.state.setDigitalHumanState) {
+                YJ.state.setDigitalHumanState({
+                    avatarId: name,
+                    imageUrl: null
+                });
+            }
+
+            // 更新预览名称，给用户即时反馈
+            var previewName = document.getElementById('dhPreviewName');
+            if (previewName) previewName.textContent = name;
+
+            console.log('[DigitalHuman] 预设形象已选择:', name, '(无默认形象图，生成时需上传自定义形象)');
+        }
+
+        /**
          * 渲染数字人页面
          *
          * Phase 2-C-2-4-B-2-B-2: 使用 Registry + APP_STATE.digitalHuman 动态渲染
@@ -2914,7 +2938,7 @@ var templateCapability = STUDIO_TPL_CAP_MAP[type] || 'image_to_video';
                             <label>选择数字人形象</label>
                             <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px">
                                 ${['职场女性-小雅', '商务男性-大伟', '知性姐姐-林老师', '活力少年-小宇', '甜美主播-甜甜', '专业主播-陈总'].map((name, i) => `
-                                    <div style="aspect-ratio:3/4;border-radius:12px;${i === 0 ? 'border:2px solid var(--primary-light);background:rgba(99,102,241,0.1)' : 'border:1px solid var(--border-glass);background:var(--bg-card)'}display:flex;align-items:center;justify-content:center;flex-direction:column;gap:8px;cursor:pointer;transition:all 0.2s" onmouseover="this.style.borderColor='var(--primary-light)'" onmouseout="this.style.borderColor='${i === 0 ? 'var(--primary-light)' : 'var(--border-glass)'}'">
+                                    <div style="aspect-ratio:3/4;border-radius:12px;${i === 0 ? 'border:2px solid var(--primary-light);background:rgba(99,102,241,0.1)' : 'border:1px solid var(--border-glass);background:var(--bg-card)'}display:flex;align-items:center;justify-content:center;flex-direction:column;gap:8px;cursor:pointer;transition:all 0.2s" onclick="selectPresetAvatar('${name}')" onmouseover="this.style.borderColor='var(--primary-light)'" onmouseout="this.style.borderColor='${i === 0 ? 'var(--primary-light)' : 'var(--border-glass)'}'">
                                         <i class="fas fa-user-circle" style="font-size:36px;color:${i === 0 ? 'var(--primary-light)' : 'var(--text-muted)'}"></i>
                                         <span style="font-size:11px;color:${i === 0 ? '#fff' : 'var(--text-sub)'}">${name}</span>
                                     </div>
@@ -3030,15 +3054,16 @@ var templateCapability = STUDIO_TPL_CAP_MAP[type] || 'image_to_video';
         }
 
         /**
-         * 数字人生成任务创建与轮询
+         * 数字人生成入口 — 切换到 Pipeline 执行链路
          *
-         * Phase 2-C-2-4-B-2-B-3: 从 alert 占位改为真实任务创建
+         * Phase DigitalHuman-Rebuild-004 Step4-G8.2-B
          *
          * 流程：
          *   1. 读取 YJ.state.getDigitalHumanState()
          *   2. 同步 DOM 表单值到 state
-         *   3. 组装任务参数 → 调用 GenerationAPI.createDigitalHumanTask()
-         *   4. 复用 YuJianVideoTask.pollTaskStatus() 轮询机制
+         *   3. 组装 Pipeline execute 参数 → 调用 EnterpriseAPI.Pipeline.execute()
+         *   4. 获取 pipeline_id → 写入 YJ.state.pipeline.id
+         *   5. navigateTo('pipeline') 跳转到 Pipeline Dashboard
          */
         async function handleDigitalHumanGenerate() {
             var YJ = window.YJ || {};
@@ -3065,6 +3090,15 @@ var templateCapability = STUDIO_TPL_CAP_MAP[type] || 'image_to_video';
                 return;
             }
 
+            // ── Step4-G8.2-D: image_url 必填校验 ──
+            // 预设形象（avatarId）无真实形象图 URL，仅自定义上传会写入 imageUrl。
+            // 后端 Pipeline execute 的 image_url 为必填（空值返回 400），
+            // 因此 imageUrl 为空时禁止调用 execute，明确引导用户上传头像图片。
+            if (!dh.imageUrl) {
+                if (typeof showToast === 'function') showToast('请上传头像图片', 'warning');
+                return;
+            }
+
             // ── 同步表单值到 state ──
             if (YJ.state && YJ.state.setDigitalHumanState) {
                 YJ.state.setDigitalHumanState({
@@ -3076,17 +3110,11 @@ var templateCapability = STUDIO_TPL_CAP_MAP[type] || 'image_to_video';
                 });
             }
 
-            // ── 组装任务参数 ──
-            var taskInput = {
-                templateId: dh.templateId || 'digital_human',
-                modelId: dh.modelId || null,
-                imageUrl: dh.imageUrl || null,
-                avatarId: dh.avatarId || null,
-                script: script,
-                voice: voice,
-                speed: speed,
-                resolution: resolution,
-                aspectRatio: aspectRatio
+            // ── 组装 Pipeline execute 参数 ──
+            var executeBody = {
+                image_url: dh.imageUrl || null,
+                voice_id: voice || null,
+                resolution: resolution || null
             };
 
             // ── 设置生成中状态 ──
@@ -3101,76 +3129,24 @@ var templateCapability = STUDIO_TPL_CAP_MAP[type] || 'image_to_video';
             }
 
             try {
-                // ── 调用任务创建接口 ──
-                var task;
-                if (window.EnterpriseAPI && window.EnterpriseAPI.Generation && window.EnterpriseAPI.Generation.createDigitalHumanTask) {
-                    task = await window.EnterpriseAPI.Generation.createDigitalHumanTask(taskInput);
-                } else {
-                    throw new Error('createDigitalHumanTask API 不可用');
+                // ── 调用 Pipeline execute API（Phase DigitalHuman-Rebuild-004 Step4-G8.2-B）──
+                var pipelineApi = window.EnterpriseAPI && window.EnterpriseAPI.Pipeline;
+                if (!pipelineApi || !pipelineApi.execute) {
+                    throw new Error('Pipeline execute API 不可用');
                 }
 
-                var taskId = task.id || task.task_id;
-                console.log('[DigitalHuman] 任务创建成功, taskId:', taskId);
+                var result = await pipelineApi.execute(executeBody);
 
-                // ── 保存 currentTaskId ──
-                if (YJ.state && YJ.state.setDigitalHumanState) {
-                    YJ.state.setDigitalHumanState({ currentTaskId: taskId });
+                var pipelineId = result && (result.pipeline_id != null ? result.pipeline_id : result.id);
+                console.log('[DigitalHuman] Pipeline 创建成功, pipeline_id:', pipelineId);
+
+                // ── 写入 YJ.state.pipeline ──
+                if (YJ.state && YJ.state.pipeline) {
+                    YJ.state.pipeline.id = pipelineId;
                 }
 
-                // ── 复用已有轮询机制 ──
-                if (typeof YuJianVideoTask !== 'undefined' && YuJianVideoTask.pollTaskStatus) {
-                    YuJianVideoTask.pollTaskStatus(taskId, {
-                        onUpdate: function (t) {
-                            console.log('[DigitalHuman] 任务进度更新:', t.status, t.progress);
-                        },
-                        onSuccess: function (t) {
-                            console.log('[DigitalHuman] 任务完成:', t);
-                            if (YJ.state && YJ.state.setDigitalHumanState) {
-                                YJ.state.setDigitalHumanState({ isGenerating: false });
-                            }
-                            if (btn) {
-                                btn.disabled = false;
-                                btn.innerHTML = '<i class="fas fa-check"></i> 生成完成';
-                            }
-                            if (typeof showToast === 'function') {
-                                showToast('数字人视频生成成功！', 'success');
-                            }
-                            // 恢复按钮文案
-                            setTimeout(function () {
-                                if (btn) btn.innerHTML = originalHTML;
-                            }, 2000);
-                        },
-                        onFailed: function (t) {
-                            console.error('[DigitalHuman] 任务失败:', t);
-                            if (YJ.state && YJ.state.setDigitalHumanState) {
-                                YJ.state.setDigitalHumanState({ isGenerating: false });
-                            }
-                            if (btn) {
-                                btn.disabled = false;
-                                btn.innerHTML = '<i class="fas fa-redo"></i> 重新生成';
-                            }
-                            if (typeof showToast === 'function') {
-                                showToast(t.error_msg || '数字人视频生成失败，请重试', 'error');
-                            }
-                        },
-                        onTimeout: function () {
-                            console.warn('[DigitalHuman] 轮询超时');
-                            if (YJ.state && YJ.state.setDigitalHumanState) {
-                                YJ.state.setDigitalHumanState({ isGenerating: false });
-                            }
-                            if (btn) {
-                                btn.disabled = false;
-                                btn.innerHTML = originalHTML;
-                            }
-                            if (typeof showToast === 'function') {
-                                showToast('任务状态确认超时，可稍后在任务记录中查看', 'warning');
-                            }
-                        },
-                        onError: function (err) {
-                            console.error('[DigitalHuman] 轮询出错:', err);
-                        }
-                    });
-                }
+                // ── 跳转到 Pipeline Dashboard ──
+                navigateTo('pipeline');
 
             } catch (err) {
                 console.error('[DigitalHuman] 任务创建失败:', err);
@@ -3898,6 +3874,7 @@ var templateCapability = STUDIO_TPL_CAP_MAP[type] || 'image_to_video';
             'image2video':  { title: '图生视频',    section: '创作', parent: 'studio' },
             'imageGen':     { title: '图片生成',    section: '创作', parent: 'studio' },
             'digitalhuman': { title: '数字人口播',  section: '创作', icon: 'fa-user-tie' },
+            'pipeline':     { title: '数字人流水线', section: '创作', parent: 'digitalhuman' },
             'storyboard':   { title: '故事板',      section: '创作', icon: 'fa-clapperboard' },
             'editor':       { title: '视频剪辑',    section: '创作', icon: 'fa-scissors' },
             'assets':       { title: '素材库',      section: '资源', icon: 'fa-folder-open' },
@@ -6579,6 +6556,14 @@ var templateCapability = STUDIO_TPL_CAP_MAP[type] || 'image_to_video';
     <script src="js/enterprise/pages/dashboard.js"></script>
     <!-- Phase 2-D-2-B-2: Storyboard Page Render (migrated from app.js IIFE) -->
     <script src="js/enterprise/pages/storyboard.js"></script>
+    <!-- Phase 004-Step4-G8.2-A: Pipeline Dashboard 前端资源（依赖顺序：adapter → state → components → pages，必须在 app.js 之前） -->
+    <script src="js/enterprise/pipeline/adapter.js"></script>
+    <script src="js/enterprise/pipeline/state.js"></script>
+    <script src="js/enterprise/pipeline/components/pipeline-status-badge.js"></script>
+    <script src="js/enterprise/pipeline/components/pipeline-progress.js"></script>
+    <script src="js/enterprise/pipeline/components/pipeline-stepper.js"></script>
+    <script src="js/enterprise/pipeline/components/pipeline-error-panel.js"></script>
+    <script src="js/enterprise/pages/pipeline.js"></script>
     <script src="js/enterprise/app.js"></script>
 </body>
 </html>

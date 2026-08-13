@@ -256,6 +256,18 @@
     }
   };
 
+  // ─── Pipeline API (Phase DigitalHuman-Rebuild-004 Step4-G8.2-B) ─────
+  var PipelineAPI = {
+    /**
+     * 创建并启动数字人流水线
+     * @param {Object} input - { image_url, images, theme, style, voice_id, resolution, duration, product_name }
+     * @returns {Promise<{pipeline_id: number, pipeline_uuid: string, status: string}>}
+     */
+    execute: function (input) {
+      return YuJianAPI.post('/enterprise/pipelines/execute', input);
+    }
+  };
+
   // ─── Workspace API ────────────────────────────────────────
   var WorkspaceAPI = {
     /**
@@ -311,7 +323,8 @@
     Asset: AssetAPI,
     Generation: GenerationAPI,
     Workspace: WorkspaceAPI,
-    Registry: RegistryAPI
+    Registry: RegistryAPI,
+    Pipeline: PipelineAPI
   };
   window.YJ = YJ;
 
@@ -320,7 +333,8 @@
     Asset: AssetAPI,
     Generation: GenerationAPI,
     Workspace: WorkspaceAPI,
-    Registry: RegistryAPI
+    Registry: RegistryAPI,
+    Pipeline: PipelineAPI
   };
 
   console.log('[Enterprise/API] API layer initialized (Phase 2-C-1-A: unified creation methods, Phase 2-C-1-C: image2video params, Phase 2-C-2-3-A: registry API)');

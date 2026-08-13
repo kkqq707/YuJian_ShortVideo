@@ -200,6 +200,17 @@
           container.innerHTML = '<div class="card"><div class="card-body">页面开发中</div></div>';
         }
         break;
+      case 'pipeline':
+        if (window.YJ && window.YJ.pages && window.YJ.pages.pipeline) {
+          container.innerHTML = (typeof window.YJ.pages.pipeline.render === 'function' ? window.YJ.pages.pipeline.render() : '<div class="card"><div class="card-body">页面开发中</div></div>');
+          if (typeof window.YJ.pages.pipeline.init === 'function') {
+            var pipelineId = (window.YJ.state && window.YJ.state.pipeline) ? window.YJ.state.pipeline.id : null;
+            window.YJ.pages.pipeline.init(pipelineId);
+          }
+        } else {
+          container.innerHTML = '<div class="card"><div class="card-body">页面开发中</div></div>';
+        }
+        break;
       case 'imageGen': container.innerHTML = (typeof renderStudio === 'function' ? renderStudio() : renderFallback('AI创作中心')); initTemplateSelector('#studioTemplateContainer', 'studioPrompt', 'image'); if (typeof studioSelectType === 'function') { var card = document.querySelector('.yj-studio-type-card[data-type="imageGen"]'); if (card) studioSelectType(card, 'imageGen'); } break;
       case 'projects': container.innerHTML = (typeof renderProjects === 'function' ? renderProjects() : '<div class="card"><div class="card-body">页面开发中</div></div>'); break;
       case 'project-detail': {
