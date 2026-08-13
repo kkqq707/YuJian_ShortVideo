@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>数字人口播 Studio</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%236366f1'/></svg>">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <!-- Phase 0: Design System Foundation（复用，不改） -->
+    <link rel="stylesheet" href="css/design-tokens.css">
+    <link rel="stylesheet" href="css/base.css">
+    <link rel="stylesheet" href="css/components.css">
+    <link rel="stylesheet" href="css/layout.css">
+    <!-- Studio 专有壳样式 -->
+    <link rel="stylesheet" href="css/studio/studio.css">
+    <!-- Studio 公共组件层样式 -->
+    <link rel="stylesheet" href="css/studio/components.css">
+</head>
+<body class="studio-layout">
+
+    <!-- 顶部导航：品牌 + 当前页面标题区域 -->
+    <header class="studio-topbar" id="studio-topbar">
+        <div class="studio-topbar__brand">
+            <span class="studio-topbar__logo" aria-hidden="true">
+                <i class="fas fa-clapperboard"></i>
+            </span>
+            <span class="studio-topbar__name">数字人口播 Studio</span>
+        </div>
+        <div class="studio-topbar__title" id="studio-page-title">工作台</div>
+    </header>
+
+    <!-- 侧边导航容器（只生成结构，点击逻辑由 Router 预留） -->
+    <aside class="studio-sidebar" id="studio-sidebar">
+        <nav class="studio-nav" id="studio-nav" aria-label="Studio 导航">
+            <a class="studio-nav__item" href="#/workbench" data-route="workbench">
+                <i class="fas fa-gauge-high" aria-hidden="true"></i>
+                <span>工作台</span>
+            </a>
+            <a class="studio-nav__item" href="#/create" data-route="create">
+                <i class="fas fa-plus" aria-hidden="true"></i>
+                <span>新建口播</span>
+            </a>
+
+            <div class="studio-nav__group">
+                <div class="studio-nav__group-title">数字人资产</div>
+            </div>
+            <div class="studio-nav__group">
+                <div class="studio-nav__group-title">内容创作</div>
+            </div>
+            <div class="studio-nav__group">
+                <div class="studio-nav__group-title">声音中心</div>
+            </div>
+            <div class="studio-nav__group">
+                <div class="studio-nav__group-title">生产管理</div>
+            </div>
+        </nav>
+    </aside>
+
+    <!-- 用户区域：企业名/用户名 + 退出登录 -->
+    <div class="studio-user-area" id="studio-user-area">
+        <span class="studio-user-area__name" id="studio-user-name">已登录</span>
+        <button type="button" class="studio-user-area__logout" id="studio-logout" aria-label="退出登录">
+            <i class="fas fa-right-from-bracket" aria-hidden="true"></i>
+            <span>退出</span>
+        </button>
+    </div>
+
+    <!-- 内容区域：Router 挂载点 -->
+    <main class="studio-main" id="studio-main"></main>
+
+    <!-- 返回主平台 -->
+    <footer class="studio-back" id="studio-back">
+        <a class="studio-back__link" href="index.html">
+            <i class="fas fa-arrow-left" aria-hidden="true"></i>
+            <span>返回主平台</span>
+        </a>
+    </footer>
+
+    <!-- Modal overlay 骨架（复用 YJ.components.modal 的前提，其 open() 依赖 #modalOverlay） -->
+    <div class="modal-overlay" id="modalOverlay">
+        <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+            <div class="modal-header">
+                <h3 id="modalTitle">提示</h3>
+            </div>
+            <div class="modal-body" id="modalContent"></div>
+            <div class="modal-footer" id="modalFooter">
+                <button type="button" class="btn btn-primary" id="modalConfirmBtn">确认</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 基础层（复用，顺序与 enterprise.html 一致） -->
+    <script src="js/page-state.js"></script>
+    <script src="js/api.js"></script>
+    <script src="js/auth.js"></script>
+    <script src="js/upload.js"></script>
+    <script src="js/video-task.js"></script>
+    <!-- 通用组件（复用） -->
+    <script src="js/components/toast.js"></script>
+    <script src="js/components/modal.js"></script>
+    <!-- Pipeline 复用（Studio 任务详情未来依赖，原样挂载，不复制） -->
+    <script src="js/enterprise/pipeline/adapter.js"></script>
+    <script src="js/enterprise/pipeline/state.js"></script>
+    <script src="js/enterprise/pipeline/components/pipeline-status-badge.js"></script>
+    <script src="js/enterprise/pipeline/components/pipeline-progress.js"></script>
+    <script src="js/enterprise/pipeline/components/pipeline-stepper.js"></script>
+    <script src="js/enterprise/pipeline/components/pipeline-error-panel.js"></script>
+    <script src="js/enterprise/pages/pipeline.js"></script>
+    <script src="js/studio/api.js"></script>
+    <script src="js/studio/state.js"></script>
+    <!-- Studio 公共组件层（list 依赖 empty-state/loading/error-panel，故 list 最后加载） -->
+    <script src="js/studio/components/empty-state.js"></script>
+    <script src="js/studio/components/loading.js"></script>
+    <script src="js/studio/components/error-panel.js"></script>
+    <script src="js/studio/components/select-card.js"></script>
+    <script src="js/studio/components/list.js"></script>
+    <!-- Studio 专有层（router 先于 app，app 最后启动） -->
+    <script src="js/studio/router.js"></script>
+    <script src="js/studio/app.js"></script>
+</body>
+</html>

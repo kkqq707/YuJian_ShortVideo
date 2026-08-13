@@ -14,19 +14,20 @@
  *   - 所有查询严格 enterprise_id = enterpriseId
  *
  * 设计原则：
- *   - 纯数据访问层：只负责 ScriptRecord Model 的 create / findOne / findAndCountAll / update / 软删除
- *   - 不调用 script-provider（AI 生成逻辑属 C5 Controller + Provider，本 Service 只负责「生成结果落库」）
+ *   - 数据访问层：负责 ScriptRecord Model 的 create / findOne / findAndCountAll / update / 软删除
+ *   - generateScript()（C8）负责「调 script-provider → 校验 → 落库」；其余 5 个数据访问方法不调用 script-provider
  *   - 使用 ProviderError 进行参数校验与错误包装
  *
  * 硬性红线：
  *   ❌ source_type 仅 pipeline / ai / manual，不得自行扩展枚举
- *   ❌ 不调用 script-provider / generationService / pipelineOrchestrator
+ *   ❌ 不调用 generationService / pipelineOrchestrator（generateScript 仅调 script-provider）
  *   ❌ 不触碰 HTTP 参数解析、响应信封、路由、鉴权（属 C5 Controller / C6 Route）
  */
 
 const { Op } = require('sequelize');
 const { ScriptRecord } = require('../models');
 const ProviderError = require('../utils/ProviderError');
+const scriptProvider = require('../providers/aliyun/script-provider');
 
 /**
  * ScriptRecord 合法来源类型（对齐 Model source_type ENUM，不扩展）
@@ -150,7 +151,66 @@ class ScriptService {
   }
 
   // ───────────────────────────────────────────────────────────────────
-  // 2. 详情查询（严格企业隔离）
+  // 2. AI 独立生成脚本（调 Provider → 校验 → 复用 createScript 落库）
+  // ───────────────────────────────────────────────────────────────────
+
+  /**
+   * AI 独立生成脚本（调 script-provider → 空结果校验 → 复用 createScript 落库）
+   *
+   * @param {Object} params
+   * @param {number} params.enterpriseId  — 企业 ID（必填，JWT）
+   * @param {number} params.userId        — 用户 ID（必填，JWT）
+   * @param {string} params.theme         — 脚本主题/卖点（必填，Controller 已校验非空）
+   * @param {string} [params.style]       — 风格（默认 professional）
+   * @param {number} [params.duration]    — 目标时长（秒，默认 30）
+   * @param {string} [params.productName] — 产品名称
+   * @param {string} [params.sceneContext]— 场景补充
+   * @returns {Promise<Object>} 落库后的 ScriptRecord instance
+   */
+  async generateScript({ enterpriseId, userId, theme, style, duration, productName, sceneContext }) {
+    // ── 1. 调用 AI Provider（本 Service 唯一允许的 AI 调用点） ──────
+    const aiResult = await scriptProvider.generate({
+      theme,
+      style,
+      duration,
+      productName,
+      sceneContext
+    });
+
+    // ── 2. 空结果校验：禁止落库空脚本 ────────────────────────────────
+    if (!aiResult || !aiResult.fullText || !String(aiResult.fullText).trim()) {
+      throw new ProviderError('system', 'SCRIPT_FAILED', 'AI 生成脚本内容为空', true);
+    }
+
+    // ── 3. 映射为结构化脚本（camelCase ScriptResult 子集，供详情/响应还原） ──
+    const structuredScript = {
+      title: aiResult.title,
+      fullText: aiResult.fullText,
+      segments: Array.isArray(aiResult.segments) ? aiResult.segments : [],
+      totalWords: aiResult.totalWords || 0,
+      estimatedDuration: aiResult.estimatedDuration || 0,
+      style: aiResult.style || style || 'professional'
+    };
+
+    // ── 4. 复用 createScript 落库（source_type='ai'，pipeline_task_id=null） ──
+    const record = await this.createScript({
+      enterpriseId,
+      userId,
+      sourceType: 'ai',
+      pipelineTaskId: null,
+      title: aiResult.title,
+      fullScript: aiResult.fullText,
+      structuredScript,
+      estimatedDuration: Math.round(aiResult.estimatedDuration || 0),
+      totalWords: aiResult.totalWords || 0,
+      status: 'draft'
+    });
+
+    return record;
+  }
+
+  // ───────────────────────────────────────────────────────────────────
+  // 3. 详情查询（严格企业隔离）
   // ───────────────────────────────────────────────────────────────────
 
   /**
@@ -189,7 +249,7 @@ class ScriptService {
   }
 
   // ───────────────────────────────────────────────────────────────────
-  // 3. 列表查询（严格企业隔离）
+  // 4. 列表查询（严格企业隔离）
   // ───────────────────────────────────────────────────────────────────
 
   /**
@@ -259,7 +319,7 @@ class ScriptService {
   }
 
   // ───────────────────────────────────────────────────────────────────
-  // 4. 更新脚本草稿（部分更新）
+  // 5. 更新脚本草稿（部分更新）
   // ───────────────────────────────────────────────────────────────────
 
   /**
@@ -356,7 +416,7 @@ class ScriptService {
   }
 
   // ───────────────────────────────────────────────────────────────────
-  // 5. 软删除脚本草稿
+  // 6. 软删除脚本草稿
   // ───────────────────────────────────────────────────────────────────
 
   /**

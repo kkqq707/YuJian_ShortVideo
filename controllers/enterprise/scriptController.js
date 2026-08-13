@@ -12,12 +12,12 @@
  * 规则：
  *   - source_type 仅允许 pipeline / ai / manual，非法 → 400
  *   - 严格企业隔离（ScriptRecord.enterprise_id NOT NULL，无「全局」脚本）
- *   - 禁止调用 AI Provider / 生成脚本（不提供 /scripts/generate）
+ *   - generate()（C8）经 scriptService.generateScript() 间接触发 AI 生成；其余 CRUD 方法不调用 AI
  *
  * 禁止范围：
  *   ❌ 直接访问 Model
  *   ❌ 调用 Provider / Pipeline / Orchestrator
- *   ❌ 调用脚本 Provider / 生成服务 / 流水线编排器（不生成脚本）
+ *   ❌ 直接调用脚本 Provider / 生成服务 / 流水线编排器（脚本生成由 scriptService.generateScript 承担）
  */
 
 const scriptService = require('../../services/scriptService');
@@ -31,6 +31,11 @@ const VALID_SOURCE_TYPES = ['pipeline', 'ai', 'manual'];
  * ScriptRecord 合法状态（对齐 Model status ENUM，列表 status 过滤白名单）
  */
 const VALID_STATUSES = ['draft', 'reviewed', 'approved', 'rejected'];
+
+/**
+ * AI 脚本生成合法风格（对齐 script-provider STYLES 枚举）
+ */
+const VALID_STYLES = ['professional', 'casual', 'energetic', 'warm'];
 
 /**
  * 将 ScriptRecord instance 格式化为最小安全响应对象（snake_case）
@@ -67,6 +72,52 @@ function formatScript(row) {
     total_words: row.total_words != null ? row.total_words : 0,
     status: row.status,
     created_at: row.createdAt || null
+  };
+}
+
+/**
+ * 将 AI 生成的 ScriptRecord instance 格式化为生成结果响应（snake_case ViewModel）
+ *
+ * 数据来源（对齐 Step5-C8 设计）：
+ *   - script_record_id / total_words / status / created_at 取自 record
+ *   - title / full_text / segments / estimated_duration / style 取自 structured_script（camelCase ScriptResult）
+ *
+ * structured_script 解析失败时沿用 formatScript 的容错：原样保留，title/full_text/estimated_duration
+ * 分别兜底 record.title / record.full_script / record.estimated_duration。
+ *
+ * 不返回 enterprise_id / user_id / pipeline_task_id / episode_id / version / deleted_at / updated_at。
+ *
+ * @param {Object} record - ScriptRecord Sequelize instance
+ * @returns {Object|null}
+ */
+function formatGeneratedScript(record) {
+  if (!record) return null;
+
+  let structured = null;
+  if (record.structured_script != null) {
+    try {
+      structured = typeof record.structured_script === 'string'
+        ? JSON.parse(record.structured_script)
+        : record.structured_script;
+    } catch (_) {
+      structured = record.structured_script;
+    }
+  }
+
+  const parsed = structured && typeof structured === 'object' ? structured : {};
+
+  return {
+    script_record_id: record.id,
+    title: parsed.title != null ? parsed.title : (record.title || null),
+    full_text: parsed.fullText != null ? parsed.fullText : (record.full_script || null),
+    segments: Array.isArray(parsed.segments) ? parsed.segments : [],
+    total_words: record.total_words != null ? record.total_words : 0,
+    estimated_duration: parsed.estimatedDuration != null
+      ? parsed.estimatedDuration
+      : (record.estimated_duration != null ? record.estimated_duration : null),
+    style: parsed.style != null ? parsed.style : null,
+    status: record.status,
+    created_at: record.createdAt || null
   };
 }
 
@@ -252,6 +303,76 @@ exports.create = async (req, res) => {
         isInternalFailure ? '服务器内部错误' : error.message,
         error.statusCode || 500
       );
+    }
+
+    return res.fail('服务器内部错误', 500);
+  }
+};
+
+/**
+ * POST /api/enterprise/scripts/generate — AI 独立生成脚本（Step5-C8）
+ *
+ * body：theme(必填)、style(可选，默认 professional)、duration(可选，默认 30)、
+ *   product_name(可选)、scene_context(可选)
+ *
+ * 身份仅取 req.user.enterpriseId / req.user.userId（禁止信任 body/query）。
+ * 仅负责参数解析/校验、调用 scriptService.generateScript()、响应映射；不直连 Provider / Model。
+ */
+exports.generate = async (req, res) => {
+  try {
+    const enterpriseId = req.user.enterpriseId;
+    const userId = req.user.userId;
+
+    // ── theme 必填，trim 后非空 ────────────────────────────────
+    const theme = typeof req.body.theme === 'string' ? req.body.theme.trim() : '';
+    if (!theme) {
+      return res.fail('脚本主题不能为空', 400);
+    }
+
+    // ── style 可选，默认 professional，须在 4 枚举内 ────────────
+    const style = req.body.style || 'professional';
+    if (!VALID_STYLES.includes(style)) {
+      return res.fail('无效的脚本风格', 400);
+    }
+
+    // ── duration 可选，默认 30；若提供须为 1-300 整数 ───────────
+    let duration = req.body.duration;
+    if (duration !== undefined && duration !== null) {
+      const parsed = Number(duration);
+      if (!Number.isInteger(parsed) || parsed < 1 || parsed > 300) {
+        return res.fail('时长需在1-300秒之间', 400);
+      }
+      duration = parsed;
+    }
+
+    const productName = req.body.product_name;
+    const sceneContext = req.body.scene_context;
+
+    const record = await scriptService.generateScript({
+      enterpriseId,
+      userId,
+      theme,
+      style,
+      duration,
+      productName,
+      sceneContext
+    });
+
+    return res.success(formatGeneratedScript(record));
+  } catch (error) {
+    console.error(
+      `[ScriptController] generate ERROR | ` +
+      `name=${error.name || 'Unknown'} | ` +
+      `message=${error.message || '(no message)'} | ` +
+      `time=${new Date().toISOString()}`
+    );
+
+    if (error.name === 'ProviderError') {
+      // VALIDATION → 400；其余（含 SCRIPT_FAILED / Provider 内部异常）→ 500 脱敏，不透传英文
+      if (error.code === 'VALIDATION') {
+        return res.fail(error.message, 400);
+      }
+      return res.fail('服务器内部错误', 500);
     }
 
     return res.fail('服务器内部错误', 500);

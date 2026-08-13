@@ -1,0 +1,228 @@
+/**
+ * YuJian Studio — Component Layer Styles
+ *
+ * Phase DigitalHuman-Rebuild-004 Step5-D3-D
+ *
+ * 职责：Studio 公共组件层样式（list / empty-state / loading / error-panel / select-card）。
+ *
+ * 约束（严格遵守，违规即返工）：
+ *   ❌ 禁止硬编码十六进制颜色 / rgb() / rgba()（颜色只用 design-tokens.css 语义令牌）
+ *   ❌ 禁止创建新颜色体系
+ *   ✅ 类名前缀 studio-（对齐 studio-layout / studio-nav / studio-page）
+ *   ✅ 复用 .yj-card / .yj-btn / .yj-skeleton（不重定义）
+ *   ✅ 动效只 color / background / opacity，150–250ms，尊重 prefers-reduced-motion
+ */
+
+/* ================================================================
+   1. Empty State 空状态（教会界面）
+   ================================================================ */
+
+.studio-empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-4);
+  padding: var(--space-12) var(--space-6);
+  text-align: center;
+}
+
+.studio-empty-state__icon {
+  font-size: 48px;
+  color: var(--text-muted);
+  opacity: 0.5;
+}
+
+.studio-empty-state__title {
+  margin: 0;
+  font-size: var(--text-lg);
+  font-weight: var(--font-semibold);
+  color: var(--text-primary);
+}
+
+.studio-empty-state__desc {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+  max-width: 360px;
+  line-height: var(--leading-relaxed);
+}
+
+.studio-empty-state__action {
+  margin-top: var(--space-2);
+  min-height: 44px; /* 触控目标 ≥44px */
+}
+
+/* ================================================================
+   2. Loading 加载骨架（复用 .yj-skeleton 渐变，不新建 spinner 体系）
+   ================================================================ */
+
+.studio-loading {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-4) 0;
+}
+
+.studio-loading--card {
+  flex-direction: row;
+  flex-wrap: wrap;
+  gap: var(--space-4);
+}
+
+/* list 变体：一行一条长条占位 */
+.studio-loading__item--list {
+  width: 100%;
+  height: 72px;
+  border-radius: var(--radius-lg);
+}
+
+/* card 变体：卡片占位 */
+.studio-loading__item--card {
+  flex: 1 1 220px;
+  max-width: 280px;
+  height: 200px;
+  border-radius: var(--radius-lg);
+}
+
+/* progress 变体：进度条占位 */
+.studio-loading__item--progress {
+  width: 100%;
+  height: 24px;
+  border-radius: var(--radius-md);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .studio-loading__item {
+    animation: none;
+  }
+}
+
+/* ================================================================
+   3. Error Panel 请求失败横幅（仅展示 friendlyMessage）
+   ================================================================ */
+
+.studio-error-panel {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-4) var(--space-5);
+  border: 1px solid var(--danger);
+  background: var(--danger-bg);
+  border-radius: var(--radius-lg);
+}
+
+.studio-error-panel__icon {
+  flex-shrink: 0;
+  font-size: var(--text-lg);
+  color: var(--danger);
+}
+
+.studio-error-panel__msg {
+  flex: 1;
+  min-width: 0;
+  font-size: var(--text-sm);
+  color: var(--text-primary);
+  line-height: var(--leading-normal);
+  word-break: break-word;
+}
+
+.studio-error-panel__retry {
+  flex-shrink: 0;
+  min-height: 44px; /* 触控目标 ≥44px */
+}
+
+/* ================================================================
+   4. Select Card 选中卡（复用 .yj-card 基类 + 选中勾标记）
+   ================================================================ */
+
+.studio-select-card {
+  position: relative;
+}
+
+.studio-select-card:focus-visible {
+  outline: 2px solid var(--border-focus);
+  outline-offset: 2px;
+}
+
+.studio-select-card__check {
+  position: absolute;
+  top: var(--space-3);
+  right: var(--space-3);
+  z-index: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: var(--radius-full);
+  background: var(--primary);
+  color: var(--text-primary);
+  font-size: var(--text-xs);
+}
+
+.studio-select-card__media {
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  overflow: hidden;
+  background: var(--bg-surface);
+}
+
+.studio-select-card__image {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.studio-select-card__body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding: var(--space-3) var(--space-4) var(--space-4);
+}
+
+.studio-select-card__title {
+  font-size: var(--text-base);
+  font-weight: var(--font-semibold);
+  color: var(--text-primary);
+}
+
+.studio-select-card__meta {
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+}
+
+/* ================================================================
+   5. List 列表容器（四态 + 分页）
+   ================================================================ */
+
+.studio-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+}
+
+.studio-list__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: var(--space-4);
+}
+
+.studio-list__pagination {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-4);
+  padding-top: var(--space-4);
+}
+
+.studio-list__pagination-btn {
+  min-height: 44px; /* 触控目标 ≥44px */
+}
+
+.studio-list__pagination-info {
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+}

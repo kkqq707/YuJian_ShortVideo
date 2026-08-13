@@ -1,0 +1,307 @@
+/**
+ * YuJian Studio — Shell Layout
+ *
+ * Phase DigitalHuman-Rebuild-004 Step5-D3-A
+ *
+ * 职责：仅负责 Studio 壳布局（topbar / sidebar / user-area / main / back）。
+ *
+ * 约束（严格遵守，违规即返工）：
+ *   ❌ 禁止硬编码十六进制颜色（颜色只用 design-tokens.css 语义令牌）
+ *   ❌ 禁止新增颜色体系 / 禁止 emoji 图标（用 Font Awesome fa-* 占位）
+ *   ✅ 触控目标 ≥44px；动效仅 background/color 过渡，尊重 prefers-reduced-motion
+ */
+
+/* ================================================================
+   1. Shell 布局（CSS Grid：顶栏通栏 + 左侧栏 + 右侧主内容）
+   ================================================================ */
+
+.studio-layout {
+  display: grid;
+  grid-template-columns: var(--sidebar-expanded, 220px) minmax(0, 1fr);
+  grid-template-rows: var(--header-height, 56px) minmax(0, 1fr) auto auto;
+  grid-template-areas:
+    "topbar  topbar"
+    "sidebar main"
+    "user    main"
+    "back    main";
+  height: 100vh;
+  background: var(--bg-base);
+}
+
+/* ================================================================
+   2. Topbar — 顶部导航
+   ================================================================ */
+
+#studio-topbar {
+  grid-area: topbar;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  padding: 0 var(--space-6);
+  border-bottom: 1px solid var(--border-subtle);
+  background: var(--header-bg, var(--bg-base));
+  z-index: var(--z-sticky, 100);
+}
+
+.studio-topbar__brand {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-width: 0;
+}
+
+.studio-topbar__logo {
+  width: 32px;
+  height: 32px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-md);
+  background: linear-gradient(135deg, var(--primary), var(--accent-purple));
+  color: var(--text-primary);
+  font-size: var(--text-base);
+  flex-shrink: 0;
+}
+
+.studio-topbar__name {
+  font-size: var(--text-md);
+  font-weight: var(--font-semibold);
+  color: var(--text-primary);
+  letter-spacing: 0.5px;
+  white-space: nowrap;
+}
+
+.studio-topbar__title {
+  font-size: var(--text-base);
+  font-weight: var(--font-medium);
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+/* ================================================================
+   3. Sidebar — 侧边导航
+   ================================================================ */
+
+#studio-sidebar {
+  grid-area: sidebar;
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  border-right: 1px solid var(--border-subtle);
+  background: var(--bg-surface);
+}
+
+.studio-nav {
+  flex: 1;
+  padding: var(--space-3);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.studio-nav__item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-height: 44px;               /* 触控目标 ≥44px */
+  padding: 0 var(--space-3);
+  border-radius: var(--radius-md);
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
+  font-weight: var(--font-medium);
+  transition: background-color var(--duration-fast) var(--ease-out),
+              color var(--duration-fast) var(--ease-out);
+}
+
+.studio-nav__item i {
+  width: 20px;
+  text-align: center;
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+
+.studio-nav__item:hover {
+  background: var(--bg-card-hover);
+  color: var(--text-primary);
+}
+
+.studio-nav__item:focus-visible {
+  outline: 2px solid var(--border-focus);
+  outline-offset: 2px;
+}
+
+.studio-nav__item.is-active {
+  background: var(--bg-card-active);
+  color: var(--primary-light);
+}
+
+.studio-nav__item.is-active i {
+  color: var(--primary-light);
+}
+
+.studio-nav__group {
+  margin-top: var(--space-3);
+}
+
+.studio-nav__group-title {
+  padding: var(--space-2) var(--space-3);
+  font-size: var(--text-xs);
+  font-weight: var(--font-medium);
+  color: var(--text-muted);
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+}
+
+/* ================================================================
+   4. User Area — 用户区
+   ================================================================ */
+
+#studio-user-area {
+  grid-area: user;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  border-top: 1px solid var(--border-subtle);
+}
+
+.studio-user-area__name {
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.studio-user-area__logout {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: 44px;               /* 触控目标 ≥44px */
+  padding: 0 var(--space-3);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
+  cursor: pointer;
+  transition: background-color var(--duration-fast) var(--ease-out),
+              color var(--duration-fast) var(--ease-out),
+              border-color var(--duration-fast) var(--ease-out);
+}
+
+.studio-user-area__logout:hover {
+  border-color: var(--danger);
+  color: var(--danger);
+}
+
+.studio-user-area__logout:focus-visible {
+  outline: 2px solid var(--border-focus);
+  outline-offset: 2px;
+}
+
+/* ================================================================
+   5. Main — 内容区域（Router 挂载点）
+   ================================================================ */
+
+#studio-main {
+  grid-area: main;
+  overflow-y: auto;
+  padding: var(--space-6);
+}
+
+/* ================================================================
+   6. Back — 返回主平台
+   ================================================================ */
+
+#studio-back {
+  grid-area: back;
+  border-top: 1px solid var(--border-subtle);
+  background: var(--bg-surface);
+}
+
+.studio-back__link {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-height: 44px;               /* 触控目标 ≥44px */
+  padding: 0 var(--space-4);
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
+  font-weight: var(--font-medium);
+  transition: color var(--duration-fast) var(--ease-out);
+}
+
+.studio-back__link i {
+  width: 20px;
+  text-align: center;
+}
+
+.studio-back__link:hover {
+  color: var(--text-primary);
+}
+
+.studio-back__link:focus-visible {
+  outline: 2px solid var(--border-focus);
+  outline-offset: 2px;
+}
+
+/* ================================================================
+   7. 占位空态（路由未实现页面时的默认视图）
+   ================================================================ */
+
+.studio-page--empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-4);
+  min-height: 60vh;
+  text-align: center;
+  padding: var(--space-6);
+}
+
+.studio-page__icon {
+  font-size: var(--text-3xl);
+  color: var(--text-muted);
+}
+
+.studio-page__title {
+  font-size: var(--text-xl);
+  font-weight: var(--font-semibold);
+  color: var(--text-primary);
+}
+
+.studio-page__hint {
+  font-size: var(--text-base);
+  color: var(--text-secondary);
+  max-width: 32rem;
+}
+
+/* ================================================================
+   8. 响应式（窄屏折叠为图标导航）
+   ================================================================ */
+
+@media (max-width: 768px) {
+  .studio-layout {
+    grid-template-columns: var(--sidebar-width, 90px) minmax(0, 1fr);
+  }
+
+  .studio-nav__item {
+    justify-content: center;
+    padding: 0;
+  }
+
+  .studio-nav__item span,
+  .studio-nav__group-title,
+  .studio-user-area__name,
+  .studio-user-area__logout span {
+    display: none;
+  }
+
+  #studio-user-area {
+    justify-content: center;
+  }
+}
