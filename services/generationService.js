@@ -542,6 +542,449 @@ class GenerationService {
     }
   }
 
+  // ─── Phase 004-Step4-D1: DigitalHuman Pipeline 新增方法 ─────────────
+
+  /**
+   * generateVision — 视觉理解（Vision Analysis）
+   *
+   * 调用 aliyunProvider.analyzeVision() 对图片进行视觉分析。
+   * 同步返回分析结果，不涉及异步轮询。
+   *
+   * @param {Object} params
+   * @param {number} params.enterpriseId  — 企业 ID
+   * @param {number} params.userId        — 用户 ID
+   * @param {string} params.imageUrl      — 图片 URL（必填）
+   * @param {string} [params.prompt]      — 自定义分析提示词
+   * @param {Array}  [params.images]      — 多图 URL 数组
+   * @param {string} [params.modelId]     — 模型覆盖（默认 qwen3-vl-plus）
+   * @returns {Promise<{
+   *   id: number, model: string, visualDesc: string, features: string[],
+   *   tags: string[], sellingPoints: string[], ocrTexts: string[],
+   *   tokensUsed: number, processingTimeMs: number, status: string, createdAt: Date
+   * }>}
+   */
+  async generateVision(params) {
+    const {
+      enterpriseId, userId, imageUrl, prompt,
+      images, modelId
+    } = params;
+
+    // ── 1. 参数校验 ────────────────────────────────────────────
+    if (!enterpriseId) {
+      throw new ProviderError('system', 'VALIDATION', 'Enterprise ID is required', false);
+    }
+    if (!userId) {
+      throw new ProviderError('system', 'VALIDATION', 'User ID is required', false);
+    }
+    if (!imageUrl || typeof imageUrl !== 'string') {
+      throw new ProviderError('system', 'VALIDATION', 'Image URL is required', false);
+    }
+
+    const effectiveModel = modelId || 'qwen3-vl-plus';
+
+    // ── 2. 创建本地 GenerationTask 记录（pending）──────────────
+    const localTask = await GenerationTask.create({
+      enterprise_id: enterpriseId,
+      user_id: userId,
+      task_type: 'vision_analysis',
+      model: effectiveModel,
+      prompt: prompt ? prompt.trim() : null,
+      input_url: imageUrl,
+      input_images: images ? JSON.stringify(images) : null,
+      status: 'pending',
+      provider: 'aliyun',
+      params: JSON.stringify({ modelId: effectiveModel, images }),
+      progress: 5
+    });
+
+    // ── 3. 调用 aliyunProvider.analyzeVision ──────────────────
+    try {
+      const aiResult = await aliyunProvider.analyzeVision({
+        imageUrl,
+        prompt,
+        images,
+        modelId: effectiveModel
+      });
+
+      // ── 4. 同步结果 → 直接完成 ─────────────────────────────
+      await localTask.update({
+        status: 'success',
+        progress: 100,
+        output_url: imageUrl,
+        params: JSON.stringify({ ...params, result: aiResult }),
+        completed_at: new Date()
+      });
+
+      this._logTaskCreated(localTask, { ...aiResult, taskId: `vision-${localTask.id}` });
+
+      return {
+        id: localTask.id,
+        model: aiResult.model,
+        visualDesc: aiResult.visualDesc,
+        features: aiResult.features,
+        tags: aiResult.tags,
+        sellingPoints: aiResult.sellingPoints,
+        ocrTexts: aiResult.ocrTexts,
+        tokensUsed: aiResult.tokensUsed,
+        processingTimeMs: aiResult.processingTimeMs,
+        status: 'success',
+        createdAt: localTask.created_at
+      };
+
+    } catch (error) {
+      const errorInfo = this._extractErrorInfo(error);
+      console.error(
+        `[GenerationService] generateVision FAILED | ` +
+        `localTaskId=${localTask.id} | ` +
+        `errorCode=${errorInfo.code} | statusCode=${error.statusCode || 'N/A'} | ` +
+        `time=${new Date().toISOString()}`
+      );
+      await localTask.update({
+        status: 'failed',
+        error_msg: errorInfo.message,
+        progress: 0,
+        completed_at: new Date()
+      });
+      this._logTaskFailed(localTask, errorInfo);
+      throw error;
+    }
+  }
+
+  /**
+   * generateScript — 口播脚本生成（Script Generation）
+   *
+   * 调用 aliyunProvider.generateScript() 生成带货口播脚本。
+   * 同步返回脚本内容，不涉及异步轮询。
+   *
+   * @param {Object} params
+   * @param {number} params.enterpriseId   — 企业 ID
+   * @param {number} params.userId         — 用户 ID
+   * @param {Object} [params.visionResult] — analyzeVision() 输出
+   * @param {string} [params.theme]        — 产品/脚本主题
+   * @param {string} [params.style]        — professional | casual | energetic | warm
+   * @param {number} [params.duration]     — 目标时长（秒）
+   * @param {string} [params.productName]  — 产品名称
+   * @param {string} [params.modelId]      — 模型覆盖（默认 qwen3.6-plus）
+   * @returns {Promise<{
+   *   id: number, title: string, fullText: string, segments: Array,
+   *   totalWords: number, estimatedDuration: number, style: string,
+   *   model: string, tokensUsed: number, processingTimeMs: number,
+   *   status: string, createdAt: Date
+   * }>}
+   */
+  async generateScript(params) {
+    const {
+      enterpriseId, userId, visionResult, theme,
+      style, duration, productName, modelId
+    } = params;
+
+    // ── 1. 参数校验 ────────────────────────────────────────────
+    if (!enterpriseId) {
+      throw new ProviderError('system', 'VALIDATION', 'Enterprise ID is required', false);
+    }
+    if (!userId) {
+      throw new ProviderError('system', 'VALIDATION', 'User ID is required', false);
+    }
+
+    const effectiveModel = modelId || 'qwen3.6-plus';
+    const promptText = theme || productName || (visionResult ? visionResult.visualDesc : null) || null;
+
+    // ── 2. 创建本地 GenerationTask 记录（pending）──────────────
+    const localTask = await GenerationTask.create({
+      enterprise_id: enterpriseId,
+      user_id: userId,
+      task_type: 'script_generation',
+      model: effectiveModel,
+      prompt: promptText,
+      duration: duration || null,
+      status: 'pending',
+      provider: 'aliyun',
+      params: JSON.stringify({ visionResult, theme, style, duration, productName, modelId: effectiveModel }),
+      progress: 5
+    });
+
+    // ── 3. 调用 aliyunProvider.generateScript ─────────────────
+    try {
+      const aiResult = await aliyunProvider.generateScript({
+        visionResult,
+        theme,
+        style,
+        duration,
+        productName,
+        modelId: effectiveModel
+      });
+
+      // ── 4. 同步结果 → 直接完成 ─────────────────────────────
+      await localTask.update({
+        status: 'success',
+        progress: 100,
+        duration: aiResult.estimatedDuration || duration || null,
+        params: JSON.stringify({ ...params, result: aiResult }),
+        completed_at: new Date()
+      });
+
+      this._logTaskCreated(localTask, { ...aiResult, taskId: `script-${localTask.id}` });
+
+      return {
+        id: localTask.id,
+        title: aiResult.title,
+        fullText: aiResult.fullText,
+        segments: aiResult.segments,
+        totalWords: aiResult.totalWords,
+        estimatedDuration: aiResult.estimatedDuration,
+        style: aiResult.style,
+        model: aiResult.model,
+        tokensUsed: aiResult.tokensUsed,
+        processingTimeMs: aiResult.processingTimeMs,
+        status: 'success',
+        createdAt: localTask.created_at
+      };
+
+    } catch (error) {
+      const errorInfo = this._extractErrorInfo(error);
+      console.error(
+        `[GenerationService] generateScript FAILED | ` +
+        `localTaskId=${localTask.id} | ` +
+        `errorCode=${errorInfo.code} | statusCode=${error.statusCode || 'N/A'} | ` +
+        `time=${new Date().toISOString()}`
+      );
+      await localTask.update({
+        status: 'failed',
+        error_msg: errorInfo.message,
+        progress: 0,
+        completed_at: new Date()
+      });
+      this._logTaskFailed(localTask, errorInfo);
+      throw error;
+    }
+  }
+
+  /**
+   * generateTTS — 语音合成（TTS Synthesis）
+   *
+   * 调用 aliyunProvider.synthesizeSpeech() 将文本转为语音。
+   * 同步返回音频结果（Provider 已负责 OSS 上传）。
+   * generationService 只保存 Provider 返回结果，不假设音频 URL 格式。
+   *
+   * @param {Object} params
+   * @param {number} params.enterpriseId — 企业 ID
+   * @param {number} params.userId       — 用户 ID
+   * @param {string} params.text         — 待合成文本（必填）
+   * @param {string} [params.voiceId]    — 音色 ID
+   * @param {string} [params.emotion]    — 情感
+   * @param {number} [params.speed]      — 语速（0.5–2.0）
+   * @param {string} [params.format]     — 输出格式（mp3, wav, pcm）
+   * @param {string} [params.modelId]    — 模型覆盖（默认 cosyvoice-v3.5-plus）
+   * @returns {Promise<{
+   *   id: number, audioUrl: string, ossKey: string, duration: number,
+   *   format: string, sampleRate: number, fileSize: number,
+   *   voiceId: string, emotion: string, speed: number, model: string,
+   *   processingTimeMs: number, status: string, createdAt: Date
+   * }>}
+   */
+  async generateTTS(params) {
+    const {
+      enterpriseId, userId, text, voiceId,
+      emotion, speed, format, modelId
+    } = params;
+
+    // ── 1. 参数校验 ────────────────────────────────────────────
+    if (!enterpriseId) {
+      throw new ProviderError('system', 'VALIDATION', 'Enterprise ID is required', false);
+    }
+    if (!userId) {
+      throw new ProviderError('system', 'VALIDATION', 'User ID is required', false);
+    }
+    if (!text || typeof text !== 'string' || !text.trim()) {
+      throw new ProviderError('system', 'VALIDATION', 'Text is required for TTS', false);
+    }
+
+    const effectiveModel = modelId || 'cosyvoice-v3.5-plus';
+
+    // ── 2. 创建本地 GenerationTask 记录（pending）──────────────
+    const localTask = await GenerationTask.create({
+      enterprise_id: enterpriseId,
+      user_id: userId,
+      task_type: 'tts_generation',
+      model: effectiveModel,
+      prompt: text.trim(),
+      status: 'pending',
+      provider: 'aliyun',
+      params: JSON.stringify({ voiceId, emotion, speed, format, modelId: effectiveModel }),
+      progress: 5
+    });
+
+    // ── 3. 调用 aliyunProvider.synthesizeSpeech ───────────────
+    try {
+      const aiResult = await aliyunProvider.synthesizeSpeech({
+        text,
+        voiceId,
+        emotion,
+        speed,
+        format,
+        modelId: effectiveModel,
+        enterpriseId
+      });
+
+      // ── 4. 同步结果 → 直接完成 ─────────────────────────────
+      //     注意：不假设 audio_url 字段名，Provider 已负责 OSS
+      await localTask.update({
+        status: 'success',
+        progress: 100,
+        output_url: aiResult.audioUrl || null,
+        duration: aiResult.duration || null,
+        params: JSON.stringify({ ...params, result: aiResult }),
+        completed_at: new Date()
+      });
+
+      this._logTaskCreated(localTask, { ...aiResult, taskId: `tts-${localTask.id}` });
+
+      return {
+        id: localTask.id,
+        audioUrl: aiResult.audioUrl,
+        ossKey: aiResult.ossKey,
+        duration: aiResult.duration,
+        format: aiResult.format,
+        sampleRate: aiResult.sampleRate,
+        fileSize: aiResult.fileSize,
+        voiceId: aiResult.voiceId,
+        emotion: aiResult.emotion,
+        speed: aiResult.speed,
+        model: aiResult.model,
+        processingTimeMs: aiResult.processingTimeMs,
+        status: 'success',
+        createdAt: localTask.created_at
+      };
+
+    } catch (error) {
+      const errorInfo = this._extractErrorInfo(error);
+      console.error(
+        `[GenerationService] generateTTS FAILED | ` +
+        `localTaskId=${localTask.id} | ` +
+        `errorCode=${errorInfo.code} | statusCode=${error.statusCode || 'N/A'} | ` +
+        `time=${new Date().toISOString()}`
+      );
+      await localTask.update({
+        status: 'failed',
+        error_msg: errorInfo.message,
+        progress: 0,
+        completed_at: new Date()
+      });
+      this._logTaskFailed(localTask, errorInfo);
+      throw error;
+    }
+  }
+
+  /**
+   * generateDigitalHuman — 数字人视频生成（Digital Human Creation）
+   *
+   * 调用 aliyunProvider.createDigitalHuman() 创建数字人视频任务。
+   * 异步任务：返回 taskId 后由轮询机制获取最终结果。
+   * 保持与已有 digital_human 逻辑兼容。
+   *
+   * @param {Object} params
+   * @param {number} params.enterpriseId — 企业 ID
+   * @param {number} params.userId       — 用户 ID
+   * @param {string} params.imageUrl     — 输入图片 URL（必填）
+   * @param {string} params.audioUrl     — 输入音频 URL（必填）
+   * @param {string} [params.style]      — wan2.2-s2v: speech | singing | performance
+   * @param {string} [params.resolution] — 视频分辨率
+   * @param {Array}  [params.faceBbox]   — emo-v1: [x1, y1, x2, y2]
+   * @param {string} [params.styleLevel] — emo-v1: normal | calm | active
+   * @param {string} [params.modelId]    — 模型覆盖（默认 wan2.2-s2v）
+   * @returns {Promise<{
+   *   id: number, taskId: string, provider: string, model: string,
+   *   status: string, createdAt: Date
+   * }>}
+   */
+  async generateDigitalHuman(params) {
+    const {
+      enterpriseId, userId, imageUrl, audioUrl,
+      style, resolution, faceBbox, styleLevel, modelId
+    } = params;
+
+    // ── 1. 参数校验 ────────────────────────────────────────────
+    if (!enterpriseId) {
+      throw new ProviderError('system', 'VALIDATION', 'Enterprise ID is required', false);
+    }
+    if (!userId) {
+      throw new ProviderError('system', 'VALIDATION', 'User ID is required', false);
+    }
+    if (!imageUrl || typeof imageUrl !== 'string') {
+      throw new ProviderError('system', 'VALIDATION', 'Image URL is required', false);
+    }
+    if (!audioUrl || typeof audioUrl !== 'string') {
+      throw new ProviderError('system', 'VALIDATION', 'Audio URL is required', false);
+    }
+
+    const effectiveModel = modelId || 'wan2.2-s2v';
+
+    // ── 2. 创建本地 GenerationTask 记录（pending）──────────────
+    const localTask = await GenerationTask.create({
+      enterprise_id: enterpriseId,
+      user_id: userId,
+      task_type: 'digital_human',
+      model: effectiveModel,
+      input_url: imageUrl,
+      status: 'pending',
+      provider: 'aliyun',
+      duration: null,
+      params: JSON.stringify({ audioUrl, style, resolution, faceBbox, styleLevel, modelId: effectiveModel }),
+      progress: 5
+    });
+
+    // ── 3. 调用 aliyunProvider.createDigitalHuman ─────────────
+    try {
+      const aiResult = await aliyunProvider.createDigitalHuman({
+        imageUrl,
+        audioUrl,
+        style,
+        resolution,
+        faceBbox,
+        styleLevel,
+        modelId: effectiveModel
+      });
+
+      // ── 4. 异步任务：更新本地任务关联 ───────────────────────
+      await localTask.update({
+        task_id: aiResult.taskId,
+        provider: aiResult.provider,
+        model: aiResult.model || effectiveModel,
+        status: aiResult.status,
+        progress: 30,
+        started_at: new Date()
+      });
+
+      this._logTaskCreated(localTask, aiResult);
+
+      return {
+        id: localTask.id,
+        taskId: aiResult.taskId,
+        provider: aiResult.provider,
+        model: aiResult.model || effectiveModel,
+        status: aiResult.status,
+        createdAt: localTask.created_at
+      };
+
+    } catch (error) {
+      const errorInfo = this._extractErrorInfo(error);
+      console.error(
+        `[GenerationService] generateDigitalHuman FAILED | ` +
+        `localTaskId=${localTask.id} | ` +
+        `errorCode=${errorInfo.code} | statusCode=${error.statusCode || 'N/A'} | ` +
+        `time=${new Date().toISOString()}`
+      );
+      await localTask.update({
+        status: 'failed',
+        error_msg: errorInfo.message,
+        progress: 0,
+        completed_at: new Date()
+      });
+      this._logTaskFailed(localTask, errorInfo);
+      throw error;
+    }
+  }
+
   /**
    * 输入参数校验
    */

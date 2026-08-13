@@ -33,7 +33,8 @@ exports.dashscopeCallback = async (req, res) => {
 
       // Phase_UI-AICreation-07-KJ-05-D: DashScope 回调时主动触发视频转存+封面生成
       // 覆盖 text2video / image2video / ref2video，解决回调无 cover_url 导致列表无封面的问题
-      const VIDEO_TASK_TYPES = ['text2video', 'image2video', 'ref2video'];
+      // Phase DigitalHuman-Rebuild-004 Step4-D5.5: 增加 digital_human task_type
+      const VIDEO_TASK_TYPES = ['text2video', 'image2video', 'ref2video', 'digital_human'];
       const videoUrl = output?.video_url || output?.url;
 
       if (VIDEO_TASK_TYPES.includes(task.task_type) && videoUrl) {
