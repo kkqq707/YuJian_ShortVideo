@@ -200,7 +200,17 @@ exports.execute = async (req, res) => {
 
     // ProviderError 返回脱敏后的错误信息
     if (error.name === 'ProviderError') {
-      return res.fail(error.message, error.statusCode || 500);
+      // Step4-E2 任务2：只暴露业务错误描述，屏蔽内部 DB/Provider 失败细节
+      // （SQL / Sequelize / stack / provider 内部错误）。内部日志已在上方
+      // console.error 中保留完整 error.message。
+      const isInternalFailure =
+        error.provider === 'system' &&
+        typeof error.code === 'string' &&
+        error.code.endsWith('_FAILED');
+      return res.fail(
+        isInternalFailure ? '服务器内部错误' : error.message,
+        error.statusCode || 500
+      );
     }
 
     return res.fail('服务器内部错误', 500);
@@ -256,7 +266,17 @@ exports.getById = async (req, res) => {
     );
 
     if (error.name === 'ProviderError') {
-      return res.fail(error.message, error.statusCode || 500);
+      // Step4-E2 任务2：只暴露业务错误描述，屏蔽内部 DB/Provider 失败细节
+      // （SQL / Sequelize / stack / provider 内部错误）。内部日志已在上方
+      // console.error 中保留完整 error.message。
+      const isInternalFailure =
+        error.provider === 'system' &&
+        typeof error.code === 'string' &&
+        error.code.endsWith('_FAILED');
+      return res.fail(
+        isInternalFailure ? '服务器内部错误' : error.message,
+        error.statusCode || 500
+      );
     }
 
     return res.fail('服务器内部错误', 500);
@@ -313,7 +333,17 @@ exports.getByUUID = async (req, res) => {
     );
 
     if (error.name === 'ProviderError') {
-      return res.fail(error.message, error.statusCode || 500);
+      // Step4-E2 任务2：只暴露业务错误描述，屏蔽内部 DB/Provider 失败细节
+      // （SQL / Sequelize / stack / provider 内部错误）。内部日志已在上方
+      // console.error 中保留完整 error.message。
+      const isInternalFailure =
+        error.provider === 'system' &&
+        typeof error.code === 'string' &&
+        error.code.endsWith('_FAILED');
+      return res.fail(
+        isInternalFailure ? '服务器内部错误' : error.message,
+        error.statusCode || 500
+      );
     }
 
     return res.fail('服务器内部错误', 500);

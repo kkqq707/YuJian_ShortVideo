@@ -1,6 +1,29 @@
 const { GenerationTask, Enterprise } = require('../models');
 const { adjustEnterpriseQuota } = require('../utils/quota');
 const dashscopeService = require('../services/dashscopeService');
+const digitalHumanTaskService = require('../services/digitalHumanTaskService');
+const pipelineObservabilityService = require('../services/pipelineObservabilityService');
+
+// 关键节点事件名（唯一事实来源）
+const { EVENTS } = pipelineObservabilityService;
+
+/**
+ * 记录流水线关键节点（幂等，try/catch 保护，失败仅告警不中断）
+ *
+ * @param {number|string} pipelineId
+ * @param {string} event   — EVENTS 之一（如 DH_CALLBACK）
+ * @param {Object} [meta]  — 附加信息
+ */
+function recordNode(pipelineId, event, meta = {}) {
+  try {
+    pipelineObservabilityService.recordNode(pipelineId, event, meta);
+  } catch (err) {
+    console.warn(
+      `[Callback] recordNode FAILED (ignored) | ` +
+      `pipelineId=${pipelineId} | event=${event} | error=${err.message}`
+    );
+  }
+}
 
 // 阿里云百炼任务回调
 exports.dashscopeCallback = async (req, res) => {
@@ -17,6 +40,14 @@ exports.dashscopeCallback = async (req, res) => {
     };
 
     if (task_status === 'SUCCEEDED' || task_status === 'success') {
+      // ── 幂等守卫（Step4-E2 任务1）────────────────────────────────
+      // GenerationTask.status === 'success' 表示该 task_id 已被完整处理
+      // （扣积分 + 建 Asset + 写回结果）。重复回调直接返回 duplicated，
+      // 防止重复 adjustEnterpriseQuota / 重复 storeVideoAndCreateAsset。
+      if (task.status === 'success') {
+        return res.success({ received: true, duplicated: true });
+      }
+
       // 计算并扣除积分（保持原逻辑不变）
       const pointsPerSecond = await dashscopeService.getPointsPerSecond(task.model);
       const pointsCost = Math.ceil((usage?.duration || 5) * pointsPerSecond);
@@ -71,6 +102,42 @@ exports.dashscopeCallback = async (req, res) => {
       updateData.progress = req.body.task_metrics?.pct || 50;
       await task.update(updateData);
     }
+
+    // Phase DigitalHuman-Rebuild-004 Step4-D6 / Step4-E4:
+    // digital_human 回调 → 找到 PipelineTask → 复用 handleCompletedTask 完成闭环
+    // 不新增下载/Asset 逻辑，全部委托给 digitalHumanTaskService。
+    //
+    // Step4-E4 修复 A2（状态分叉）：
+    //   1. 仅 SUCCEEDED / FAILED 终态触发（RUNNING 不再触发，避免处理中误判为完成）；
+    //   2. 回调 task_status 作为第一状态源，交由 handleCallbackCompletion 直接使用，
+    //      不再二次查询 Provider。
+    if (task.task_type === 'digital_human') {
+      const isTerminalStatus =
+        task_status === 'SUCCEEDED' || task_status === 'success' ||
+        task_status === 'FAILED' || task_status === 'failed';
+
+      if (isTerminalStatus) {
+        try {
+          const completionResult = await digitalHumanTaskService.handleCallbackCompletion(
+            task,
+            task_status,
+            output?.video_url || output?.url
+          );
+
+          // Step4-F2: 记录 DH_CALLBACK 关键节点（仅记录，失败不影响主流程）
+          recordNode(completionResult && completionResult.pipelineId, EVENTS.DH_CALLBACK, {
+            providerTaskId: task.task_id,
+            callbackStatus: task_status,
+            pipelineStatus: completionResult && completionResult.status
+          });
+        } catch (err) {
+          console.error(
+            `[Callback] digital_human PipelineTask completion failed: ${err.message || 'Unknown error'}`
+          );
+        }
+      }
+    }
+
     res.success({ received: true });
 
   } catch (error) {

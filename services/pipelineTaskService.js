@@ -234,9 +234,10 @@ class PipelineTaskService {
    * @param {number} id     — PipelineTask 主键 ID
    * @param {string} status — 新状态（必须在 VALID_STATUSES 中）
    * @param {Object} [extra] — 额外更新的字段（如 current_layer, started_at）
+   * @param {number} [enterpriseId] — 企业 ID（可选；提供时按企业隔离校验，防止越权修改）
    * @returns {Promise<Object>} 更新后的 PipelineTask instance
    */
-  async updateStatus(id, status, extra = {}) {
+  async updateStatus(id, status, extra = {}, enterpriseId) {
     if (!id) {
       throw new ProviderError('system', 'VALIDATION', 'PipelineTask ID is required', false);
     }
@@ -249,7 +250,10 @@ class PipelineTaskService {
     }
 
     try {
-      const task = await PipelineTask.findByPk(id);
+      // Step4-E2 任务4：提供 enterpriseId 时按企业作用域查询（纵深防御）
+      const where = { id };
+      if (enterpriseId != null) where.enterprise_id = enterpriseId;
+      const task = await PipelineTask.findOne({ where });
       if (!task) {
         throw new ProviderError(
           'system', 'NOT_FOUND',
@@ -308,9 +312,10 @@ class PipelineTaskService {
    *
    * @param {number} id       — PipelineTask 主键 ID
    * @param {number} progress — 进度值（会被 clamp 到 0-100）
+   * @param {number} [enterpriseId] — 企业 ID（可选；提供时按企业隔离校验，防止越权修改）
    * @returns {Promise<Object>} 更新后的 PipelineTask instance
    */
-  async updateProgress(id, progress) {
+  async updateProgress(id, progress, enterpriseId) {
     if (!id) {
       throw new ProviderError('system', 'VALIDATION', 'PipelineTask ID is required', false);
     }
@@ -322,7 +327,10 @@ class PipelineTaskService {
     const clampedProgress = Math.min(100, Math.max(0, Math.round(progress)));
 
     try {
-      const task = await PipelineTask.findByPk(id);
+      // Step4-E2 任务4：提供 enterpriseId 时按企业作用域查询（纵深防御）
+      const where = { id };
+      if (enterpriseId != null) where.enterprise_id = enterpriseId;
+      const task = await PipelineTask.findOne({ where });
       if (!task) {
         throw new ProviderError(
           'system', 'NOT_FOUND',
@@ -368,9 +376,10 @@ class PipelineTaskService {
    * @param {number} id     — PipelineTask 主键 ID
    * @param {string} layer  — 层名称（vision | script | tts | dh）
    * @param {Object} result — 该层的结果数据
+   * @param {number} [enterpriseId] — 企业 ID（可选；提供时按企业隔离校验，防止越权修改）
    * @returns {Promise<Object>} 更新后的 PipelineTask instance
    */
-  async saveIntermediateResult(id, layer, result) {
+  async saveIntermediateResult(id, layer, result, enterpriseId) {
     if (!id) {
       throw new ProviderError('system', 'VALIDATION', 'PipelineTask ID is required', false);
     }
@@ -386,7 +395,10 @@ class PipelineTaskService {
     }
 
     try {
-      const task = await PipelineTask.findByPk(id);
+      // Step4-E2 任务4：提供 enterpriseId 时按企业作用域查询（纵深防御）
+      const where = { id };
+      if (enterpriseId != null) where.enterprise_id = enterpriseId;
+      const task = await PipelineTask.findOne({ where });
       if (!task) {
         throw new ProviderError(
           'system', 'NOT_FOUND',
@@ -453,9 +465,10 @@ class PipelineTaskService {
    * @param {number} id    — PipelineTask 主键 ID
    * @param {string} field — 字段名: 'audio_asset_id' | 'output_asset_id'
    * @param {number} assetId — Asset 主键 ID
+   * @param {number} [enterpriseId] — 企业 ID（可选；提供时按企业隔离校验，防止越权修改）
    * @returns {Promise<Object>} 更新后的 PipelineTask instance
    */
-  async updateAssetId(id, field, assetId) {
+  async updateAssetId(id, field, assetId, enterpriseId) {
     if (!id) {
       throw new ProviderError('system', 'VALIDATION', 'PipelineTask ID is required', false);
     }
@@ -473,7 +486,10 @@ class PipelineTaskService {
     }
 
     try {
-      const task = await PipelineTask.findByPk(id);
+      // Step4-E2 任务4：提供 enterpriseId 时按企业作用域查询（纵深防御）
+      const where = { id };
+      if (enterpriseId != null) where.enterprise_id = enterpriseId;
+      const task = await PipelineTask.findOne({ where });
       if (!task) {
         throw new ProviderError(
           'system', 'NOT_FOUND',
@@ -523,9 +539,10 @@ class PipelineTaskService {
    * @param {number} id     — PipelineTask 主键 ID
    * @param {string} layer  — 失败的层名称（vision | script | tts | dh | null）
    * @param {string} error  — 错误描述信息
+   * @param {number} [enterpriseId] — 企业 ID（可选；提供时按企业隔离校验，防止越权修改）
    * @returns {Promise<Object>} 更新后的 PipelineTask instance
    */
-  async markFailed(id, layer, error) {
+  async markFailed(id, layer, error, enterpriseId) {
     if (!id) {
       throw new ProviderError('system', 'VALIDATION', 'PipelineTask ID is required', false);
     }
@@ -545,7 +562,10 @@ class PipelineTaskService {
       : 'Unknown error';
 
     try {
-      const task = await PipelineTask.findByPk(id);
+      // Step4-E2 任务4：提供 enterpriseId 时按企业作用域查询（纵深防御）
+      const where = { id };
+      if (enterpriseId != null) where.enterprise_id = enterpriseId;
+      const task = await PipelineTask.findOne({ where });
       if (!task) {
         throw new ProviderError(
           'system', 'NOT_FOUND',

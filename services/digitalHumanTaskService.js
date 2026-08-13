@@ -30,7 +30,11 @@
 const aliyunProvider = require('../providers/aliyunProvider');
 const pipelineTaskService = require('./pipelineTaskService');
 const pipelineAssetService = require('./pipelineAssetService');
+const pipelineObservabilityService = require('./pipelineObservabilityService');
 const { PipelineTask } = require('../models');
+
+// 关键节点事件名（唯一事实来源）
+const { EVENTS } = pipelineObservabilityService;
 
 class DigitalHumanTaskService {
   // ═══════════════════════════════════════════════════════════════════════
@@ -197,6 +201,7 @@ class DigitalHumanTaskService {
 
       // 标记为失败 — 缺少必要数据无法继续
       await pipelineTaskService.markFailed(pipelineTaskId, 'dh', errMsg);
+      this._recordNode(pipelineTaskId, EVENTS.PIPELINE_FAILED, { failedLayer: 'dh' });
 
       return {
         status: 'failed',
@@ -253,6 +258,7 @@ class DigitalHumanTaskService {
           pipelineTaskId, 'dh',
           'DH task completed successfully but no video URL in response'
         );
+        this._recordNode(pipelineTaskId, EVENTS.PIPELINE_FAILED, { failedLayer: 'dh' });
 
         return {
           status: 'failed',
@@ -298,6 +304,12 @@ class DigitalHumanTaskService {
           resolution: assetResult.resolution,
           completedAt: new Date().toISOString()
         });
+
+        // Step4-F2: 记录 ASSET_CREATED / PIPELINE_COMPLETED（仅记录，失败不影响主流程）
+        this._recordNode(pipelineTaskId, EVENTS.ASSET_CREATED, {
+          layer: 'dh', assetId: assetResult.assetId
+        });
+        this._recordNode(pipelineTaskId, EVENTS.PIPELINE_COMPLETED, { layer: 'dh' });
       } else {
         // Asset 创建失败（downloadAndSaveVideoAsset 已做降级处理）
         console.error(
@@ -312,6 +324,7 @@ class DigitalHumanTaskService {
           pipelineTaskId, 'dh',
           'Failed to create video Asset from DH result'
         );
+        this._recordNode(pipelineTaskId, EVENTS.PIPELINE_FAILED, { failedLayer: 'dh' });
       }
 
       const elapsedMs = Date.now() - startTime;
@@ -350,6 +363,7 @@ class DigitalHumanTaskService {
       );
 
       await pipelineTaskService.markFailed(pipelineTaskId, 'dh', errorMsg);
+      this._recordNode(pipelineTaskId, EVENTS.PIPELINE_FAILED, { failedLayer: 'dh' });
 
       const elapsedMs = Date.now() - startTime;
 
@@ -378,6 +392,280 @@ class DigitalHumanTaskService {
       assetId: null,
       videoUrl: null
     };
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════
+  //  3. handleCallbackCompletion — 回调驱动 PipelineTask 完成
+  // ═══════════════════════════════════════════════════════════════════════
+
+  /**
+   * DashScope 回调驱动数字人 PipelineTask 完成（回调状态作为第一状态源）
+   *
+   * Step4-E4 修复 A2 / A1 / A3：
+   *   - A2：不再二次查询 Provider，直接采用回调携带的 task_status 作为状态源，
+   *         消除「回调 FAILED 但二次查询成功 → Pipeline success」与
+   *         「GenerationTask success / PipelineTask failed」的状态分叉。
+   *   - A1/A3：优先复用 GenerationTask.output_asset_id（storeVideoAndCreateAsset
+   *         已下载/上传/建 Asset），避免同一 DashScope task_id 被重复 download /
+   *         upload OSS / create Asset。
+   *
+   * 流程：
+   *   1. 根据 GenerationTask（task_id / id）定位 status='digital_human' 的 PipelineTask
+   *   2. 按回调状态归一化：
+   *        - FAILED  → markFailed('dh')
+   *        - SUCCESS → 复用 GenerationTask Asset（无则按 videoUrl 下载）→ status=success
+   *        - 其他    → 返回 pending（非终态，不回写）
+   *
+   * 关联方式（dh_task_id 未回填，见 Precheck）：
+   *   通过 intermediate_results.dh 的 providerTaskId（= DashScope task_id）
+   *   或 generationTaskId（= GenerationTask.id）匹配。
+   *
+   * 禁止重复下载视频 / 重复创建 Asset：优先复用 GenerationTask 已建 Asset。
+   *
+   * @param {Object} generationTask — GenerationTask instance（含 id / task_id / output_asset_id）
+   * @param {string} [callbackStatus] — 回调 task_status（SUCCEEDED|FAILED|success|failed|...）
+   * @param {string} [videoUrl] — 回调 output.video_url（SUCCEEDED 时可用）
+   * @returns {Promise<{
+   *   found: boolean,
+   *   pipelineId: number|null,
+   *   status: string|null,
+   *   assetId: number|null
+   * }>}
+   */
+  async handleCallbackCompletion(generationTask, callbackStatus, videoUrl) {
+    if (!generationTask || !generationTask.task_id) {
+      throw new Error('generationTask with task_id is required');
+    }
+
+    const dashScopeTaskId = generationTask.task_id;
+    const generationTaskId = generationTask.id;
+
+    console.log(
+      `[DigitalHumanTaskService] handleCallbackCompletion START | ` +
+      `dashScopeTaskId=${dashScopeTaskId} | generationTaskId=${generationTaskId} | ` +
+      `callbackStatus=${callbackStatus || 'N/A'} | ` +
+      `time=${new Date().toISOString()}`
+    );
+
+    // ── 1. 优先：PipelineTask.dh_task_id 直接索引 ────────────────
+    // Step4-D7: 新任务通过 dh_task_id 直接关联，避免全表 JSON 扫描。
+    let matchedPipelineTask = null;
+    if (generationTaskId != null) {
+      matchedPipelineTask = await PipelineTask.findOne({
+        where: { dh_task_id: generationTaskId }
+      });
+      if (matchedPipelineTask) {
+        console.log(
+          `[DigitalHumanTaskService] handleCallbackCompletion resolved via dh_task_id | ` +
+          `pipelineId=${matchedPipelineTask.id} | generationTaskId=${generationTaskId}`
+        );
+      }
+    }
+
+    // ── 2. Fallback：扫描 status='digital_human'，JSON 匹配 ──────
+    // 保留旧逻辑以兼容历史数据（无 dh_task_id 的 PipelineTask）。
+    if (!matchedPipelineTask) {
+      const candidates = await PipelineTask.findAll({
+        where: { status: 'digital_human' }
+      });
+
+      for (const pt of candidates) {
+        let ir = pt.intermediate_results;
+        if (typeof ir === 'string') {
+          try {
+            ir = JSON.parse(ir);
+          } catch (_) {
+            ir = null;
+          }
+        }
+        const dh = ir && ir.dh ? ir.dh : null;
+        if (!dh) continue;
+
+        if (dh.providerTaskId === dashScopeTaskId || dh.generationTaskId === generationTaskId) {
+          matchedPipelineTask = pt;
+          break;
+        }
+      }
+    }
+
+    if (!matchedPipelineTask) {
+      console.warn(
+        `[DigitalHumanTaskService] handleCallbackCompletion NOT_FOUND | ` +
+        `dashScopeTaskId=${dashScopeTaskId} | no matching PipelineTask in status=digital_human`
+      );
+      return {
+        found: false,
+        pipelineId: null,
+        status: 'not_found',
+        assetId: null
+      };
+    }
+
+    console.log(
+      `[DigitalHumanTaskService] handleCallbackCompletion PipelineTask resolved | ` +
+      `pipelineId=${matchedPipelineTask.id} | dashScopeTaskId=${dashScopeTaskId}`
+    );
+
+    // ── 2.5 幂等守卫：非 digital_human 状态跳过 ────────────────
+    if (matchedPipelineTask.status !== 'digital_human') {
+      console.log(
+        `[DigitalHumanTaskService] handleCallbackCompletion SKIP | ` +
+        `pipelineId=${matchedPipelineTask.id} | ` +
+        `reason=PipelineTask status is "${matchedPipelineTask.status}", not "digital_human"`
+      );
+      return {
+        found: true,
+        pipelineId: matchedPipelineTask.id,
+        status: 'skipped',
+        assetId: null
+      };
+    }
+
+    // ── 3. 归一化回调状态（第一状态源） ────────────────────────
+    const normalizedStatus =
+      callbackStatus === 'SUCCEEDED' || callbackStatus === 'success'
+        ? 'success'
+        : callbackStatus === 'FAILED' || callbackStatus === 'failed'
+          ? 'failed'
+          : 'pending';
+
+    // ── 4. FAILED：与 GenerationTask 一致标记失败 ───────────────
+    if (normalizedStatus === 'failed') {
+      await pipelineTaskService.markFailed(
+        matchedPipelineTask.id, 'dh',
+        'DigitalHuman task failed on provider (callback FAILED)'
+      );
+      this._recordNode(matchedPipelineTask.id, EVENTS.PIPELINE_FAILED, { failedLayer: 'dh' });
+
+      console.log(
+        `[DigitalHumanTaskService] handleCallbackCompletion FAILED | ` +
+        `pipelineId=${matchedPipelineTask.id} | callbackStatus=${callbackStatus}`
+      );
+
+      return {
+        found: true,
+        pipelineId: matchedPipelineTask.id,
+        status: 'failed',
+        assetId: null
+      };
+    }
+
+    // ── 5. SUCCESS：复用 GenerationTask Asset 完成 ──────────────
+    if (normalizedStatus === 'success') {
+      return this._completeCallbackSuccess(matchedPipelineTask, generationTask, videoUrl);
+    }
+
+    // ── 6. 其他（RUNNING 等非终态）：不回写，避免状态分叉 ───────
+    console.log(
+      `[DigitalHumanTaskService] handleCallbackCompletion PENDING | ` +
+      `pipelineId=${matchedPipelineTask.id} | callbackStatus=${callbackStatus || 'N/A'}`
+    );
+
+    return {
+      found: true,
+      pipelineId: matchedPipelineTask.id,
+      status: 'pending',
+      assetId: null
+    };
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════
+  //  4. _completeCallbackSuccess — SUCCESS 回调：复用 Asset 完成
+  // ═══════════════════════════════════════════════════════════════════════
+
+  /**
+   * SUCCESS 回调下的 PipelineTask 完成（复用 GenerationTask Asset，避免重复 Asset）
+   *
+   * Step4-E4 修复 A1/A3：优先复用 GenerationTask.output_asset_id，
+   * 不重复 download / upload OSS / create Asset。
+   *
+   * 无 output_asset_id 且无 videoUrl 时，仍标记 success（与 GenerationTask 一致），
+   * 禁止出现 GenerationTask success / PipelineTask failed（A2）。
+   *
+   * @param {Object} pipelineTask    — 已匹配的 PipelineTask instance
+   * @param {Object} generationTask  — GenerationTask instance（含 output_asset_id / output_url / duration）
+   * @param {string} [videoUrl]      — 回调 output.video_url
+   * @returns {Promise<{ found: boolean, pipelineId: number, status: string, assetId: number|null }>}
+   */
+  async _completeCallbackSuccess(pipelineTask, generationTask, videoUrl) {
+    const pipelineId = pipelineTask.id;
+
+    // ── 1. 优先复用 GenerationTask 已建 Asset（A1/A3） ─────────
+    let assetId = generationTask.output_asset_id || null;
+    let outputVideoUrl = generationTask.output_url || null;
+    let duration = generationTask.duration || null;
+
+    if (!assetId && videoUrl) {
+      // 兜底：GenerationTask 尚未建 Asset（历史任务 / 未走 storeVideoAndCreateAsset）
+      const assetResult = await pipelineAssetService.downloadAndSaveVideoAsset(
+        pipelineTask,
+        videoUrl,
+        { duration: undefined, mimeType: 'video/mp4' }
+      );
+      assetId = assetResult.assetId || null;
+      outputVideoUrl = assetResult.videoUrl || outputVideoUrl;
+      duration = assetResult.duration || duration;
+    } else if (assetId) {
+      // 复用已建 Asset：回填 PipelineTask.output_asset_id 指向同一 Asset
+      await pipelineTaskService.updateAssetId(pipelineId, 'output_asset_id', assetId);
+    }
+
+    // ── 2. 以回调状态为第一状态源：SUCCEEDED → success ────────
+    await pipelineTaskService.updateStatus(pipelineId, 'success', {
+      completed_at: new Date()
+    });
+    await pipelineTaskService.updateProgress(pipelineId, 100);
+
+    await pipelineTaskService.saveIntermediateResult(pipelineId, 'dh', {
+      providerTaskId: generationTask.task_id,
+      generationTaskId: generationTask.id,
+      dhStatus: 'success',
+      outputAssetId: assetId || null,
+      videoUrl: outputVideoUrl || null,
+      duration: duration || null,
+      completedAt: new Date().toISOString()
+    });
+
+    // Step4-F2: 记录 ASSET_CREATED / PIPELINE_COMPLETED（仅记录，失败不影响主流程）
+    if (assetId) {
+      this._recordNode(pipelineId, EVENTS.ASSET_CREATED, { layer: 'dh', assetId });
+    }
+    this._recordNode(pipelineId, EVENTS.PIPELINE_COMPLETED, { layer: 'dh' });
+
+    console.log(
+      `[DigitalHumanTaskService] handleCallbackCompletion SUCCESS | ` +
+      `pipelineId=${pipelineId} | assetId=${assetId || 'N/A'} | ` +
+      `reusedAsset=${!!generationTask.output_asset_id}`
+    );
+
+    return {
+      found: true,
+      pipelineId,
+      status: 'success',
+      assetId: assetId || null
+    };
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════
+  //  观察能力：记录关键节点（Step4-F2，失败不影响主流程）
+  // ═══════════════════════════════════════════════════════════════════════
+
+  /**
+   * 记录流水线关键节点（幂等，try/catch 保护，失败仅告警不中断）
+   *
+   * @param {number|string} pipelineId
+   * @param {string} event   — EVENTS 之一（如 PIPELINE_COMPLETED）
+   * @param {Object} [meta]  — 附加信息
+   */
+  _recordNode(pipelineId, event, meta = {}) {
+    try {
+      pipelineObservabilityService.recordNode(pipelineId, event, meta);
+    } catch (err) {
+      console.warn(
+        `[DigitalHumanTaskService] recordNode FAILED (ignored) | ` +
+        `pipelineId=${pipelineId} | event=${event} | error=${err.message}`
+      );
+    }
   }
 }
 

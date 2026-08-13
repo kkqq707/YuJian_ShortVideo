@@ -30,6 +30,11 @@
 const generationService = require('./generationService');
 const pipelineTaskService = require('./pipelineTaskService');
 const pipelineAssetService = require('./pipelineAssetService');
+const pipelineObservabilityService = require('./pipelineObservabilityService');
+const { PipelineTask } = require('../models');
+
+// 关键节点事件名（唯一事实来源）
+const { EVENTS } = pipelineObservabilityService;
 
 class PipelineOrchestrator {
   /**
@@ -67,6 +72,12 @@ class PipelineOrchestrator {
       `pipelineId=${pipelineId} | currentStatus=${task.status} | ` +
       `userId=${task.user_id}`
     );
+
+    // Step4-F2: 记录 PIPELINE_CREATED 关键节点（仅记录，失败不影响主流程）
+    this._recordNode(pipelineId, EVENTS.PIPELINE_CREATED, {
+      enterpriseId,
+      initialStatus: task.status
+    });
 
     // ── 2. 解析输入参数 ─────────────────────────────────────────────
     let inputParams;
@@ -171,6 +182,9 @@ class PipelineOrchestrator {
       `time=${new Date().toISOString()}`
     );
 
+    // Step4-F2: 记录 VISION_STARTED 关键节点（仅记录，失败不影响主流程）
+    this._recordNode(pipelineId, EVENTS.VISION_STARTED, { layer });
+
     try {
       // ── 1. 更新状态为 vision ─────────────────────────────────────
       await pipelineTaskService.updateStatus(pipelineId, 'vision', {
@@ -248,6 +262,9 @@ class PipelineOrchestrator {
       `pipelineId=${pipelineId} | layer=${layer} | ` +
       `time=${new Date().toISOString()}`
     );
+
+    // Step4-F2: 记录 SCRIPT_STARTED 关键节点（仅记录，失败不影响主流程）
+    this._recordNode(pipelineId, EVENTS.SCRIPT_STARTED, { layer });
 
     try {
       // ── 1. 更新状态为 script ─────────────────────────────────────
@@ -338,6 +355,9 @@ class PipelineOrchestrator {
       `pipelineId=${pipelineId} | layer=${layer} | ` +
       `time=${new Date().toISOString()}`
     );
+
+    // Step4-F2: 记录 TTS_STARTED 关键节点（仅记录，失败不影响主流程）
+    this._recordNode(pipelineId, EVENTS.TTS_STARTED, { layer });
 
     try {
       // ── 1. 更新状态为 tts ────────────────────────────────────────
@@ -435,6 +455,9 @@ class PipelineOrchestrator {
       `time=${new Date().toISOString()}`
     );
 
+    // Step4-F2: 记录 DH_STARTED 关键节点（仅记录，失败不影响主流程）
+    this._recordNode(pipelineId, EVENTS.DH_STARTED, { layer });
+
     try {
       // ── 1. 更新状态为 digital_human ──────────────────────────────
       await pipelineTaskService.updateStatus(pipelineId, 'digital_human', {
@@ -465,6 +488,25 @@ class PipelineOrchestrator {
       };
 
       await pipelineTaskService.saveIntermediateResult(pipelineId, layer, intermediateData);
+
+      // ── 新增 Step4-D7: 回填 PipelineTask.dh_task_id ────────────
+      // 建立 PipelineTask ↔ GenerationTask 直接关联，供 callback 优先索引。
+      // 使用已有 Model 方法（findByPk + update），禁止直接 SQL。
+      const pipelineTaskRecord = await PipelineTask.findByPk(pipelineId);
+      if (pipelineTaskRecord) {
+        await pipelineTaskRecord.update({ dh_task_id: result.id });
+        console.log(
+          `[PipelineOrchestrator] dh_task_id backfilled | ` +
+          `pipelineId=${pipelineId} | dh_task_id=${result.id} | ` +
+          `time=${new Date().toISOString()}`
+        );
+      } else {
+        console.warn(
+          `[PipelineOrchestrator] dh_task_id backfill SKIPPED | ` +
+          `pipelineId=${pipelineId} | reason=PipelineTask not found | ` +
+          `time=${new Date().toISOString()}`
+        );
+      }
 
       // ── 新增 Step4-D5: 保存 DH 视频 Asset（条件执行）─────────────
       // DH 通常为异步任务，videoUrl 可能尚未就绪。
@@ -514,6 +556,28 @@ class PipelineOrchestrator {
 
       await pipelineTaskService.markFailed(pipelineId, layer, errorMsg);
       throw error;
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════
+  //  观察能力：记录关键节点（Step4-F2，失败不影响主流程）
+  // ═══════════════════════════════════════════════════════════════════════
+
+  /**
+   * 记录流水线关键节点（幂等，try/catch 保护，失败仅告警不中断）
+   *
+   * @param {number|string} pipelineId
+   * @param {string} event   — EVENTS 之一（如 PIPELINE_CREATED）
+   * @param {Object} [meta]  — 附加信息
+   */
+  _recordNode(pipelineId, event, meta = {}) {
+    try {
+      pipelineObservabilityService.recordNode(pipelineId, event, meta);
+    } catch (err) {
+      console.warn(
+        `[PipelineOrchestrator] recordNode FAILED (ignored) | ` +
+        `pipelineId=${pipelineId} | event=${event} | error=${err.message}`
+      );
     }
   }
 }
