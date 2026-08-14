@@ -15,6 +15,8 @@
     <link rel="stylesheet" href="css/studio/studio.css">
     <!-- Studio 公共组件层样式 -->
     <link rel="stylesheet" href="css/studio/components.css">
+    <!-- Studio 页面级样式 -->
+    <link rel="stylesheet" href="css/studio/pages.css">
 </head>
 <body class="studio-layout">
 
@@ -70,7 +72,7 @@
 
     <!-- 返回主平台 -->
     <footer class="studio-back" id="studio-back">
-        <a class="studio-back__link" href="index.html">
+        <a class="studio-back__link" href="enterprise.html">
             <i class="fas fa-arrow-left" aria-hidden="true"></i>
             <span>返回主平台</span>
         </a>
@@ -98,6 +100,7 @@
     <!-- 通用组件（复用） -->
     <script src="js/components/toast.js"></script>
     <script src="js/components/modal.js"></script>
+    <script src="js/enterprise/utils.js"></script>
     <!-- Pipeline 复用（Studio 任务详情未来依赖，原样挂载，不复制） -->
     <script src="js/enterprise/pipeline/adapter.js"></script>
     <script src="js/enterprise/pipeline/state.js"></script>
@@ -116,6 +119,15 @@
     <script src="js/studio/components/list.js"></script>
     <!-- Studio 专有层（router 先于 app，app 最后启动） -->
     <script src="js/studio/router.js"></script>
+    <!-- Studio 页面层（router 之后、app 之前加载，覆盖 router 内置 workbench 占位页） -->
+    <script src="js/studio/pages/workbench.js"></script>
+    <script src="js/studio/pages/create.js"></script>
+    <script src="js/studio/pages/avatars.js"></script>
+    <script src="js/studio/pages/voices.js"></script>
+    <script src="js/studio/pages/scripts.js"></script>
+    <script src="js/studio/pages/tasks.js"></script>
+    <script src="js/studio/pages/tasks-detail.js"></script>
+    <script src="js/studio/pages/history.js"></script>
     <script src="js/studio/app.js"></script>
 </body>
 </html>

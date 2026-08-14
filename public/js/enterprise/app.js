@@ -192,14 +192,9 @@
         break;
       case 'ref2video': container.innerHTML = (typeof renderStudio === 'function' ? renderStudio() : renderFallback('AI创作中心')); initTemplateSelector('#studioTemplateContainer', 'studioPrompt', 'reference_to_video'); if (typeof studioSelectType === 'function') { var card = document.querySelector('.yj-studio-type-card[data-type="ref2video"]'); if (card) studioSelectType(card, 'ref2video'); } break;
       case 'digitalhuman':
-        if (typeof renderDigitalHumanAsync === 'function') {
-          renderDigitalHumanAsync(container);
-        } else if (typeof renderDigitalHuman === 'function') {
-          container.innerHTML = renderDigitalHuman();
-        } else {
-          container.innerHTML = '<div class="card"><div class="card-body">页面开发中</div></div>';
-        }
-        break;
+        // Step5-D4: 企业工作台「数字人口播」入口 → 同标签页跳转 Studio 工作台（sessionStorage 身份保持）
+        window.location.href = 'studio.html#/workbench';
+        return;
       case 'pipeline':
         if (window.YJ && window.YJ.pages && window.YJ.pages.pipeline) {
           container.innerHTML = (typeof window.YJ.pages.pipeline.render === 'function' ? window.YJ.pages.pipeline.render() : '<div class="card"><div class="card-body">页面开发中</div></div>');
@@ -386,6 +381,9 @@
   var initialPage = APP._initialPage
     || (typeof PageState !== 'undefined' && PageState.restore ? PageState.restore() : null)
     || 'dashboard';
+  // Step5-D4: 残留的 'digitalhuman' 页是「上次跳 Studio 前写入」的历史态，
+  // 不应在加载时重新触发跳转；降级回 dashboard，仅保留用户显式点击入口的跳转。
+  if (initialPage === 'digitalhuman') initialPage = 'dashboard';
   APP.currentPage = initialPage;
   console.log('[Enterprise/App] Startup render — page:', initialPage);
   render(initialPage);

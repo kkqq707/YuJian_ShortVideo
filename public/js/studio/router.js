@@ -26,10 +26,16 @@
   var DEFAULT_ROUTE = 'workbench';
   var MAIN_ID = 'studio-main';
 
-  // ─── 路由表（本阶段：workbench 实现；#/tasks/:id 仅解析，页面未实现）───
+  // ─── 路由表（Step5-D4：注册全部页面路由；页面实现统一在 pages/*.js）───
   // 匹配顺序即优先级；未匹配 → 回退 DEFAULT_ROUTE。
   var ROUTE_TABLE = [
     { pattern: /^#\/workbench$/, page: 'workbench' },
+    { pattern: /^#\/create$/, page: 'create' },
+    { pattern: /^#\/avatars$/, page: 'avatars' },
+    { pattern: /^#\/voices$/, page: 'voices' },
+    { pattern: /^#\/scripts$/, page: 'scripts' },
+    { pattern: /^#\/tasks$/, page: 'tasks' },
+    { pattern: /^#\/history$/, page: 'history' },
     {
       pattern: /^#\/tasks\/(\d+)$/,
       page: 'tasks-detail',

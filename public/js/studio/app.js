@@ -21,11 +21,16 @@
   var YJ = window.YJ || {};
   if (!YJ.studio) YJ.studio = {};
 
-  // ─── 顶栏标题映射（本阶段仅 workbench 有页面，其余为未来预留）───
+  // ─── 顶栏标题映射（Step5-D4：注册全部页面标题）───
   var DEFAULT_TITLE = '工作台';
   var PAGE_TITLES = {
     workbench: '工作台',
     create: '新建口播',
+    avatars: '数字人资产',
+    voices: '声音中心',
+    scripts: '内容创作',
+    tasks: '生成任务',
+    history: '历史作品',
     'tasks-detail': '生成任务详情'
   };
 
