@@ -12,7 +12,7 @@
  * 数据边界（严格遵守，违规即返工）：
  *   ❌ 不直接 fetch / 不拼 URL / 不自己 catch 映射文案（一切经 api + state）
  *   ❌ 不写 cache 内部字段（本页不消费 cache）
- *   ❌ 不消费 selection.script（Create v1 不接脚本：保留但不用，禁新增 script_id 字段）
+ *   ✅ 消费 selection.script（有 → body.scriptId；无 → 后端自动生成脚本）
  *   ❌ 不新增组件 / state / API / createCache（复用 state.selection/task + api.pipeline.execute）
  *   ✅ vanilla JS + IIFE + window.YJ，暴露 render(params)/init(params)/destroy()
  */
@@ -66,6 +66,10 @@
 
   function selectedVoice() {
     return selection().voice || null;
+  }
+
+  function selectedScript() {
+    return selection().script || null;
   }
 
   function avatarImageUrl() {
@@ -213,6 +217,62 @@
   }
 
   // ═══════════════════════════════════════════════════════════════════
+  //  脚本摘要回显（读 state.selection.script，复用 voice 卡片范式，不新增组件/CSS）
+  // ═══════════════════════════════════════════════════════════════════
+
+  function renderScriptSummary() {
+    var container = els.script;
+    if (!container) return;
+
+    var script = selectedScript();
+    var hasScript = !!(script && script.id != null && script.title);
+
+    var sourceLabel = '';
+    if (script && script.sourceType) {
+      sourceLabel = script.sourceType === 'ai' ? 'AI 生成'
+        : script.sourceType === 'manual' ? '手写草稿'
+        : '脚本';
+    }
+
+    var card = document.createElement('div');
+    card.className = 'yj-card studio-create__voice-card';
+
+    var iconWrap = document.createElement('span');
+    iconWrap.className = 'studio-create__voice-icon';
+    iconWrap.setAttribute('aria-hidden', 'true');
+    var iconEl = document.createElement('i');
+    iconEl.className = 'fas fa-file-lines';
+    iconWrap.appendChild(iconEl);
+    card.appendChild(iconWrap);
+
+    var body = document.createElement('div');
+    body.className = 'studio-create__voice-body';
+    var title = document.createElement('div');
+    title.className = 'studio-create__voice-title';
+    title.textContent = hasScript ? script.title : '未选择脚本';
+    body.appendChild(title);
+    var hint = document.createElement('div');
+    hint.className = 'studio-create__voice-hint';
+    hint.textContent = hasScript
+      ? ('将复用该脚本生成口播' + (sourceLabel ? ' · ' + sourceLabel : ''))
+      : '将自动生成口播脚本';
+    body.appendChild(hint);
+    card.appendChild(body);
+
+    var action = iconButton(
+      hasScript ? '更换' : '选择脚本',
+      hasScript ? 'fa-repeat' : 'fa-plus',
+      hasScript ? '更换口播脚本' : '选择口播脚本',
+      function () { navigate('#/scripts'); }
+    );
+    action.className += ' studio-create__voice-action';
+    card.appendChild(action);
+
+    container.innerHTML = '';
+    container.appendChild(card);
+  }
+
+  // ═══════════════════════════════════════════════════════════════════
   //  表单选项（对齐 pipeline 契约枚举）
   // ═══════════════════════════════════════════════════════════════════
 
@@ -249,6 +309,7 @@
     }
 
     var voice = selectedVoice();
+    var script = selectedScript();
 
     var body = {
       imageUrl: imageUrl,
@@ -259,6 +320,7 @@
       productName: optionalText(fieldValue('createProductName'))
     };
     if (voice && voice.id != null) body.voiceId = voice.id;
+    if (script && script.id != null) body.scriptId = script.id;
 
     if (task) task.isSubmitting = true;
     setSubmitLoading(true);
@@ -328,6 +390,14 @@
 
         '<section class="studio-create__section">' +
           '<div class="studio-create__section-head">' +
+            '<h2 class="studio-create__section-title">口播脚本</h2>' +
+            '<span class="studio-create__section-hint">可选</span>' +
+          '</div>' +
+          '<div class="studio-create__script"></div>' +
+        '</section>' +
+
+        '<section class="studio-create__section">' +
+          '<div class="studio-create__section-head">' +
             '<h2 class="studio-create__section-title">口播信息</h2>' +
           '</div>' +
           '<form class="studio-form studio-create__form" id="studio-create-form" novalidate>' +
@@ -367,6 +437,7 @@
     bindEvents();
     renderAvatarSummary();
     renderVoiceSummary();
+    renderScriptSummary();
     syncSubmit();
   }
 
@@ -378,6 +449,7 @@
   function cacheEls() {
     els.avatar = document.querySelector('#studio-main .studio-create__avatar');
     els.voice = document.querySelector('#studio-main .studio-create__voice');
+    els.script = document.querySelector('#studio-main .studio-create__script');
     els.form = document.getElementById('studio-create-form');
     els.submit = document.getElementById('studio-create-submit');
   }

@@ -153,7 +153,7 @@ function getOptional(key, defaultValue) {
 const DASHSCOPE_API_KEY = getRequired('DASHSCOPE_API_KEY', 'DashScope API Key');
 const DASHSCOPE_ENDPOINT = getOptional('DASHSCOPE_ENDPOINT', 'https://dashscope.aliyuncs.com');
 const DASHSCOPE_BASE_URL = getOptional('DASHSCOPE_BASE_URL', DASHSCOPE_ENDPOINT);
-const DASHSCOPE_VIDEO_MODEL = getOptional('DASHSCOPE_VIDEO_MODEL', 'wanx2.1-i2v-turbo');
+const DASHSCOPE_VIDEO_MODEL = getOptional('DASHSCOPE_VIDEO_MODEL', 'happyhorse-1.1-i2v');
 const DASHSCOPE_REQUEST_TIMEOUT = parseInt(getOptional('DASHSCOPE_REQUEST_TIMEOUT', '30000'));
 const DASHSCOPE_CALLBACK_SECRET = getOptional('DASHSCOPE_CALLBACK_SECRET', '');
 

@@ -169,12 +169,23 @@ exports.execute = async (req, res) => {
       voice_id,
       resolution,
       duration,
-      product_name
+      product_name,
+      script_id
     } = req.body;
 
     // ── 1. 参数校验 ────────────────────────────────────────────────
     if (!image_url || typeof image_url !== 'string' || !image_url.trim()) {
       return res.fail('产品图片URL不能为空', 400);
+    }
+
+    // ── script_id 可选校验（提供则须正整数；不提供保持原自动生成流程）──
+    let scriptId = null;
+    if (script_id != null && script_id !== '') {
+      const parsedScriptId = parseInt(script_id, 10);
+      if (isNaN(parsedScriptId) || parsedScriptId <= 0) {
+        return res.fail('无效的脚本 ID', 400);
+      }
+      scriptId = parsedScriptId;
     }
 
     // ── 2. 构造 inputParams ────────────────────────────────────────
@@ -186,7 +197,8 @@ exports.execute = async (req, res) => {
       voice_id: voice_id || null,
       resolution: resolution || null,
       duration: duration || null,
-      product_name: product_name || null
+      product_name: product_name || null,
+      script_id: scriptId || null
     };
 
     // ── 3. 创建 PipelineTask ───────────────────────────────────────
@@ -201,6 +213,7 @@ exports.execute = async (req, res) => {
       `resolution=${resolution || 'N/A'} | ` +
       `duration=${duration || 'N/A'} | ` +
       `product_name=${product_name || 'N/A'} | ` +
+      `has_script_id=${!!scriptId} | ` +
       `time=${new Date().toISOString()}`
     );
 
@@ -711,6 +724,73 @@ exports.getPipelineErrors = async (req, res) => {
     );
 
     if (error.name === 'ProviderError') {
+      const isInternalFailure =
+        error.provider === 'system' &&
+        typeof error.code === 'string' &&
+        error.code.endsWith('_FAILED');
+      return res.fail(
+        isInternalFailure ? '服务器内部错误' : error.message,
+        error.statusCode || 500
+      );
+    }
+
+    return res.fail('服务器内部错误', 500);
+  }
+};
+
+// ═══════════════════════════════════════════════════════════════════════
+//  API 7: DELETE /api/enterprise/pipelines/:id — 删除 PipelineTask（Step5-G1.1：删除 = 终止）
+// ═══════════════════════════════════════════════════════════════════════
+
+/**
+ * 删除流水线任务（企业隔离；进行中任务删除即终止后台执行）
+ *
+ * 路径参数:
+ *   id - PipelineTask 主键 ID
+ *
+ * 返回:
+ *   { id, status, deleted_at }
+ *   - 非终态任务删除 → status='cancelled'（文案「任务已终止」）
+ *   - 终态任务删除 → 原 status 不变（文案「删除成功」）
+ */
+exports.remove = async (req, res) => {
+  try {
+    const enterpriseId = req.user.enterpriseId;
+    const pipelineId = req.params.id;
+
+    // ── 1. 参数校验 ────────────────────────────────────────────────
+    const id = parseInt(pipelineId);
+    if (!id || isNaN(id) || id <= 0) {
+      return res.fail('无效的 Pipeline ID', 400);
+    }
+
+    // ── 2. 软删除 + 终止（企业隔离；不存在/他企业/已删除均 404，不泄露存在性）─
+    console.log(
+      `[PipelineController] remove REQUEST | ` +
+      `pipelineId=${id} | enterpriseId=${enterpriseId} | ` +
+      `time=${new Date().toISOString()}`
+    );
+
+    const deleted = await pipelineTaskService.softDeletePipelineTask(id, enterpriseId);
+
+    const terminated = deleted.status === 'cancelled';
+    return res.success(
+      { id: deleted.id, status: deleted.status, deleted_at: deleted.deleted_at },
+      terminated ? '任务已终止' : '删除成功'
+    );
+
+  } catch (error) {
+    console.error(
+      `[PipelineController] remove ERROR | ` +
+      `name=${error.name || 'Unknown'} | ` +
+      `message=${error.message || '(no message)'} | ` +
+      `time=${new Date().toISOString()}`
+    );
+
+    if (error.name === 'ProviderError') {
+      if (error.code === 'NOT_FOUND') {
+        return res.fail('流水线任务不存在', 404);
+      }
       const isInternalFailure =
         error.provider === 'system' &&
         typeof error.code === 'string' &&

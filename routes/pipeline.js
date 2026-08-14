@@ -31,4 +31,8 @@ router.get('/:id/timeline', controller.getPipelineTimeline);
 //      返回 { pipeline_id, error: {...} | null }
 router.get('/:id/errors', controller.getPipelineErrors);
 
+// DELETE /api/enterprise/pipelines/:id — 软删除流水线任务（企业隔离；进行中任务同样允许）
+//      返回 { id, deleted_at }
+router.delete('/:id', controller.remove);
+
 module.exports = router;

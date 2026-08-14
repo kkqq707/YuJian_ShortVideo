@@ -31,6 +31,7 @@ const generationService = require('./generationService');
 const pipelineTaskService = require('./pipelineTaskService');
 const pipelineAssetService = require('./pipelineAssetService');
 const pipelineObservabilityService = require('./pipelineObservabilityService');
+const scriptService = require('./scriptService');
 const { PipelineTask } = require('../models');
 
 // 关键节点事件名（唯一事实来源）
@@ -108,17 +109,36 @@ class PipelineOrchestrator {
     try {
       // ── 4. 串行执行四阶段 ──────────────────────────────────────────
 
+      // Step5-G1.1：每层之间检查取消标记（删除 = 终止）。
+      // 命中即提前 return（不 markFailed），后续步骤禁止继续。
+      // 检查点1：覆盖「删除落在 create 与首次 updateStatus 之间」。
+      if (await this._isCancelled(pipelineId)) {
+        return this._cancelled(pipelineId, 'before-vision');
+      }
+
       // Layer 1: Vision
       const visionResult = await this.executeVision(pipelineId, task, inputParams);
+      if (await this._isCancelled(pipelineId)) {
+        return this._cancelled(pipelineId, 'after-vision');
+      }
 
       // Layer 2: Script
       const scriptResult = await this.executeScript(pipelineId, task, inputParams, visionResult);
+      if (await this._isCancelled(pipelineId)) {
+        return this._cancelled(pipelineId, 'after-script');
+      }
 
       // Layer 3: TTS
       const ttsResult = await this.executeTTS(pipelineId, task, inputParams, scriptResult);
+      if (await this._isCancelled(pipelineId)) {
+        return this._cancelled(pipelineId, 'after-tts');
+      }
 
       // Layer 4: DigitalHuman
       const dhResult = await this.executeDigitalHuman(pipelineId, task, inputParams, ttsResult);
+      if (await this._isCancelled(pipelineId)) {
+        return this._cancelled(pipelineId, 'after-dh');
+      }
 
       // ── 5. 成功 ───────────────────────────────────────────────────
       await pipelineTaskService.updateStatus(pipelineId, 'success', {
@@ -157,6 +177,45 @@ class PipelineOrchestrator {
 
       throw error;
     }
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════
+  //  取消检查（Step5-G1.1：删除 = 立即终止，不新增状态/字段，不重构四层）
+  // ═══════════════════════════════════════════════════════════════════════
+
+  /**
+   * 检查流水线是否已被取消（删除 = 终止后 pipelineTaskService 已置 status='cancelled'）
+   *
+   * @param {number} pipelineId — PipelineTask 主键 ID
+   * @returns {Promise<boolean>} true 表示已取消
+   */
+  async _isCancelled(pipelineId) {
+    try {
+      return await pipelineTaskService.isCancelled(pipelineId);
+    } catch (err) {
+      // 读失败按「未取消」处理，避免误杀
+      console.warn(
+        `[PipelineOrchestrator] _isCancelled check FAILED (treated as not-cancelled) | ` +
+        `pipelineId=${pipelineId} | error=${err.message}`
+      );
+      return false;
+    }
+  }
+
+  /**
+   * 构造取消结果（提前 return，不调用 markFailed，避免覆盖 cancelled 为 failed）
+   *
+   * @param {number} pipelineId — PipelineTask 主键 ID
+   * @param {string} reason     — 命中位置（before-vision / after-*）
+   * @returns {{ status: string, pipelineId: number }}
+   */
+  _cancelled(pipelineId, reason) {
+    console.log(
+      `[PipelineOrchestrator] executePipeline CANCELLED | ` +
+      `pipelineId=${pipelineId} | reason=${reason} | ` +
+      `time=${new Date().toISOString()}`
+    );
+    return { status: 'cancelled', pipelineId };
   }
 
   // ═══════════════════════════════════════════════════════════════════════
@@ -272,6 +331,53 @@ class PipelineOrchestrator {
         current_layer: layer
       });
 
+      // ── Step5-F1 复用分支：有 script_id → 加载已落库 ScriptRecord 复用 ──
+      if (inputParams.script_id) {
+        const record = await scriptService.getScript(inputParams.script_id, task.enterprise_id);
+        if (!record) {
+          throw new Error('脚本不存在或已被删除');
+        }
+        if (!record.full_script || !String(record.full_script).trim()) {
+          throw new Error('脚本内容为空');
+        }
+
+        const result = this._mapScriptRecordToResult(record);
+
+        const intermediateData = {
+          ...result,
+          generationTaskId: null,
+          scriptRecordId: record.id,
+          source: 'script_record',
+          completedAt: new Date().toISOString()
+        };
+
+        await pipelineTaskService.saveIntermediateResult(pipelineId, layer, intermediateData);
+
+        // 回填 PipelineTask.script_record_id（仿 dh_task_id 回填，禁止直接 SQL）
+        const pipelineTaskRecord = await PipelineTask.findByPk(pipelineId);
+        if (pipelineTaskRecord) {
+          await pipelineTaskRecord.update({ script_record_id: record.id });
+          console.log(
+            `[PipelineOrchestrator] script_record_id backfilled | ` +
+            `pipelineId=${pipelineId} | script_record_id=${record.id} | ` +
+            `time=${new Date().toISOString()}`
+          );
+        }
+
+        await pipelineTaskService.updateProgress(pipelineId, 50);
+
+        console.log(
+          `[PipelineOrchestrator] Layer SUCCESS | ` +
+          `pipelineId=${pipelineId} | layer=${layer} | ` +
+          `Script REUSED scriptId=${record.id} | ` +
+          `estimatedDuration=${result.estimatedDuration}s | ` +
+          `totalWords=${result.totalWords} | ` +
+          `time=${new Date().toISOString()}`
+        );
+
+        return intermediateData;
+      }
+
       // ── 2. 调用 generationService.generateScript ─────────────────
       const scriptParams = {
         enterpriseId: task.enterprise_id,
@@ -327,6 +433,37 @@ class PipelineOrchestrator {
       await pipelineTaskService.markFailed(pipelineId, layer, errorMsg);
       throw error;
     }
+  }
+
+  /**
+   * Step5-F1: ScriptRecord → ScriptResult 形状映射（复用分支唯一新增映射逻辑）
+   *
+   * 下游契约：executeTTS 只读 fullText；本层日志读 estimatedDuration/totalWords。
+   * fullText 恒以 full_script 为准；structured_script 解析失败降级 segments=[]、style=null。
+   *
+   * @param {Object} record — ScriptRecord Sequelize instance
+   * @returns {Object} { title, fullText, segments, totalWords, estimatedDuration, style }
+   */
+  _mapScriptRecordToResult(record) {
+    let structured = null;
+    try {
+      if (record.structured_script) {
+        structured = typeof record.structured_script === 'string'
+          ? JSON.parse(record.structured_script)
+          : record.structured_script;
+      }
+    } catch (_) {
+      structured = null;
+    }
+
+    return {
+      title: record.title != null ? record.title : null,
+      fullText: record.full_script != null ? record.full_script : '',
+      segments: (structured && Array.isArray(structured.segments)) ? structured.segments : [],
+      totalWords: record.total_words != null ? record.total_words : 0,
+      estimatedDuration: record.estimated_duration != null ? record.estimated_duration : 0,
+      style: (structured && structured.style != null) ? structured.style : null
+    };
   }
 
   // ═══════════════════════════════════════════════════════════════════════

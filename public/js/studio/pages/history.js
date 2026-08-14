@@ -3,18 +3,19 @@
  *
  * Phase DigitalHuman-Rebuild-004 Step5-D4
  *
- * 职责：历史作品页面（纯组装层）—— 已完成作品（status=success）的列表展示。
+ * 职责：历史作品页面（纯组装层）—— 已完成作品（status=success）的列表展示 + 软删除。
  *   - 只展示 status=success（后端 status 过滤，天然排除 cancelled/failed/生成中）
  *   - 排序接受后端 created_at DESC，不加 completed_at 排序参数
  *   - 作品卡片整卡点击 → #/tasks/:id 查看详情（首版不直接展示视频 URL/成品播放）
+ *   - 卡片内「删除」按钮 + 确认 Modal → 复用 api.pipeline.remove → 成功重拉列表
  *
  * 数据边界（严格遵守，违规即返工）：
  *   ❌ 不直接 fetch / 不拼 URL / 不自己 catch 映射文案（一切经 api + state.load.*）
  *   ❌ 不写 cache 内部字段（列表数据只经 state.load.pipelines 写入）
- *   ❌ 不写 selection / task（history 只读展示，不产生业务选择态/提交态）
- *   ❌ 不新增组件（复用 list/emptyState/loading/errorPanel + 复用 pipeline 的 statusBadge）
+ *   ❌ 不写 selection / task（删除为瞬时动作，不产生业务选择态/提交态）
+ *   ❌ 不新增组件（复用 list/emptyState/loading/errorPanel + pipeline 的 statusBadge + toast/modal）
  *   ❌ 不渲染 pipeline progress（进度属详情页能力，历史卡片只展示状态徽章 + 时间）
- *   ❌ 不新增 historyState / historyCache / mock 数据 / History API
+ *   ❌ 不新增 historyState / historyCache / mock 数据 / History API（删除复用 pipeline.remove）
  *   ✅ vanilla JS + IIFE + window.YJ，暴露 render(params)/init(params)/destroy()
  */
 (function () {
@@ -29,6 +30,8 @@
   var api = (YJ.studio && YJ.studio.api) || {};
   var components = (YJ.studio && YJ.studio.components) || {};
   var router = (YJ.studio && YJ.studio.router) || {};
+  var toast = (YJ.components && YJ.components.toast) || {};
+  var modal = (YJ.components && YJ.components.modal) || {};
   // 复用 pipeline 展示组件（状态徽章，保证与 #/tasks、#/tasks/:id 全站一致）
   var pipelineStatusBadge = (YJ.components && YJ.components.pipeline && YJ.components.pipeline.statusBadge) || {};
 
@@ -37,6 +40,7 @@
   var DEFAULT_PAGE_SIZE = 20;
 
   // ── 页面闭包瞬时状态（destroy 释放，不写 state）──
+  var deleteBusy = false; // 删除进行中（防重复提交）
   var els = {};
 
   // ═══════════════════════════════════════════════════════════════════
@@ -197,6 +201,7 @@
       badgeWrap.textContent = statusMeta.label || '未知';
     }
     head.appendChild(badgeWrap);
+    head.appendChild(deleteActionButton(item));
     body.appendChild(head);
 
     var metaText = timeMetaText(item);
@@ -211,6 +216,7 @@
 
     card.addEventListener('click', function () { navigate('#/tasks/' + item.id); });
     card.addEventListener('keydown', function (e) {
+      if (e.target !== card) return; // 忽略内部按钮（删除）的键盘事件，仅整卡触发跳转
       if (e.key === 'Enter' || e.key === ' ') {
         e.preventDefault();
         navigate('#/tasks/' + item.id);
@@ -244,6 +250,127 @@
   }
 
   // ═══════════════════════════════════════════════════════════════════
+  //  删除（软删除 + 确认 Modal，复用 YJ.components.modal/toast 与 pipeline.remove）
+  // ═══════════════════════════════════════════════════════════════════
+
+  function escapeHtml(value) {
+    if (value == null) return '';
+    return String(value)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+  }
+
+  function errorMessage(err, fallback) {
+    if (!err) return fallback;
+    if (err.friendlyMessage) return err.friendlyMessage;
+    if (err.message) return err.message;
+    return fallback;
+  }
+
+  /** 卡片内删除按钮（stopPropagation 隔离整卡跳转） */
+  function deleteActionButton(item) {
+    var btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'yj-btn yj-btn-secondary yj-btn-sm';
+    btn.setAttribute('aria-label', '删除作品「' + productName(item) + '」');
+    var icon = document.createElement('i');
+    icon.className = 'fas fa-trash';
+    icon.setAttribute('aria-hidden', 'true');
+    var text = document.createElement('span');
+    text.textContent = '删除';
+    btn.appendChild(icon);
+    btn.appendChild(text);
+    btn.addEventListener('click', function (e) {
+      e.stopPropagation();
+      confirmDelete(item);
+    });
+    return btn;
+  }
+
+  function getConfirmBtn() {
+    return document.getElementById('modalConfirmBtn');
+  }
+
+  function resetConfirmButton() {
+    var btn = getConfirmBtn();
+    if (!btn) return;
+    btn.disabled = false;
+    btn.classList.remove('yj-btn-loading');
+  }
+
+  function setConfirmLoading(loading) {
+    var btn = getConfirmBtn();
+    if (!btn) return;
+    btn.disabled = loading;
+    if (loading) btn.classList.add('yj-btn-loading');
+    else btn.classList.remove('yj-btn-loading');
+  }
+
+  function ensureCancelButton() {
+    var footer = document.getElementById('modalFooter');
+    if (!footer) return;
+    if (footer.querySelector('.studio-modal-cancel')) return;
+    var cancel = document.createElement('button');
+    cancel.type = 'button';
+    cancel.className = 'yj-btn yj-btn-secondary studio-modal-cancel';
+    cancel.textContent = '取消';
+    cancel.addEventListener('click', function () { modal.close(); });
+    var confirm = getConfirmBtn();
+    footer.insertBefore(cancel, confirm);
+  }
+
+  function openPageModal(opts) {
+    if (!modal.open) return;
+    modal.open({
+      title: opts.title,
+      content: opts.content,
+      confirmText: opts.confirmText || '确认',
+      confirmClass: opts.confirmClass || 'yj-btn yj-btn-primary',
+      onConfirm: opts.onConfirm,
+      onClose: opts.onClose
+    });
+    resetConfirmButton();
+    ensureCancelButton();
+  }
+
+  function confirmDelete(item) {
+    openPageModal({
+      title: '删除作品',
+      content: '<p class="studio-confirm-text">确定要删除作品「' + escapeHtml(productName(item)) + '」吗？删除后将从列表隐藏。</p>',
+      confirmText: '删除',
+      confirmClass: 'yj-btn yj-btn-danger',
+      onConfirm: function () {
+        if (deleteBusy) return false;
+        submitDelete(item);
+        return false;
+      }
+    });
+  }
+
+  function submitDelete(item) {
+    deleteBusy = true;
+    setConfirmLoading(true);
+
+    api.pipeline.remove(item.id).then(function () {
+      if (toast.success) toast.success('作品已删除');
+      modal.close();
+      refreshList();
+    }).catch(function (err) {
+      if (toast.error) toast.error(errorMessage(err, '删除失败，请重试'));
+      deleteBusy = false;
+      setConfirmLoading(false);
+    });
+  }
+
+  function refreshList() {
+    deleteBusy = false;
+    loadPage();
+  }
+
+  // ═══════════════════════════════════════════════════════════════════
   //  生命周期（render 纯字符串 / init 绑定+触发加载 / destroy 释放闭包态）
   // ═══════════════════════════════════════════════════════════════════
 
@@ -271,6 +398,7 @@
   function destroy() {
     // 页面 DOM 由 router 整体替换，节点级监听随 DOM 释放；此处仅清引用与闭包瞬时态
     els = {};
+    deleteBusy = false;
   }
 
   YJ.studio.pages.history = {

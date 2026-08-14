@@ -3,16 +3,17 @@
  *
  * Phase DigitalHuman-Rebuild-004 Step5-D4
  *
- * 职责：生成任务页面（纯组装层）—— Pipeline 生成任务的列表展示 + 状态查看。
+ * 职责：生成任务页面（纯组装层）—— Pipeline 生成任务的列表展示 + 状态查看 + 软删除。
  *   - 状态过滤（全部 / 生成中 / 已完成 / 失败 四档，映射到 pipeline status 入参）
  *   - 分页（复用 list 组件分页 + load.pipelines({page})）
  *   - 列表项点击 → #/tasks/:id；空态 → #/create
+ *   - 卡片内「删除」按钮 + 确认 Modal → api.pipeline.remove → 成功重拉列表（软删除，不打断后台）
  *
  * 数据边界（严格遵守，违规即返工）：
  *   ❌ 不直接 fetch / 不拼 URL / 不自己 catch 映射文案（一切经 api + state.load.*）
  *   ❌ 不写 cache 内部字段（列表数据只经 state.load.pipelines 写入）
- *   ❌ 不写 selection / task（tasks 只读展示，不产生业务选择态/提交态）
- *   ❌ 不新增组件（复用 list/emptyState/loading/errorPanel + 复用 pipeline 的 statusBadge/progress）
+ *   ❌ 不写 selection / task（删除为瞬时动作，不产生业务选择态/提交态）
+ *   ❌ 不新增组件（复用 list/emptyState/loading/errorPanel + pipeline 的 statusBadge/progress + toast/modal）
  *   ❌ 不做详情轮询 / 不创建任务 / 不执行任务（委托 #/tasks/:id、#/create）
  *   ✅ vanilla JS + IIFE + window.YJ，暴露 render(params)/init(params)/destroy()
  */
@@ -28,6 +29,8 @@
   var api = (YJ.studio && YJ.studio.api) || {};
   var components = (YJ.studio && YJ.studio.components) || {};
   var router = (YJ.studio && YJ.studio.router) || {};
+  var toast = (YJ.components && YJ.components.toast) || {};
+  var modal = (YJ.components && YJ.components.modal) || {};
   // 复用 pipeline 展示组件（状态徽章/进度，保证与 #/tasks/:id 全站一致）
   var pipelineStatusBadge = (YJ.components && YJ.components.pipeline && YJ.components.pipeline.statusBadge) || {};
   var pipelineProgress = (YJ.components && YJ.components.pipeline && YJ.components.pipeline.progress) || {};
@@ -46,6 +49,7 @@
 
   // ── 页面闭包瞬时状态（destroy 释放，不写 state）──
   var activeFilter = DEFAULT_FILTER;
+  var deleteBusy = false; // 删除进行中（防重复提交）
   var els = {};
 
   // ═══════════════════════════════════════════════════════════════════
@@ -212,6 +216,7 @@
       badgeWrap.textContent = statusMeta.label || '未知';
     }
     head.appendChild(badgeWrap);
+    head.appendChild(deleteActionButton(item));
     body.appendChild(head);
 
     var progressWrap = document.createElement('div');
@@ -233,6 +238,7 @@
 
     card.addEventListener('click', function () { navigate('#/tasks/' + item.id); });
     card.addEventListener('keydown', function (e) {
+      if (e.target !== card) return; // 忽略内部按钮（删除）的键盘事件，仅整卡触发跳转
       if (e.key === 'Enter' || e.key === ' ') {
         e.preventDefault();
         navigate('#/tasks/' + item.id);
@@ -263,6 +269,128 @@
       media.appendChild(ph);
     }
     return media;
+  }
+
+  // ═══════════════════════════════════════════════════════════════════
+  //  删除（软删除 + 确认 Modal，复用 YJ.components.modal/toast）
+  // ═══════════════════════════════════════════════════════════════════
+
+  function escapeHtml(value) {
+    if (value == null) return '';
+    return String(value)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+  }
+
+  function errorMessage(err, fallback) {
+    if (!err) return fallback;
+    if (err.friendlyMessage) return err.friendlyMessage;
+    if (err.message) return err.message;
+    return fallback;
+  }
+
+  /** 卡片内删除按钮（stopPropagation 隔离整卡跳转） */
+  function deleteActionButton(item) {
+    var btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'yj-btn yj-btn-secondary yj-btn-sm';
+    btn.setAttribute('aria-label', '删除任务「' + productName(item) + '」');
+    var icon = document.createElement('i');
+    icon.className = 'fas fa-trash';
+    icon.setAttribute('aria-hidden', 'true');
+    var text = document.createElement('span');
+    text.textContent = '删除';
+    btn.appendChild(icon);
+    btn.appendChild(text);
+    btn.addEventListener('click', function (e) {
+      e.stopPropagation();
+      confirmDelete(item);
+    });
+    return btn;
+  }
+
+  function getConfirmBtn() {
+    return document.getElementById('modalConfirmBtn');
+  }
+
+  function resetConfirmButton() {
+    var btn = getConfirmBtn();
+    if (!btn) return;
+    btn.disabled = false;
+    btn.classList.remove('yj-btn-loading');
+  }
+
+  function setConfirmLoading(loading) {
+    var btn = getConfirmBtn();
+    if (!btn) return;
+    btn.disabled = loading;
+    if (loading) btn.classList.add('yj-btn-loading');
+    else btn.classList.remove('yj-btn-loading');
+  }
+
+  function ensureCancelButton() {
+    var footer = document.getElementById('modalFooter');
+    if (!footer) return;
+    if (footer.querySelector('.studio-modal-cancel')) return;
+    var cancel = document.createElement('button');
+    cancel.type = 'button';
+    cancel.className = 'yj-btn yj-btn-secondary studio-modal-cancel';
+    cancel.textContent = '取消';
+    cancel.addEventListener('click', function () { modal.close(); });
+    var confirm = getConfirmBtn();
+    footer.insertBefore(cancel, confirm);
+  }
+
+  function openPageModal(opts) {
+    if (!modal.open) return;
+    modal.open({
+      title: opts.title,
+      content: opts.content,
+      confirmText: opts.confirmText || '确认',
+      confirmClass: opts.confirmClass || 'yj-btn yj-btn-primary',
+      onConfirm: opts.onConfirm,
+      onClose: opts.onClose
+    });
+    resetConfirmButton();
+    ensureCancelButton();
+  }
+
+  function confirmDelete(item) {
+    openPageModal({
+      title: '删除任务',
+      content: '<p class="studio-confirm-text">确定要删除任务「' + escapeHtml(productName(item)) + '」吗？进行中的任务将立即终止。</p>',
+      confirmText: '删除',
+      confirmClass: 'yj-btn yj-btn-danger',
+      onConfirm: function () {
+        if (deleteBusy) return false;
+        submitDelete(item);
+        return false;
+      }
+    });
+  }
+
+  function submitDelete(item) {
+    deleteBusy = true;
+    setConfirmLoading(true);
+
+    api.pipeline.remove(item.id).then(function (result) {
+      var terminated = !!(result && result.status === 'cancelled');
+      if (toast.success) toast.success(terminated ? '任务已终止' : '任务已删除');
+      modal.close();
+      refreshList();
+    }).catch(function (err) {
+      if (toast.error) toast.error(errorMessage(err, '删除失败，请重试'));
+      deleteBusy = false;
+      setConfirmLoading(false);
+    });
+  }
+
+  function refreshList() {
+    deleteBusy = false;
+    loadPage(activeFilter);
   }
 
   // ═══════════════════════════════════════════════════════════════════
@@ -348,6 +476,7 @@
     // 页面 DOM 由 router 整体替换，节点级监听随 DOM 释放；此处仅清引用与闭包瞬时态
     els = {};
     activeFilter = DEFAULT_FILTER;
+    deleteBusy = false;
   }
 
   YJ.studio.pages.tasks = {

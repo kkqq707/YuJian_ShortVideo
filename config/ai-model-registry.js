@@ -151,7 +151,7 @@ const models = {
     provider: 'aliyun',
     capability: CAPABILITY.IMAGE_TO_VIDEO,
     outputType: 'video',
-    apiModelName: 'wan2.7-i2v',
+    apiModelName: 'wan2.7-i2v-2026-04-25',
 
     description: 'Wan2.7 图生视频模型，更高画质与动态表现，将静态图片转换为高质量动态视频',
     category: 'video',
@@ -184,7 +184,7 @@ const models = {
     provider: 'aliyun',
     capability: CAPABILITY.TEXT_TO_VIDEO,
     outputType: 'video',
-    apiModelName: 'wan2.7-t2v',
+    apiModelName: 'wan2.7-t2v-2026-06-12',
 
     description: 'Wan2.7 文生视频模型（基础版），快速出片，适合日常创意视频',
     category: 'video',
@@ -248,7 +248,7 @@ const models = {
     provider: 'aliyun',
     capability: CAPABILITY.REFERENCE_TO_VIDEO,
     outputType: 'video',
-    apiModelName: 'wan2.7-r2v',
+    apiModelName: 'wan2.7-r2v-2026-06-12',
 
     description: 'Wan2.7 参考生视频模型（基础版），多图参考快速生成视频',
     category: 'video',

@@ -158,7 +158,8 @@ class PipelineTaskService {
       const task = await PipelineTask.findOne({
         where: {
           id,
-          enterprise_id: enterpriseId
+          enterprise_id: enterpriseId,
+          deleted_at: null
         }
       });
 
@@ -200,7 +201,8 @@ class PipelineTaskService {
       const task = await PipelineTask.findOne({
         where: {
           pipeline_uuid: uuid,
-          enterprise_id: enterpriseId
+          enterprise_id: enterpriseId,
+          deleted_at: null
         }
       });
 
@@ -687,6 +689,111 @@ class PipelineTaskService {
         `Failed to list PipelineTasks: ${error.message}`,
         false, null, error
       );
+    }
+  }
+
+  // ───────────────────────────────────────────────────────────────────
+  // 10. 软删除 PipelineTask
+  // ───────────────────────────────────────────────────────────────────
+
+  /**
+   * 软删除 PipelineTask（Step5-G1.1：删除 = 立即终止）
+   *
+   * 语义升级：删除进行中任务不再只是「隐藏」，而是同时终止后台执行。
+   *   - 非终态（pending / running / vision / script / tts / digital_human）
+   *     → 置 status='cancelled' + completed_at + deleted_at（pipelineOrchestrator 层间检查据此停止）
+   *   - 终态（success / failed / cancelled）→ 仅置 deleted_at（无「终止」语义，History 成功作品删除走此分支）
+   *
+   * 仍遵守软删除惯例：不物理删除 / 不删关联记录 / 不删 OSS。
+   *
+   * @param {number} id           — PipelineTask 主键 ID
+   * @param {number} enterpriseId — 企业 ID（隔离校验）
+   * @returns {Promise<Object>} 软删除后的 PipelineTask instance（含最新 status）
+   */
+  async softDeletePipelineTask(id, enterpriseId) {
+    if (!id) {
+      throw new ProviderError('system', 'VALIDATION', 'PipelineTask ID is required', false);
+    }
+    if (!enterpriseId) {
+      throw new ProviderError('system', 'VALIDATION', 'Enterprise ID is required', false);
+    }
+
+    // 终态集合：已完成/已失败/已取消 —— 删除不再叠加取消语义
+    const TERMINAL_STATUSES = ['success', 'failed', 'cancelled'];
+
+    try {
+      const task = await PipelineTask.findOne({
+        where: { id, enterprise_id: enterpriseId, deleted_at: null }
+      });
+      if (!task) {
+        throw new ProviderError(
+          'system', 'NOT_FOUND',
+          `PipelineTask id=${id} not found`,
+          false
+        );
+      }
+
+      // ── 删除 = 终止：非终态任务同时标记 cancelled ────────────────
+      const prevStatus = task.status;
+      const isTerminal = TERMINAL_STATUSES.includes(prevStatus);
+      const updateFields = { deleted_at: new Date() };
+      if (!isTerminal) {
+        updateFields.status = 'cancelled';
+        updateFields.completed_at = new Date();
+      }
+
+      await task.update(updateFields);
+
+      console.log(
+        `[PipelineTaskService] PipelineTask soft-deleted | ` +
+        `id=${id} | enterpriseId=${enterpriseId} | ` +
+        `prevStatus=${prevStatus} | terminated=${!isTerminal} | ` +
+        `time=${new Date().toISOString()}`
+      );
+
+      return task;
+    } catch (error) {
+      if (error instanceof ProviderError) throw error;
+
+      console.error(
+        `[PipelineTaskService] softDeletePipelineTask FAILED | ` +
+        `id=${id} | enterpriseId=${enterpriseId} | ` +
+        `error=${error.message} | time=${new Date().toISOString()}`
+      );
+      throw new ProviderError(
+        'system', 'DELETE_FAILED',
+        `Failed to soft-delete PipelineTask: ${error.message}`,
+        false, null, error
+      );
+    }
+  }
+
+  // ───────────────────────────────────────────────────────────────────
+  // 11. 取消状态读取（Step5-G1.1）
+  // ───────────────────────────────────────────────────────────────────
+
+  /**
+   * 判断 PipelineTask 是否已被取消（删除 = 终止后置 status='cancelled'）
+   *
+   * 注意：查询按 id 直查、不过滤 deleted_at —— 必须能读到「已软删除且已取消」的行，
+   * 以便 pipelineOrchestrator 在层间检查时捕获取消并停止后续步骤。
+   *
+   * @param {number} id — PipelineTask 主键 ID
+   * @returns {Promise<boolean>} true 表示已取消（status === 'cancelled'）
+   */
+  async isCancelled(id) {
+    if (!id) return false;
+
+    try {
+      const task = await PipelineTask.findOne({ where: { id } });
+      return !!(task && task.status === 'cancelled');
+    } catch (error) {
+      // 读失败按「未取消」处理，避免误杀正在运行的任务；上层主流程自然推进或失败
+      console.warn(
+        `[PipelineTaskService] isCancelled read FAILED (treated as not-cancelled) | ` +
+        `id=${id} | error=${error.message} | time=${new Date().toISOString()}`
+      );
+      return false;
     }
   }
 }

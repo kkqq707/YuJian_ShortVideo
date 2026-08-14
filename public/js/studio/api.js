@@ -445,7 +445,8 @@
         voice_id: body.voiceId,
         resolution: body.resolution,
         duration: body.duration,
-        product_name: body.productName
+        product_name: body.productName,
+        script_id: body.scriptId
       };
       return YuJianAPI.post('/enterprise/pipelines/execute', payload)
         .then(normalizePipelineExecute)
@@ -468,6 +469,21 @@
           page: data.page != null ? data.page : 1,
           pageSize: data.pageSize != null ? data.pageSize : 20,
           items: (data.items || []).map(normalizePipelineListItem)
+        };
+      }).catch(function (err) { throw handleError(err); });
+    },
+
+    /**
+     * 删除流水线任务（Step5-G1.1：删除 = 终止；History 复用同一能力，不另开接口）
+     * 返回 status 供页面区分「终止」与「删除」文案（cancelled = 进行中任务被终止）。
+     */
+    remove: function (id) {
+      return YuJianAPI.request('/enterprise/pipelines/' + id, { method: 'DELETE' }).then(function (data) {
+        data = data || {};
+        return {
+          id: data.id != null ? data.id : null,
+          status: data.status != null ? data.status : null,
+          deletedAt: data.deleted_at != null ? data.deleted_at : null
         };
       }).catch(function (err) { throw handleError(err); });
     }
