@@ -47,21 +47,25 @@
     window.location.href = 'index.html';
   }
 
+  /** 解析 location.hash → 当前 page（不依赖 router 内部 current 状态时序） */
+  function currentPage() {
+    if (!YJ.studio.router || typeof YJ.studio.router.resolve !== 'function') {
+      return null;
+    }
+    return YJ.studio.router.resolve(location.hash).page;
+  }
+
   /** 同步顶栏标题 */
   function syncTitle() {
     if (!els.title) return;
-    var page = (YJ.studio.router && typeof YJ.studio.router.getCurrent === 'function')
-      ? YJ.studio.router.getCurrent().page
-      : null;
+    var page = currentPage();
     els.title.textContent = PAGE_TITLES[page] || DEFAULT_TITLE;
   }
 
   /** 同步侧边导航激活态 */
   function syncNav() {
     if (!els.nav) return;
-    var page = (YJ.studio.router && typeof YJ.studio.router.getCurrent === 'function')
-      ? YJ.studio.router.getCurrent().page
-      : null;
+    var page = currentPage();
     var items = els.nav.querySelectorAll('.studio-nav__item[data-route]');
     for (var i = 0; i < items.length; i++) {
       var active = items[i].getAttribute('data-route') === page;
@@ -103,8 +107,18 @@
     els.logout = document.getElementById('studio-logout');
   }
 
+  /** 侧边导航点击：事件委托 → 读取 data-route → 编程式跳转（Step5-E） */
+  function onNavClick(event) {
+    var item = event.target.closest('.studio-nav__item[data-route]');
+    if (!item) return;
+    var route = item.getAttribute('data-route');
+    if (!route || !YJ.studio.router || typeof YJ.studio.router.navigate !== 'function') return;
+    YJ.studio.router.navigate('#/' + route);
+  }
+
   function bindEvents() {
     if (els.logout) els.logout.addEventListener('click', onLogout);
+    if (els.nav) els.nav.addEventListener('click', onNavClick);
     window.addEventListener('hashchange', syncChrome);
   }
 

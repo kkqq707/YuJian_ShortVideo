@@ -42,6 +42,10 @@
   flex-wrap: wrap;
 }
 
+.studio-page__actions .yj-btn {
+  min-height: 44px; /* 触控目标 ≥44px */
+}
+
 /* tab 条（页内 tab，复用语义令牌） */
 .studio-tabs {
   display: inline-flex;
@@ -153,6 +157,9 @@
   border: 1px solid var(--border-default);
   color: var(--text-primary);
 }
+
+.studio-layout .modal-header { border-bottom: 1px solid var(--border-subtle); }
+.studio-layout .modal-footer { border-top: 1px solid var(--border-subtle); }
 
 /* 模态表单 */
 .studio-form {
@@ -486,6 +493,81 @@
   line-height: var(--leading-normal);
 }
 
+/* AI 生成工作区（页内折叠，复用语义令牌） */
+.studio-scripts__generate {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  padding: var(--space-5);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  background: var(--bg-surface);
+}
+
+/* 显式折叠态：author 样式盖过 UA [hidden]，此处恢复 display:none */
+.studio-scripts__generate[hidden] {
+  display: none;
+}
+
+.studio-scripts__generate-head {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.studio-scripts__generate-title {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--text-base);
+  font-weight: var(--font-semibold);
+  color: var(--text-primary);
+}
+
+.studio-scripts__generate-hint {
+  margin: 0;
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  line-height: var(--leading-normal);
+}
+
+.studio-scripts__generate-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-2);
+}
+
+.studio-scripts__generate-submit {
+  min-height: 44px; /* 触控目标 ≥44px */
+}
+
+/* 生成结果审阅区（表单下方，生成成功后出现） */
+.studio-scripts__result {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--border-subtle);
+}
+
+.studio-scripts__result-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.studio-scripts__result-title {
+  margin: 0;
+  font-size: var(--text-base);
+  font-weight: var(--font-semibold);
+  color: var(--text-primary);
+}
+
+.studio-scripts__adopt {
+  min-height: 44px; /* 触控目标 ≥44px */
+}
+
 /* ================================================================
    5. Workbench 页面级布局（Step5-D4）
    主 CTA / 快捷入口组 / 最近任务区 / 任务卡片（复用 .yj-card 基类）
@@ -647,4 +729,293 @@
 .studio-workbench-task__meta {
   font-size: var(--text-xs);
   color: var(--text-muted);
+}
+
+/* ================================================================
+   6. Tasks 页面级布局（Step5-D4）
+   生成任务卡片（复用 .yj-card 基类，仅页面级布局差异）
+   ================================================================ */
+
+.studio-tasks__card {
+  position: relative;
+}
+
+.studio-tasks__card:focus-visible {
+  outline: 2px solid var(--border-focus);
+  outline-offset: 2px;
+}
+
+.studio-tasks__media {
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  overflow: hidden;
+  background: var(--bg-surface);
+}
+
+.studio-tasks__image {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.studio-tasks__placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  color: var(--text-muted);
+  font-size: 32px;
+}
+
+.studio-tasks__body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-4) var(--space-4);
+}
+
+.studio-tasks__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.studio-tasks__title {
+  font-size: var(--text-base);
+  font-weight: var(--font-semibold);
+  color: var(--text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1;
+  min-width: 0;
+}
+
+.studio-tasks__badge {
+  flex-shrink: 0;
+}
+
+.studio-tasks__progress {
+  margin-top: var(--space-1);
+}
+
+.studio-tasks__meta {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}
+
+/* ================================================================
+   7. History 页面级布局（Step5-D4）
+   历史作品卡片（复用 .yj-card 基类，仅页面级布局差异；无 progress）
+   ================================================================ */
+
+.studio-history__card {
+  position: relative;
+}
+
+.studio-history__card:focus-visible {
+  outline: 2px solid var(--border-focus);
+  outline-offset: 2px;
+}
+
+.studio-history__media {
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  overflow: hidden;
+  background: var(--bg-surface);
+}
+
+.studio-history__image {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.studio-history__placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  color: var(--text-muted);
+  font-size: 32px;
+}
+
+.studio-history__body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-4) var(--space-4);
+}
+
+.studio-history__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.studio-history__title {
+  font-size: var(--text-base);
+  font-weight: var(--font-semibold);
+  color: var(--text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1;
+  min-width: 0;
+}
+
+.studio-history__badge {
+  flex-shrink: 0;
+}
+
+.studio-history__meta {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}
+
+/* ================================================================
+   8. Create 页面级布局（Step5-D4）
+   分区面板 / Avatar 摘要回显 / Voice 摘要回显 / 提交表单
+   ================================================================ */
+
+.studio-create__section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  padding: var(--space-5);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  background: var(--bg-surface);
+}
+
+.studio-create__section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.studio-create__section-title {
+  margin: 0;
+  font-size: var(--text-base);
+  font-weight: var(--font-semibold);
+  color: var(--text-primary);
+}
+
+.studio-create__section-hint {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}
+
+/* Avatar 摘要卡（缩略图 + 名称 + 更换） */
+.studio-create__avatar-card {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  padding: var(--space-3);
+}
+
+.studio-create__avatar-media {
+  flex-shrink: 0;
+  width: 96px;
+  height: 96px;
+  overflow: hidden;
+  border-radius: var(--radius-md);
+  background: var(--bg-surface);
+}
+
+.studio-create__avatar-image {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.studio-create__avatar-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  flex: 1;
+  min-width: 0;
+}
+
+.studio-create__avatar-title {
+  font-size: var(--text-base);
+  font-weight: var(--font-semibold);
+  color: var(--text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.studio-create__avatar-change {
+  flex-shrink: 0;
+  min-height: 44px;
+}
+
+/* 空态引导在分区面板内收紧，避免过度留白 */
+.studio-create__avatar .studio-empty-state {
+  padding: var(--space-6) var(--space-4);
+}
+
+/* Voice 摘要卡（图标 + 名称/提示 + 选择/更换） */
+.studio-create__voice-card {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-4);
+}
+
+.studio-create__voice-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  flex-shrink: 0;
+  border-radius: var(--radius-md);
+  background: var(--bg-card-active);
+  color: var(--primary-light);
+  font-size: var(--text-lg);
+}
+
+.studio-create__voice-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  flex: 1;
+  min-width: 0;
+}
+
+.studio-create__voice-title {
+  font-size: var(--text-base);
+  font-weight: var(--font-medium);
+  color: var(--text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.studio-create__voice-hint {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}
+
+.studio-create__voice-action {
+  flex-shrink: 0;
+  min-height: 44px;
+}
+
+/* 提交区 */
+.studio-create__submit {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.studio-create__submit-btn {
+  min-height: 44px; /* 触控目标 ≥44px */
 }

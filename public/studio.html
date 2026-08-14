@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>数字人口播 Studio</title>
+    <title>数字人口播</title>
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%236366f1'/></svg>">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     <!-- Phase 0: Design System Foundation（复用，不改） -->
@@ -26,7 +26,7 @@
             <span class="studio-topbar__logo" aria-hidden="true">
                 <i class="fas fa-clapperboard"></i>
             </span>
-            <span class="studio-topbar__name">数字人口播 Studio</span>
+            <span class="studio-topbar__name">数字人口播</span>
         </div>
         <div class="studio-topbar__title" id="studio-page-title">工作台</div>
     </header>
@@ -34,26 +34,46 @@
     <!-- 侧边导航容器（只生成结构，点击逻辑由 Router 预留） -->
     <aside class="studio-sidebar" id="studio-sidebar">
         <nav class="studio-nav" id="studio-nav" aria-label="Studio 导航">
-            <a class="studio-nav__item" href="#/workbench" data-route="workbench">
+            <button type="button" class="studio-nav__item" data-route="workbench">
                 <i class="fas fa-gauge-high" aria-hidden="true"></i>
                 <span>工作台</span>
-            </a>
-            <a class="studio-nav__item" href="#/create" data-route="create">
+            </button>
+            <button type="button" class="studio-nav__item" data-route="create">
                 <i class="fas fa-plus" aria-hidden="true"></i>
                 <span>新建口播</span>
-            </a>
+            </button>
 
             <div class="studio-nav__group">
                 <div class="studio-nav__group-title">数字人资产</div>
+                <button type="button" class="studio-nav__item" data-route="avatars">
+                    <i class="fas fa-user-group" aria-hidden="true"></i>
+                    <span>数字人资产</span>
+                </button>
             </div>
             <div class="studio-nav__group">
                 <div class="studio-nav__group-title">内容创作</div>
+                <button type="button" class="studio-nav__item" data-route="scripts">
+                    <i class="fas fa-file-lines" aria-hidden="true"></i>
+                    <span>内容创作</span>
+                </button>
             </div>
             <div class="studio-nav__group">
                 <div class="studio-nav__group-title">声音中心</div>
+                <button type="button" class="studio-nav__item" data-route="voices">
+                    <i class="fas fa-microphone" aria-hidden="true"></i>
+                    <span>声音中心</span>
+                </button>
             </div>
             <div class="studio-nav__group">
                 <div class="studio-nav__group-title">生产管理</div>
+                <button type="button" class="studio-nav__item" data-route="tasks">
+                    <i class="fas fa-list-check" aria-hidden="true"></i>
+                    <span>生成任务</span>
+                </button>
+                <button type="button" class="studio-nav__item" data-route="history">
+                    <i class="fas fa-clock-rotate-left" aria-hidden="true"></i>
+                    <span>历史作品</span>
+                </button>
             </div>
         </nav>
     </aside>

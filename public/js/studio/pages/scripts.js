@@ -6,7 +6,7 @@
  * 职责：内容创作（脚本）页面（纯组装层）—— 浏览 / 选择 / AI 生成 / 手动创建 / 查看 / 编辑 / 删除。
  *   - 单一脚本列表（无官方/我的双 tab，脚本一律归企业所有）
  *   - 选择回写 state.selection.script（供 Create 页潜在复用）
- *   - AI 生成仅调用 api.script.generate，结果以只读模态展示（前端零 AI 逻辑）
+ *   - AI 生成仅调用 api.script.generate，结果以页内折叠工作区审阅（前端零 AI 逻辑）
  *
  * 数据边界（严格遵守，违规即返工）：
  *   ❌ 不直接 fetch / 不拼 URL / 不自己 catch 映射文案（一切经 api + state.load.*）
@@ -40,6 +40,7 @@
   // ── 页面闭包瞬时状态（destroy 释放，不写 state）──
   var els = {};
   var formBusy = false; // 生成/创建/编辑/删除进行中（防重复提交）
+  var lastResult = null; // 最近一次 AI 生成结果（normalizeGeneratedScript 输出），闭包保存供审阅选用
 
   // ═══════════════════════════════════════════════════════════════════
   //  工具函数
@@ -188,7 +189,7 @@
       title: '还没有脚本',
       description: '用 AI 生成第一条口播脚本，或手动起草。',
       icon: 'fa-file-alt',
-      action: { label: 'AI 生成脚本', onClick: openGenerateModal }
+      action: { label: 'AI 生成脚本', onClick: openGenerate }
     });
   }
 
@@ -405,21 +406,23 @@
   }
 
   // ═══════════════════════════════════════════════════════════════════
-  //  AI 生成（仅调用 api.script.generate，零 AI 逻辑；结果只读展示）
+  //  AI 生成工作区（页内折叠，替代原弹窗；仅调用 api.script.generate，零 AI 逻辑）
+  //  默认折叠，经工具栏按钮 / 空态 CTA 展开；表单常驻保留参数，结果审阅区在下方。
   // ═══════════════════════════════════════════════════════════════════
 
-  function openGenerateModal() {
-    openPageModal({
-      title: 'AI 生成脚本',
-      content: generateFormHtml(),
-      confirmText: '生成',
-      confirmClass: 'yj-btn yj-btn-primary',
-      onConfirm: function () {
-        if (formBusy) return false;
-        submitGenerate();
-        return false;
-      }
-    });
+  function generateWorkspaceHtml() {
+    return '' +
+      '<section class="studio-scripts__generate" id="studioScriptsGenerate" hidden aria-label="AI 生成脚本工作区">' +
+        '<div class="studio-scripts__generate-head">' +
+          '<div class="studio-scripts__generate-title">' +
+            '<i class="fas fa-wand-magic-sparkles" aria-hidden="true"></i>' +
+            '<span>AI 生成脚本</span>' +
+          '</div>' +
+          '<p class="studio-scripts__generate-hint">填写脚本主题，AI 生成口播脚本供你审阅选用；生成后可在下方结果区选用。</p>' +
+        '</div>' +
+        generateFormHtml() +
+        '<div class="studio-scripts__generate-result"></div>' +
+      '</section>';
   }
 
   function generateFormHtml() {
@@ -450,7 +453,40 @@
           '<label class="studio-form__label" for="scGenScene">场景说明</label>' +
           '<textarea id="scGenScene" class="studio-form__textarea" rows="2" placeholder="选填，如：面向年轻上班族的产品发布会开场"></textarea>' +
         '</div>' +
+        '<div class="studio-form__actions studio-scripts__generate-actions">' +
+          '<button type="button" class="yj-btn yj-btn-primary studio-scripts__generate-submit" data-action="generate-submit">' +
+            '<i class="fas fa-wand-magic-sparkles" aria-hidden="true"></i>' +
+            '<span>生成</span>' +
+          '</button>' +
+        '</div>' +
       '</div>';
+  }
+
+  function toggleGenerate() {
+    if (!els.generate) return;
+    if (els.generate.hidden) openGenerate();
+    else closeGenerate();
+  }
+
+  function openGenerate() {
+    if (!els.generate) return;
+    els.generate.hidden = false;
+    if (els.generateButton) els.generateButton.setAttribute('aria-expanded', 'true');
+    renderResultReview(); // 展开时同步结果审阅区（含 lastResult）
+  }
+
+  function closeGenerate() {
+    if (!els.generate) return;
+    els.generate.hidden = true;
+    if (els.generateButton) els.generateButton.setAttribute('aria-expanded', 'false');
+  }
+
+  function setGenerateLoading(loading) {
+    var btn = els.generateSubmit;
+    if (!btn) return;
+    btn.disabled = loading;
+    if (loading) btn.classList.add('yj-btn-loading');
+    else btn.classList.remove('yj-btn-loading');
   }
 
   function submitGenerate() {
@@ -462,7 +498,7 @@
     var duration = (isNaN(durationRaw) || durationRaw < 1 || durationRaw > 300) ? 30 : durationRaw;
 
     formBusy = true;
-    setConfirmLoading(true);
+    setGenerateLoading(true);
 
     api.script.generate({
       theme: theme,
@@ -471,33 +507,72 @@
       productName: fieldValue('scGenProduct').trim() || undefined,
       sceneContext: fieldValue('scGenScene').trim() || undefined
     }).then(function (result) {
+      lastResult = result;
       if (toast.success) toast.success('脚本已生成');
-      modal.close();
-      openResultModal(result);
+      setGenerateLoading(false);
+      renderResultReview();
       refreshList();
     }).catch(function (err) {
       if (toast.error) toast.error(errorMessage(err, '生成失败，请重试'));
       formBusy = false;
-      setConfirmLoading(false);
+      setGenerateLoading(false);
     });
   }
 
-  function openResultModal(result) {
-    if (!result) return;
-    openReadonlyModal({
-      title: '生成结果',
-      content: previewHtml({
-        title: result.title,
-        style: result.style,
-        status: result.status,
-        estimatedDuration: result.estimatedDuration,
-        totalWords: result.totalWords,
-        createdAt: result.createdAt,
-        fullText: result.fullText,
-        segments: result.segments
-      }),
-      confirmText: '完成'
-    });
+  /** 生成结果是否已被选用：仅基于 selection.script.id 判断，不新增状态 */
+  function isGeneratedAdopted() {
+    if (!lastResult) return false;
+    var sid = selectedScriptId();
+    return sid != null && sid === lastResult.scriptRecordId;
+  }
+
+  /** 选用生成结果：写 selection.script = { id, title, sourceType:'ai' }，刷新高亮 */
+  function adoptGeneratedScript() {
+    if (!lastResult || isGeneratedAdopted()) return;
+    if (state.get && state.get().selection) {
+      state.get().selection.script = { id: lastResult.scriptRecordId, title: lastResult.title, sourceType: 'ai' };
+    }
+    if (toast.success) toast.success('已选用该脚本');
+    renderResultReview();
+    renderView();
+  }
+
+  /** 结果审阅区：预览 + 选用按钮（已选用则置禁用态，纯基于 selection.script.id） */
+  function renderResultReview() {
+    var container = els.generateResult;
+    if (!container) return;
+    if (!lastResult) { container.innerHTML = ''; return; }
+
+    var adopted = isGeneratedAdopted();
+    var btn = adopted
+      ? '<button type="button" class="yj-btn yj-btn-secondary studio-scripts__adopt" disabled>' +
+          '<i class="fas fa-check" aria-hidden="true"></i><span>已选用</span></button>'
+      : '<button type="button" class="yj-btn yj-btn-primary studio-scripts__adopt" data-action="adopt">' +
+          '<i class="fas fa-check" aria-hidden="true"></i><span>选用此脚本</span></button>';
+
+    container.innerHTML = '' +
+      '<div class="studio-scripts__result">' +
+        '<div class="studio-scripts__result-head">' +
+          '<h3 class="studio-scripts__result-title">生成结果</h3>' +
+          btn +
+        '</div>' +
+        previewHtml({
+          title: lastResult.title,
+          sourceType: 'ai',
+          style: lastResult.style,
+          status: lastResult.status,
+          estimatedDuration: lastResult.estimatedDuration,
+          totalWords: lastResult.totalWords,
+          createdAt: lastResult.createdAt,
+          fullText: lastResult.fullText,
+          segments: lastResult.segments
+        }) +
+      '</div>';
+
+    if (!adopted) {
+      var adoptBtn = container.querySelector('[data-action="adopt"]');
+      if (adoptBtn) adoptBtn.addEventListener('click', adoptGeneratedScript);
+    }
   }
 
   // ═══════════════════════════════════════════════════════════════════
@@ -753,11 +828,15 @@
     els.content = document.querySelector('#studio-main .studio-scripts__content');
     els.generateButton = document.querySelector('#studio-main [data-action="generate"]');
     els.createButton = document.querySelector('#studio-main [data-action="create"]');
+    els.generate = document.querySelector('#studio-main .studio-scripts__generate');
+    els.generateSubmit = document.querySelector('#studio-main [data-action="generate-submit"]');
+    els.generateResult = document.querySelector('#studio-main .studio-scripts__generate-result');
   }
 
   function bindEvents() {
-    if (els.generateButton) els.generateButton.addEventListener('click', openGenerateModal);
+    if (els.generateButton) els.generateButton.addEventListener('click', toggleGenerate);
     if (els.createButton) els.createButton.addEventListener('click', openCreateModal);
+    if (els.generateSubmit) els.generateSubmit.addEventListener('click', submitGenerate);
   }
 
   // ═══════════════════════════════════════════════════════════════════
@@ -773,7 +852,7 @@
         '</div>' +
         '<div class="studio-page__toolbar studio-scripts__toolbar">' +
           '<div class="studio-page__actions">' +
-            '<button type="button" class="yj-btn yj-btn-primary" data-action="generate">' +
+            '<button type="button" class="yj-btn yj-btn-primary" data-action="generate" aria-expanded="false" aria-controls="studioScriptsGenerate">' +
               '<i class="fas fa-wand-magic-sparkles" aria-hidden="true"></i>' +
               '<span>AI 生成脚本</span>' +
             '</button>' +
@@ -783,6 +862,7 @@
             '</button>' +
           '</div>' +
         '</div>' +
+        generateWorkspaceHtml() +
         '<div class="studio-scripts__content"></div>' +
       '</div>';
   }
@@ -799,6 +879,7 @@
     // 页面 DOM 由 router 整体替换，节点级监听随 DOM 释放；此处仅清引用与闭包瞬时态
     els = {};
     formBusy = false;
+    lastResult = null;
   }
 
   YJ.studio.pages.scripts = {

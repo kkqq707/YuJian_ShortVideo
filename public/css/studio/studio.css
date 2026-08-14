@@ -18,11 +18,10 @@
 .studio-layout {
   display: grid;
   grid-template-columns: var(--sidebar-expanded, 220px) minmax(0, 1fr);
-  grid-template-rows: var(--header-height, 56px) minmax(0, 1fr) auto auto;
+  grid-template-rows: var(--header-height, 56px) minmax(0, 1fr) auto;
   grid-template-areas:
     "topbar  topbar"
     "sidebar main"
-    "user    main"
     "back    main";
   height: 100vh;
   background: var(--bg-base);
@@ -114,6 +113,16 @@
               color var(--duration-fast) var(--ease-out);
 }
 
+/* button reset（Step5-E：导航由 <a> 改为 <button>，重置 button 默认样式，保持与原 anchor 视觉一致） */
+button.studio-nav__item {
+  background: none;
+  border: none;
+  font-family: inherit;
+  text-align: left;
+  cursor: pointer;
+  width: 100%;
+}
+
 .studio-nav__item i {
   width: 20px;
   text-align: center;
@@ -142,6 +151,9 @@
 
 .studio-nav__group {
   margin-top: var(--space-3);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
 }
 
 .studio-nav__group-title {
@@ -154,56 +166,7 @@
 }
 
 /* ================================================================
-   4. User Area — 用户区
-   ================================================================ */
-
-#studio-user-area {
-  grid-area: user;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-3);
-  padding: var(--space-3) var(--space-4);
-  border-top: 1px solid var(--border-subtle);
-}
-
-.studio-user-area__name {
-  font-size: var(--text-sm);
-  color: var(--text-secondary);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.studio-user-area__logout {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-2);
-  min-height: 44px;               /* 触控目标 ≥44px */
-  padding: 0 var(--space-3);
-  border: 1px solid var(--border-default);
-  border-radius: var(--radius-md);
-  background: transparent;
-  color: var(--text-secondary);
-  font-size: var(--text-sm);
-  cursor: pointer;
-  transition: background-color var(--duration-fast) var(--ease-out),
-              color var(--duration-fast) var(--ease-out),
-              border-color var(--duration-fast) var(--ease-out);
-}
-
-.studio-user-area__logout:hover {
-  border-color: var(--danger);
-  color: var(--danger);
-}
-
-.studio-user-area__logout:focus-visible {
-  outline: 2px solid var(--border-focus);
-  outline-offset: 2px;
-}
-
-/* ================================================================
-   5. Main — 内容区域（Router 挂载点）
+   4. Main — 内容区域（Router 挂载点）
    ================================================================ */
 
 #studio-main {
@@ -213,7 +176,7 @@
 }
 
 /* ================================================================
-   6. Back — 返回主平台
+   5. Back — 返回主平台
    ================================================================ */
 
 #studio-back {
@@ -249,7 +212,7 @@
 }
 
 /* ================================================================
-   7. 占位空态（路由未实现页面时的默认视图）
+   6. 占位空态（路由未实现页面时的默认视图）
    ================================================================ */
 
 .studio-page--empty {
@@ -281,7 +244,7 @@
 }
 
 /* ================================================================
-   8. 响应式（窄屏折叠为图标导航）
+   7. 响应式（窄屏折叠为图标导航）
    ================================================================ */
 
 @media (max-width: 768px) {
@@ -295,13 +258,7 @@
   }
 
   .studio-nav__item span,
-  .studio-nav__group-title,
-  .studio-user-area__name,
-  .studio-user-area__logout span {
+  .studio-nav__group-title {
     display: none;
-  }
-
-  #studio-user-area {
-    justify-content: center;
   }
 }
