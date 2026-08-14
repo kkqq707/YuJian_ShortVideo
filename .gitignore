@@ -4,6 +4,7 @@ node_modules/
 !.env.example
 .backups/
 .backup/
+backups/
 *.bak
 *.backup
 npm-debug.log*
