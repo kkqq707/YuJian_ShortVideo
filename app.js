@@ -14,6 +14,8 @@ const adminRoutes = require('./routes/admin');
 const agentRoutes = require('./routes/agent');
 const enterpriseRoutes = require('./routes/enterprise');
 
+const pipelineAsyncService = require('./services/pipelineAsyncService');
+
 const app = express();
 
 // 中间件
@@ -47,6 +49,44 @@ app.get('/api/health', (req, res) => {
 // 错误处理
 app.use(errorHandler);
 
+// ─── Digital Human 完成驱动调度（Step6-E3A）─────────────────────────────
+// 周期性扫描 status='digital_human' 的 PipelineTask 并驱动其完成。
+// 使用原生 setInterval 最小调度，不引入 cron/bull/agenda/queue/worker 依赖。
+const DH_POLLING_INTERVAL_MS = 15 * 1000;
+
+// 防重入标记：上一轮扫描尚未完成时跳过本轮
+let dhPollingInFlight = false;
+
+function startDigitalHumanPolling() {
+  setInterval(async () => {
+    // 防重入：上一轮扫描尚未完成则跳过本轮
+    if (dhPollingInFlight) {
+      console.log(
+        '[DigitalHumanPolling] SKIP | previous scan still in flight | ' +
+        `time=${new Date().toISOString()}`
+      );
+      return;
+    }
+
+    dhPollingInFlight = true;
+    try {
+      await pipelineAsyncService.scanPendingDigitalHumanTasks();
+    } catch (error) {
+      // 单次扫描异常只记录日志，不导致 Node 进程退出
+      console.error(
+        `[DigitalHumanPolling] scan FAILED | error=${error.message} | ` +
+        `time=${new Date().toISOString()}`
+      );
+    } finally {
+      dhPollingInFlight = false;
+    }
+  }, DH_POLLING_INTERVAL_MS);
+
+  console.log(
+    `[DigitalHumanPolling] Scheduler started | intervalMs=${DH_POLLING_INTERVAL_MS}`
+  );
+}
+
 const PORT = process.env.PORT || 3000;
 
 app.listen(PORT, () => {
@@ -58,6 +98,9 @@ app.listen(PORT, () => {
 ╚══════════════════════════════════════════╝
   `);
   printEnvReport();
+
+  // 应用启动完成后，注册 Digital Human 完成驱动（不阻塞 HTTP 服务启动）
+  startDigitalHumanPolling();
 });
 
 module.exports = app;

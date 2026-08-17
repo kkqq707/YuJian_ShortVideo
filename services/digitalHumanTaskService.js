@@ -31,7 +31,9 @@ const aliyunProvider = require('../providers/aliyunProvider');
 const pipelineTaskService = require('./pipelineTaskService');
 const pipelineAssetService = require('./pipelineAssetService');
 const pipelineObservabilityService = require('./pipelineObservabilityService');
-const { PipelineTask } = require('../models');
+const dashscopeService = require('./dashscopeService');
+const { PipelineTask, GenerationTask } = require('../models');
+const { adjustEnterpriseQuota } = require('../utils/quota');
 
 // 关键节点事件名（唯一事实来源）
 const { EVENTS } = pipelineObservabilityService;
@@ -269,82 +271,20 @@ class DigitalHumanTaskService {
         };
       }
 
-      // ── 4a. 下载视频 + 创建 Asset ────────────────────────────
+      // ── 4. 委托唯一 Completion Workflow（下载→OSS→Asset→收敛→计费）──
+      // Step6-E3B：Polling 只负责驱动，不亲自下载 / 建 Asset / 扣积分。
       console.log(
-        `[DigitalHumanTaskService] DH task SUCCESS — downloading video | ` +
+        `[DigitalHumanTaskService] DH task SUCCESS — delegating to completeDigitalHumanTask | ` +
         `pipelineTaskId=${pipelineTaskId} | ` +
         `dhTaskId=${dhTaskId} | ` +
         `time=${new Date().toISOString()}`
       );
 
-      const assetResult = await pipelineAssetService.downloadAndSaveVideoAsset(
-        pipelineTask,
+      return this.completeDigitalHumanTask(pipelineTask, {
         videoUrl,
-        {
-          duration: dhStatus.duration || undefined,
-          mimeType: 'video/mp4'
-        }
-      );
-
-      // ── 4b. 更新 PipelineTask 状态为 success ──────────────────
-      if (assetResult.assetId) {
-        // output_asset_id 已由 downloadAndSaveVideoAsset 内部更新
-        await pipelineTaskService.updateStatus(pipelineTaskId, 'success', {
-          completed_at: new Date()
-        });
-        await pipelineTaskService.updateProgress(pipelineTaskId, 100);
-
-        // 更新 intermediate_results.dh 补充状态信息
-        await pipelineTaskService.saveIntermediateResult(pipelineTaskId, 'dh', {
-          providerTaskId: dhTaskId,
-          dhStatus: dhStatus.status,
-          outputAssetId: assetResult.assetId,
-          videoUrl: assetResult.videoUrl,
-          duration: assetResult.duration,
-          resolution: assetResult.resolution,
-          completedAt: new Date().toISOString()
-        });
-
-        // Step4-F2: 记录 ASSET_CREATED / PIPELINE_COMPLETED（仅记录，失败不影响主流程）
-        this._recordNode(pipelineTaskId, EVENTS.ASSET_CREATED, {
-          layer: 'dh', assetId: assetResult.assetId
-        });
-        this._recordNode(pipelineTaskId, EVENTS.PIPELINE_COMPLETED, { layer: 'dh' });
-      } else {
-        // Asset 创建失败（downloadAndSaveVideoAsset 已做降级处理）
-        console.error(
-          `[DigitalHumanTaskService] Asset creation returned no assetId | ` +
-          `pipelineTaskId=${pipelineTaskId} | ` +
-          `dhTaskId=${dhTaskId} | ` +
-          `time=${new Date().toISOString()}`
-        );
-
-        // 标记失败 — Asset 创建是必要步骤
-        await pipelineTaskService.markFailed(
-          pipelineTaskId, 'dh',
-          'Failed to create video Asset from DH result'
-        );
-        this._recordNode(pipelineTaskId, EVENTS.PIPELINE_FAILED, { failedLayer: 'dh' });
-      }
-
-      const elapsedMs = Date.now() - startTime;
-
-      console.log(
-        `[DigitalHumanTaskService] handleCompletedTask SUCCESS | ` +
-        `pipelineTaskId=${pipelineTaskId} | ` +
-        `dhTaskId=${dhTaskId} | ` +
-        `assetId=${assetResult.assetId || 'N/A'} | ` +
-        `elapsedMs=${elapsedMs} | ` +
-        `time=${new Date().toISOString()}`
-      );
-
-      return {
-        status: assetResult.assetId ? 'success' : 'failed',
-        pipelineId: pipelineTaskId,
-        dhTaskStatus: dhStatus.status,
-        assetId: assetResult.assetId || null,
-        videoUrl: assetResult.videoUrl || null
-      };
+        duration: dhStatus.duration || undefined,
+        dhTaskStatus: dhStatus.status
+      });
     }
 
     // ── 5. 处理失败 ─────────────────────────────────────────────
@@ -392,6 +332,319 @@ class DigitalHumanTaskService {
       assetId: null,
       videoUrl: null
     };
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════
+  //  2.5 completeDigitalHumanTask — 唯一 Completion Workflow（Step6-E3B）
+  // ═══════════════════════════════════════════════════════════════════════
+
+  /**
+   * 数字人口播唯一完成流程（幂等，Polling 与未来 Callback 都只调用它）
+   *
+   * Step6-E3B / E3B.1 最终设计：统一收尾 Asset → GenerationTask → PipelineTask
+   * → Quota 四个对象，保证 GenerationTask 与 PipelineTask 共用同一个 Asset，
+   * 积分只扣一次。
+   *
+   * 固定顺序（计费最后）：
+   *   1. 幂等预守卫：status !== 'digital_human' → skip
+   *   2. 定位 GenerationTask（dh_task_id → generationTaskId → providerTaskId）
+   *   3. 下载 + OSS + 建 Asset（downloadAndSaveVideoAsset 含 output_asset_id 幂等守卫）
+   *   4. 收敛 GenerationTask（status/output_asset_id/output_url/cover_url/duration/completed_at，★不写 points_cost）
+   *   5. 收敛 PipelineTask（output_asset_id 同源 + status=success + progress=100）
+   *   6. 计费（最后、原子、幂等）：adjustEnterpriseQuota（dedupeKey → 事务内 consume 查重）
+   *        → 成功 → 写 GenerationTask.points_cost（纯审计字段，不作扣费判重）
+   *        → 失败 → 响亮日志 + 错误诊断，任务已 success 但未计费，等待重扫对账
+   *
+   * 禁止：
+   *   ❌ 以 GenerationTask.points_cost > 0 作扣费幂等（E3B.1 已否决）
+   *   ❌ 事务外「先查后扣」两段事务
+   *
+   * @param {Object} pipelineTask — PipelineTask instance（status='digital_human'）
+   * @param {Object} [ctx]
+   * @param {string} ctx.videoUrl       — DashScope 成功态 video_url（必填）
+   * @param {number} [ctx.duration]     — 视频时长（秒，可选）
+   * @param {string} [ctx.dhTaskStatus] — DH 任务状态（透传返回，可选）
+   * @returns {Promise<{
+   *   status: string,
+   *   pipelineId: number,
+   *   dhTaskStatus: string|null,
+   *   assetId: number|null,
+   *   videoUrl: string|null,
+   *   generationTaskId: number|null,
+   *   billed: boolean,
+   *   pointsCost: number|null
+   * }>}
+   */
+  async completeDigitalHumanTask(pipelineTask, ctx = {}) {
+    const pipelineId = pipelineTask.id;
+    const enterpriseId = pipelineTask.enterprise_id;
+    const startTime = Date.now();
+
+    console.log(
+      `[DigitalHumanTaskService] completeDigitalHumanTask START | ` +
+      `pipelineId=${pipelineId} | enterpriseId=${enterpriseId} | ` +
+      `time=${new Date().toISOString()}`
+    );
+
+    // ── 1. 幂等预守卫：非 digital_human → 已处理 ─────────────────
+    if (pipelineTask.status !== 'digital_human') {
+      console.log(
+        `[DigitalHumanTaskService] completeDigitalHumanTask SKIP | ` +
+        `pipelineId=${pipelineId} | reason=status "${pipelineTask.status}" != "digital_human"`
+      );
+      return {
+        status: 'skipped',
+        pipelineId,
+        dhTaskStatus: ctx.dhTaskStatus || null,
+        assetId: pipelineTask.output_asset_id || null,
+        videoUrl: null,
+        generationTaskId: null,
+        billed: false,
+        pointsCost: null
+      };
+    }
+
+    // ── 2. 定位 GenerationTask ──────────────────────────────────
+    const generationTask = await this._resolveDigitalHumanGenerationTask(pipelineTask);
+    if (!generationTask) {
+      const errMsg = `No GenerationTask resolved for pipelineId=${pipelineId}`;
+      console.error(`[DigitalHumanTaskService] completeDigitalHumanTask ${errMsg}`);
+      await pipelineTaskService.markFailed(pipelineId, 'dh', errMsg);
+      this._recordNode(pipelineId, EVENTS.PIPELINE_FAILED, { failedLayer: 'dh' });
+      return {
+        status: 'failed',
+        pipelineId,
+        dhTaskStatus: ctx.dhTaskStatus || null,
+        assetId: null,
+        videoUrl: null,
+        generationTaskId: null,
+        billed: false,
+        pointsCost: null
+      };
+    }
+
+    const generationTaskId = generationTask.id;
+
+    // ── 3. 下载 + OSS + 建 Asset（幂等：output_asset_id 已存在则复用）──
+    if (!ctx.videoUrl) {
+      const errMsg = 'DH task succeeded but no videoUrl provided to Completion Workflow';
+      console.error(`[DigitalHumanTaskService] completeDigitalHumanTask ${errMsg} | pipelineId=${pipelineId}`);
+      await pipelineTaskService.markFailed(pipelineId, 'dh', errMsg);
+      this._recordNode(pipelineId, EVENTS.PIPELINE_FAILED, { failedLayer: 'dh' });
+      return {
+        status: 'failed',
+        pipelineId,
+        dhTaskStatus: ctx.dhTaskStatus || null,
+        assetId: null,
+        videoUrl: null,
+        generationTaskId,
+        billed: false,
+        pointsCost: null
+      };
+    }
+
+    const assetResult = await pipelineAssetService.downloadAndSaveVideoAsset(
+      pipelineTask,
+      ctx.videoUrl,
+      { duration: ctx.duration || undefined, mimeType: 'video/mp4' }
+    );
+
+    const assetId = assetResult.assetId || null;
+    if (!assetId) {
+      const errMsg = 'Failed to create video Asset from DH result';
+      console.error(`[DigitalHumanTaskService] completeDigitalHumanTask ${errMsg} | pipelineId=${pipelineId}`);
+      await pipelineTaskService.markFailed(pipelineId, 'dh', errMsg);
+      this._recordNode(pipelineId, EVENTS.PIPELINE_FAILED, { failedLayer: 'dh' });
+      return {
+        status: 'failed',
+        pipelineId,
+        dhTaskStatus: ctx.dhTaskStatus || null,
+        assetId: null,
+        videoUrl: assetResult.videoUrl || ctx.videoUrl || null,
+        generationTaskId,
+        billed: false,
+        pointsCost: null
+      };
+    }
+
+    const outputUrl = assetResult.videoUrl || ctx.videoUrl;
+    const coverUrl = assetResult.coverUrl || null;
+    const duration = assetResult.duration || ctx.duration || null;
+
+    // ── 4. 收敛 GenerationTask（★ 此处不写 points_cost）──────────
+    await generationTask.update({
+      status: 'success',
+      progress: 100,
+      output_asset_id: assetId,
+      output_url: outputUrl,
+      cover_url: coverUrl,
+      duration: duration || null,
+      completed_at: new Date()
+    });
+
+    // ── 5. 收敛 PipelineTask（output_asset_id 与 GenerationTask 同源）──
+    await pipelineTaskService.updateStatus(pipelineId, 'success', {
+      completed_at: new Date()
+    });
+    await pipelineTaskService.updateProgress(pipelineId, 100);
+    await pipelineTaskService.saveIntermediateResult(pipelineId, 'dh', {
+      providerTaskId: generationTask.task_id || null,
+      generationTaskId,
+      dhStatus: 'success',
+      outputAssetId: assetId,
+      videoUrl: outputUrl,
+      duration: duration || null,
+      completedAt: new Date().toISOString()
+    });
+
+    if (assetId) {
+      this._recordNode(pipelineId, EVENTS.ASSET_CREATED, { layer: 'dh', assetId });
+    }
+    this._recordNode(pipelineId, EVENTS.PIPELINE_COMPLETED, { layer: 'dh' });
+
+    // ── 6. 计费（最后、原子、幂等）─────────────────────────────
+    const billing = await this._billDigitalHumanCompletion(pipelineId, generationTask, duration);
+
+    const elapsedMs = Date.now() - startTime;
+    console.log(
+      `[DigitalHumanTaskService] completeDigitalHumanTask SUCCESS | ` +
+      `pipelineId=${pipelineId} | generationTaskId=${generationTaskId} | ` +
+      `assetId=${assetId} | billed=${billing.billed} | ` +
+      `pointsCost=${billing.pointsCost ?? 'N/A'} | elapsedMs=${elapsedMs} | ` +
+      `time=${new Date().toISOString()}`
+    );
+
+    return {
+      status: 'success',
+      pipelineId,
+      dhTaskStatus: ctx.dhTaskStatus || null,
+      assetId,
+      videoUrl: outputUrl || null,
+      generationTaskId,
+      billed: billing.billed,
+      pointsCost: billing.pointsCost
+    };
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════
+  //  2.6 计费（最后一步，Step6-E3B.1）— 以 QuotaLog consume 存在为幂等依据
+  // ═══════════════════════════════════════════════════════════════════════
+
+  /**
+   * 扣积分一次（at-most-once）：事务内查重 + Enterprise 行锁串行化。
+   *
+   * 判重键 = quota_logs(user_type='enterprise', change_type='consume', related_id=GenerationTask.id)，
+   * 与余额扣减同事务原子提交。points_cost 仅作审计字段、随扣费成功补写，不作判重。
+   *
+   * @param {number} pipelineId    — PipelineTask 主键 ID（用于错误诊断）
+   * @param {Object} generationTask — GenerationTask instance
+   * @param {number} [duration]    — 计费时长（秒，回退 5）
+   * @returns {Promise<{ billed: boolean, pointsCost: number|null }>}
+   */
+  async _billDigitalHumanCompletion(pipelineId, generationTask, duration) {
+    let pointsCost = null;
+    try {
+      const pointsPerSecond = await dashscopeService.getPointsPerSecond(generationTask.model);
+      const billingDuration = duration || 5;
+      pointsCost = Math.ceil(billingDuration * pointsPerSecond);
+
+      const billingResult = await adjustEnterpriseQuota({
+        enterpriseId: generationTask.enterprise_id,
+        changePoints: -pointsCost,
+        changeType: 'consume',
+        remark: `${generationTask.task_type}生成消耗`,
+        relatedId: generationTask.id,
+        operatorType: 'system',
+        dedupeKey: { changeType: 'consume', relatedId: generationTask.id }
+      });
+
+      if (billingResult.success) {
+        // points_cost 仅作审计字段：仅在尚未写入时补写，绝不作扣费幂等依据（E3B.1）
+        const currentCost = Number(generationTask.points_cost || 0);
+        if (currentCost === 0) {
+          await generationTask.update({ points_cost: pointsCost });
+        }
+        return { billed: true, pointsCost };
+      }
+
+      // 扣费失败（余额不足 / 异常）：任务已 success，但未计费。响亮日志 + 错误诊断，等待重扫对账。
+      console.error(
+        `[DigitalHumanTaskService] BILLING FAILED (task completed, not billed) | ` +
+        `pipelineId=${pipelineId} | generationTaskId=${generationTask.id} | ` +
+        `enterpriseId=${generationTask.enterprise_id} | pointsCost=${pointsCost} | ` +
+        `reason=${billingResult.message || 'unknown'} | ` +
+        `time=${new Date().toISOString()}`
+      );
+      this._recordError(pipelineId, {
+        errorCode: 'BILLING_FAILED',
+        failedLayer: 'dh',
+        providerMessage: billingResult.message || 'billing failed'
+      });
+
+      return { billed: false, pointsCost };
+    } catch (error) {
+      console.error(
+        `[DigitalHumanTaskService] BILLING EXCEPTION (task completed, not billed) | ` +
+        `pipelineId=${pipelineId} | generationTaskId=${generationTask.id} | ` +
+        `error=${error.message} | time=${new Date().toISOString()}`
+      );
+      this._recordError(pipelineId, {
+        errorCode: 'BILLING_EXCEPTION',
+        failedLayer: 'dh',
+        providerMessage: error.message
+      });
+
+      return { billed: false, pointsCost };
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════
+  //  2.7 定位 DH GenerationTask（dh_task_id → generationTaskId → providerTaskId）
+  // ═══════════════════════════════════════════════════════════════════════
+
+  /**
+   * 由 PipelineTask 定位其 DigitalHuman GenerationTask。
+   *
+   * 匹配顺序（与 handleCallbackCompletion 对齐）：
+   *   1. PipelineTask.dh_task_id 直接索引（Step4-D7 回填 = GenerationTask.id）
+   *   2. intermediate_results.dh.generationTaskId
+   *   3. intermediate_results.dh.providerTaskId（= DashScope task_id）
+   *
+   * @param {Object} pipelineTask — PipelineTask instance
+   * @returns {Promise<Object|null>} GenerationTask instance 或 null
+   */
+  async _resolveDigitalHumanGenerationTask(pipelineTask) {
+    // ── 1. dh_task_id 直接索引 ──────────────────────────────────
+    if (pipelineTask.dh_task_id != null) {
+      const byDhTaskId = await GenerationTask.findByPk(pipelineTask.dh_task_id);
+      if (byDhTaskId) return byDhTaskId;
+    }
+
+    // ── 2. intermediate_results.dh 兜底 ─────────────────────────
+    let ir = pipelineTask.intermediate_results;
+    if (typeof ir === 'string') {
+      try {
+        ir = JSON.parse(ir);
+      } catch (_) {
+        ir = null;
+      }
+    }
+    const dh = ir && ir.dh ? ir.dh : null;
+    if (!dh) return null;
+
+    if (dh.generationTaskId != null) {
+      const byGenId = await GenerationTask.findByPk(dh.generationTaskId);
+      if (byGenId) return byGenId;
+    }
+
+    if (dh.providerTaskId) {
+      const byProvider = await GenerationTask.findOne({
+        where: { task_id: dh.providerTaskId }
+      });
+      if (byProvider) return byProvider;
+    }
+
+    return null;
   }
 
   // ═══════════════════════════════════════════════════════════════════════
@@ -743,6 +996,23 @@ class DigitalHumanTaskService {
       console.warn(
         `[DigitalHumanTaskService] recordNode FAILED (ignored) | ` +
         `pipelineId=${pipelineId} | event=${event} | error=${err.message}`
+      );
+    }
+  }
+
+  /**
+   * 记录错误诊断（计费失败等，try/catch 保护，失败仅告警不中断）
+   *
+   * @param {number|string} pipelineId
+   * @param {Object} [info] — { errorCode, failedLayer, providerMessage }
+   */
+  _recordError(pipelineId, info = {}) {
+    try {
+      pipelineObservabilityService.recordError(pipelineId, info);
+    } catch (err) {
+      console.warn(
+        `[DigitalHumanTaskService] recordError FAILED (ignored) | ` +
+        `pipelineId=${pipelineId} | error=${err.message}`
       );
     }
   }

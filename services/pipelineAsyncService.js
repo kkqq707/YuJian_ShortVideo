@@ -89,7 +89,7 @@ class PipelineAsyncService {
         );
 
         try {
-          await pipelineTaskService.markFailed(task.id, 'digital_human', reason);
+          await pipelineTaskService.markFailed(task.id, 'dh', reason);
           result.failed++;
         } catch (error) {
           console.error(

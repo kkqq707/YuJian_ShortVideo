@@ -268,6 +268,23 @@ class PipelineAssetService {
       `time=${new Date().toISOString()}`
     );
 
+    // ── 幂等守卫（Step6-E3B）：已有 output_asset_id → 复用，不重复下载/OSS/建 Asset ──
+    if (pipelineTask.output_asset_id) {
+      console.log(
+        `[PipelineAssetService] downloadAndSaveVideoAsset SKIP (asset exists) | ` +
+        `pipelineId=${pipelineId} | existingAssetId=${pipelineTask.output_asset_id} | ` +
+        `time=${new Date().toISOString()}`
+      );
+      return {
+        assetId: pipelineTask.output_asset_id,
+        videoUrl: null,
+        duration: meta.duration || 0,
+        resolution: null,
+        coverUrl: null,
+        reused: true
+      };
+    }
+
     try {
       // ── 1. 下载 + 上传 OSS ──────────────────────────────────
       const storeResult = await videoStorageService.downloadAndStore({
@@ -308,7 +325,8 @@ class PipelineAssetService {
         assetId: asset.id,
         videoUrl: asset.url,
         duration: meta.duration || assetParams.duration,
-        resolution
+        resolution,
+        coverUrl: assetParams.thumbnail || null
       };
 
     } catch (error) {
@@ -323,7 +341,8 @@ class PipelineAssetService {
         assetId: null,
         videoUrl: temporaryVideoUrl,
         duration: meta.duration || 0,
-        resolution: null
+        resolution: null,
+        coverUrl: null
       };
     }
   }

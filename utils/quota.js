@@ -37,12 +37,32 @@ exports.adjustAgentQuota = async ({ agentId, changePoints, changeType, remark, r
   }
 };
 
-exports.adjustEnterpriseQuota = async ({ enterpriseId, changePoints, changeType, remark, relatedId, operatorType = 'system', operatorId }) => {
+exports.adjustEnterpriseQuota = async ({ enterpriseId, changePoints, changeType, remark, relatedId, operatorType = 'system', operatorId, dedupeKey }) => {
   const t = await sequelize.transaction();
-  
+
   try {
     const enterprise = await Enterprise.findByPk(enterpriseId, { transaction: t, lock: t.LOCK.UPDATE });
     if (!enterprise) throw new Error('企业不存在');
+
+    // ── 可选幂等查重（Step6-E3B.1）：事务内 + Enterprise 行锁后查 consume 流水 ──
+    // 用于 at-most-once billing：已存在同类 consume 流水 → 跳过扣款 + 写流水。
+    // 判重键 = (user_type='enterprise', change_type='consume', related_id=GenerationTask.id)，
+    // 与余额扣减同事务原子提交，存在 ⟺ 已扣。
+    // 仅对 changeType='consume' 生效（防止误伤 recharge/adjust 桶）；默认关闭以兼容现有调用。
+    if (dedupeKey && dedupeKey.changeType === 'consume') {
+      const existing = await QuotaLog.findOne({
+        where: {
+          user_type: 'enterprise',
+          change_type: 'consume',
+          related_id: dedupeKey.relatedId
+        },
+        transaction: t
+      });
+      if (existing) {
+        await t.rollback();
+        return { success: true, duplicated: true, balance: enterprise.quota_balance };
+      }
+    }
 
     const pointsBefore = enterprise.quota_balance;
     const pointsAfter = pointsBefore + changePoints;

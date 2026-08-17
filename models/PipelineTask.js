@@ -193,7 +193,7 @@ const PipelineTask = sequelize.define('PipelineTask', {
     { fields: ['status'] },
     { fields: ['drama_project_id'] },
     { fields: ['deleted_at'] },
-    { fields: ['createdAt'] }
+    { fields: ['created_at'], name: 'idx_created_at' }
   ]
 });
 

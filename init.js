@@ -1,5 +1,6 @@
 require('dotenv').config();
-const { sequelize, Admin, Plan, Agent, ApiConfig, Enterprise, EnterpriseUser } = require('./models');
+const crypto = require('crypto');
+const { sequelize, Admin, Plan, Agent, ApiConfig, Enterprise, EnterpriseUser, Avatar } = require('./models');
 const registry = require('./config/ai-model-registry');
 
 async function init() {
@@ -159,6 +160,43 @@ async function init() {
     } else {
       console.log('✓ 企业用户已存在');
     }
+
+    // 创建官方数字人（Phase 004-Step7-A.5：Official Digital Human Seed）
+    // 幂等键: name + source='official'（官方形象天然以 name 唯一，enterprise_id IS NULL）
+    // avatar_uuid 仅在创建时生成，重复执行 npm run init 不会产生重复数据
+    const officialAvatars = [
+      {
+        name: 'wan2.2-s2v 官方示例人物',
+        image_url: 'https://guangying-video-2026.oss-cn-beijing.aliyuncs.com/digital-human/official/wan2.2-s2v-official-sample.jpg'
+      },
+      {
+        name: 'emo-v1 官方示例人物',
+        image_url: 'https://guangying-video-2026.oss-cn-beijing.aliyuncs.com/digital-human/official/emo-v1-official-sample.png'
+      }
+    ];
+
+    for (const avatar of officialAvatars) {
+      const [avatarRow, avatarCreated] = await Avatar.findOrCreate({
+        where: { name: avatar.name, source: 'official' },
+        defaults: {
+          avatar_uuid: crypto.randomUUID(),
+          name: avatar.name,
+          source: 'official',
+          enterprise_id: null,
+          user_id: null,
+          image_url: avatar.image_url,
+          gender: 'unknown',
+          status: 'active',
+          sort: 0
+        }
+      });
+      if (avatarCreated) {
+        console.log(`✓ 官方数字人创建成功: ${avatar.name}`);
+      } else {
+        console.log(`✓ 官方数字人已存在: ${avatar.name}`);
+      }
+    }
+    console.log('✓ 官方数字人初始化完成');
 
     console.log('\n═══════════════════════════════════════');
     console.log('  数据库初始化完成！');
