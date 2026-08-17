@@ -265,6 +265,19 @@ class PipelineTaskService {
         );
       }
 
+      // ── Step5-H2A 取消状态保护：已取消/已软删除任务禁止再变更状态（no-op）──────
+      // 防御纵深：即使上层编排/回调在取消后迟到达，也不允许将 cancelled 覆盖为其他
+      // 状态（如迟到的 success/failed），防止取消任务被误判为完成并产生副作用。
+      if (task.status === 'cancelled' || task.deleted_at != null) {
+        console.log(
+          `[PipelineTaskService] updateStatus SKIPPED (cancelled/deleted) | ` +
+          `id=${id} | requestedStatus=${status} | currentStatus=${task.status} | ` +
+          `deleted=${task.deleted_at != null} | ` +
+          `time=${new Date().toISOString()}`
+        );
+        return task;
+      }
+
       const updateFields = { status };
 
       // 合并额外字段（白名单：current_layer, started_at, completed_at）
@@ -575,6 +588,19 @@ class PipelineTaskService {
           `PipelineTask id=${id} not found`,
           false
         );
+      }
+
+      // ── Step5-H2A 取消状态保护：已取消/已软删除任务禁止标记失败（no-op）────────
+      // 防止迟到的失败处理将 cancelled 覆盖为 failed（failed_layer / error_msg /
+      // completed_at 均不落库），避免取消任务被误判为失败并触发积分/Asset 等副作用。
+      if (task.status === 'cancelled' || task.deleted_at != null) {
+        console.log(
+          `[PipelineTaskService] markFailed SKIPPED (cancelled/deleted) | ` +
+          `id=${id} | currentStatus=${task.status} | ` +
+          `deleted=${task.deleted_at != null} | ` +
+          `time=${new Date().toISOString()}`
+        );
+        return task;
       }
 
       await task.update({

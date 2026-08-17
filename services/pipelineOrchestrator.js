@@ -42,7 +42,12 @@ class PipelineOrchestrator {
    * 执行完整流水线
    *
    * 状态流转：
-   *   pending → running → vision → script → tts → digital_human → success
+   *   pending → running → vision → script → tts → digital_human
+   *
+   * digital_human 为异步阶段：本方法在提交 DH 异步任务后即返回，PipelineTask
+   * 保持 digital_human（不在此处置 success）。真正的 success 由完成驱动
+   * （digitalHumanTaskService.handleCompletedTask / handleCallbackCompletion）
+   * 在视频产出并回填 output_asset_id 后推进。
    *
    * 失败：
    *   任意阶段 → failed（通过 pipelineTaskService.markFailed）
@@ -140,22 +145,22 @@ class PipelineOrchestrator {
         return this._cancelled(pipelineId, 'after-dh');
       }
 
-      // ── 5. 成功 ───────────────────────────────────────────────────
-      await pipelineTaskService.updateStatus(pipelineId, 'success', {
-        completed_at: new Date()
-      });
-      await pipelineTaskService.updateProgress(pipelineId, 100);
-
+      // ── 5. DH 异步等待（P0-1 修复：不再提前 success）──────────────
+      // DigitalHuman 为异步任务：executeDigitalHuman 仅提交并拿到 taskId，
+      // 视频尚未生成。禁止在此处置 success —— PipelineTask 保持 digital_human，
+      // 由完成驱动（digitalHumanTaskService.handleCompletedTask /
+      // handleCallbackCompletion）在视频真正产出、output_asset_id 回填后推进 success。
       const elapsedMs = Date.now() - startTime;
 
       console.log(
-        `[PipelineOrchestrator] executePipeline SUCCESS | ` +
-        `pipelineId=${pipelineId} | elapsedMs=${elapsedMs} | ` +
+        `[PipelineOrchestrator] executePipeline DH_AWAIT | ` +
+        `pipelineId=${pipelineId} | status=digital_human | elapsedMs=${elapsedMs} | ` +
+        `providerTaskId=${dhResult.providerTaskId || dhResult.taskId || 'N/A'} | ` +
         `time=${new Date().toISOString()}`
       );
 
       return {
-        status: 'success',
+        status: 'digital_human',
         pipelineId,
         results: {
           vision: visionResult,
