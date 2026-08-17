@@ -5,8 +5,8 @@
  *
  * 职责：
  *   API Adapter for Script Generation models:
- *   - qwen3.6-plus (Premium, default)
- *   - qwen3.6-flash (Budget)
+ *   - qwen-plus (Premium, default)   [Phase 004-Step7-C.2.1]
+ *   - qwen-turbo / qwen-max (Alternates)
  *
  * 输入：
  *   visionResult, theme, style, duration, modelId
@@ -30,10 +30,13 @@ const registry = require('../../config/ai-model-registry');
 const ProviderError = require('../../utils/ProviderError');
 
 // ─── 允许的模型 ────────────────────────────────────────────────────
-const ALLOWED_MODELS = ['qwen3.6-plus', 'qwen3.6-flash'];
+// Phase 004-Step7-C.2.1: 当前 DashScope 环境真实可用模型
+// （qwen3.6-plus/qwen3.6-flash 返回 400 InvalidParameter，已移出白名单）
+const ALLOWED_MODELS = ['qwen-plus', 'qwen-turbo', 'qwen-max'];
 
 // ─── 默认模型 ──────────────────────────────────────────────────────
-const DEFAULT_MODEL = 'qwen3.6-plus';
+// Phase 004-Step7-C.2.1: 数字人口播 AI Script 默认生产模型 = qwen-plus
+const DEFAULT_MODEL = 'qwen-plus';
 
 // ─── 默认 Style 配置 ───────────────────────────────────────────────
 const STYLES = {
@@ -98,7 +101,7 @@ class AliyunScriptProvider {
    * @param {number} [params.duration]     — Target duration in seconds (default 30)
    * @param {string} [params.productName]  — Product name for context
    * @param {string} [params.sceneContext] — Additional scene context
-   * @param {string} [params.modelId]      — Override model (qwen3.6-plus | qwen3.6-flash)
+   * @param {string} [params.modelId]      — Override model (qwen-plus | qwen-turbo | qwen-max)
    * @returns {Promise<ScriptResult>}
    * @throws {ProviderError}
    */

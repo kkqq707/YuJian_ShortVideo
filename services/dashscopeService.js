@@ -582,7 +582,7 @@ class DashScopeService {
       providerStatus: providerStatus,
       status: normalizedStatus,
       progress,
-      outputUrl: body.output?.video_url || body.output?.url || null,
+      outputUrl: this._extractOutputUrl(body.output),
       coverUrl: body.output?.cover_url || null,
       duration: body.usage?.duration || body.output?.duration || null,
       errorCode: body.output?.error_code || body.code || null,
@@ -593,6 +593,43 @@ class DashScopeService {
     // 注意：不清理，保持字段存在性一致
 
     return response;
+  }
+
+  /**
+   * Phase DigitalHuman-Rebuild-004 Step7-D2: 解析 outputUrl
+   *
+   * 兼容 DashScope 多种返回结构：
+   *   body.output.video_url
+   *   body.output.url
+   *   body.output.results.video_url
+   *   body.output.results[0].video_url
+   *
+   * @param {Object} output - body.output
+   * @returns {string|null}
+   */
+  _extractOutputUrl(output) {
+    if (!output || typeof output !== 'object') return null;
+
+    // 1. body.output.video_url
+    if (output.video_url) return output.video_url;
+    // 2. body.output.url
+    if (output.url) return output.url;
+
+    // 3/4. body.output.results.video_url / body.output.results[0].video_url
+    const results = output.results;
+    if (Array.isArray(results)) {
+      for (const item of results) {
+        if (item && typeof item === 'object') {
+          if (item.video_url) return item.video_url;
+          if (item.url) return item.url;
+        }
+      }
+    } else if (results && typeof results === 'object') {
+      if (results.video_url) return results.video_url;
+      if (results.url) return results.url;
+    }
+
+    return null;
   }
 
   // ═══════════════════════════════════════════════════════════════

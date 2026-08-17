@@ -166,6 +166,8 @@ exports.execute = async (req, res) => {
       images,
       theme,
       style,
+      script_style,
+      dh_style,
       voice_id,
       resolution,
       duration,
@@ -194,6 +196,8 @@ exports.execute = async (req, res) => {
       images: images || null,
       theme: theme || null,
       style: style || null,
+      script_style: script_style || null,
+      dh_style: dh_style || null,
       voice_id: voice_id || null,
       resolution: resolution || null,
       duration: duration || null,
@@ -209,6 +213,8 @@ exports.execute = async (req, res) => {
       `has_images=${!!(images && images.length)} | ` +
       `theme=${theme || 'N/A'} | ` +
       `style=${style || 'N/A'} | ` +
+      `script_style=${script_style || 'N/A'} | ` +
+      `dh_style=${dh_style || 'N/A'} | ` +
       `has_voice_id=${!!voice_id} | ` +
       `resolution=${resolution || 'N/A'} | ` +
       `duration=${duration || 'N/A'} | ` +

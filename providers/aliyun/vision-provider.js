@@ -55,6 +55,8 @@ class AliyunVisionProvider {
    */
   async analyze(params) {
     const startTime = Date.now();
+    // Step7C4 Blocker-1: images=null → []（保持 images=[] 语义一致）
+    if (params.images == null) params.images = [];
     const { imageUrl, prompt, images = [], modelId } = params;
 
     // ── 1. Validate ──────────────────────────────────────────────

@@ -31,6 +31,7 @@ const dashscopeClient = require('./dashscope-client');
 const registry = require('../../config/ai-model-registry');
 const ProviderError = require('../../utils/ProviderError');
 const videoStorageService = require('../../services/videoStorageService');
+const ossService = require('../../services/ossService');
 
 // ─── 允许的模型 ────────────────────────────────────────────────────
 const ALLOWED_MODELS = ['wan2.2-s2v', 'emo-v1'];
@@ -102,13 +103,16 @@ class AliyunDigitalHumanProvider {
           `Allowed: ${WAN22_RESOLUTIONS.join(', ')}`, false
         );
       }
-      // Validate style
+      // Step7C4 Blocker-2: 复用已有 Model Registry defaultStyle 映射
+      // wan2.2-s2v 仅支持 speech/singing/performance；
+      // 脚本风格（如 professional）回落到 defaultStyle（speech）。
       if (style && !WAN22_STYLES.includes(style)) {
-        throw new ProviderError(
-          this.provider, 'INVALID_STYLE',
-          `Style "${style}" not supported for wan2.2-s2v. ` +
-          `Allowed: ${WAN22_STYLES.join(', ')}`, false
+        const fallbackStyle = modelConfig.defaultStyle || 'speech';
+        console.warn(
+          `[DigitalHumanProvider] Style "${style}" not supported for wan2.2-s2v | ` +
+          `fallback to "${fallbackStyle}"`
         );
+        params.style = fallbackStyle;
       }
     }
 
@@ -147,8 +151,16 @@ class AliyunDigitalHumanProvider {
       }
     }
 
-    // ── 4. Build input ───────────────────────────────────────────
-    const input = this._buildInput(params, isWan22, isEmo);
+    // ── 4. Sign private audio URL, then build input ──────────────
+    // 企业私有 OSS audio_url 匿名访问 = 403，DashScope 无法直接读取。
+    // 只对 audio_url 生成 3600s 签名 URL；image_url 保持官方公开 URL 不变。
+    // 签名 URL 仅存在于本次 DashScope 请求，禁止落库 / intermediate_results / Asset。
+    let signedAudioUrl = null;
+    if (audioUrl) {
+      signedAudioUrl = await this._signAudioUrl(audioUrl);
+    }
+
+    const input = this._buildInput(params, isWan22, isEmo, signedAudioUrl);
     const parameters = this._buildParameters(params, isWan22, isEmo);
 
     // ── 5. Log ────────────────────────────────────────────────────
@@ -359,7 +371,7 @@ class AliyunDigitalHumanProvider {
   /**
    * Build input object for the API request.
    */
-  _buildInput(params, isWan22, isEmo) {
+  _buildInput(params, isWan22, isEmo, signedAudioUrl) {
     const { imageUrl, audioUrl, faceBbox, style } = params;
 
     const input = {
@@ -367,8 +379,9 @@ class AliyunDigitalHumanProvider {
     };
 
     // Audio URL (required for both models in practice)
-    if (audioUrl) {
-      input.audio_url = audioUrl.trim();
+    // 使用 3600s 签名 URL（外部 DashScope 可访问）；私有原始 URL 不进入请求。
+    if (audioUrl && signedAudioUrl) {
+      input.audio_url = signedAudioUrl.trim();
     }
 
     // wan2.2-s2v specific: style
@@ -405,6 +418,41 @@ class AliyunDigitalHumanProvider {
     }
 
     return parameters;
+  }
+
+  /**
+   * Sign a private OSS audio URL for external DashScope access.
+   *
+   * 企业私有 OSS audio_url 匿名访问 = 403，DashScope 无法直接读取。
+   * 生成 3600s 签名 URL 供 DashScope 拉取音频；原始私有 URL 继续保存于
+   * Asset / Pipeline / TTS / 数据库。
+   *
+   * 签名 URL 仅存在于本次 DashScope 请求，禁止落库、写回
+   * intermediate_results 或写入 Asset。
+   *
+   * 签名失败时明确抛错，禁止静默回退到原始 private URL（会提交已知 403）。
+   *
+   * @param {string} audioUrl — 私有 OSS 音频 URL
+   * @returns {Promise<string>} 签名后的临时访问 URL（TTL 3600s）
+   * @throws {ProviderError}
+   */
+  async _signAudioUrl(audioUrl) {
+    try {
+      const signedUrl = await ossService.generateSignedUrl(audioUrl, 3600);
+      if (!signedUrl) {
+        throw new ProviderError(
+          this.provider, 'AUDIO_URL_SIGN_FAILED',
+          'Failed to sign private audio URL: no signed URL returned', false
+        );
+      }
+      return signedUrl;
+    } catch (error) {
+      if (error instanceof ProviderError) throw error;
+      throw new ProviderError(
+        this.provider, 'AUDIO_URL_SIGN_FAILED',
+        'Failed to sign private audio URL for DashScope submission', false, null, error
+      );
+    }
   }
 
   /**

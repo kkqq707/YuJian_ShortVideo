@@ -309,8 +309,12 @@ class AliyunTtsProvider {
     // Build WebSocket URL
     const wsEndpoint = this._getWsEndpoint(modelConfig);
 
+    // Step7-B.3 WS Protocol Fix: qwen3-tts-flash-realtime 使用 Realtime Session 协议
+    // （run-task 被服务端拒绝），cosyvoice 等保持原 run-task 路径不变。
+    const isRealtimeSession = model === 'qwen3-tts-flash-realtime';
+
     if (process.env.NODE_ENV === 'development') {
-      console.log(`[TtsProvider] WebSocket TTS | model=${model} | endpoint=${wsEndpoint}`);
+      console.log(`[TtsProvider] WebSocket TTS | model=${model} | endpoint=${wsEndpoint} | session=${isRealtimeSession}`);
     }
 
     return new Promise((resolve, reject) => {
@@ -345,6 +349,59 @@ class AliyunTtsProvider {
           // Text JSON event
           try {
             const msg = typeof data === 'string' ? JSON.parse(data) : data;
+
+            // ── Realtime Session 协议（qwen3-tts-flash-realtime）──────
+            if (isRealtimeSession) {
+              // 服务端错误
+              if (msg.type === 'error') {
+                hasError = true;
+                clearTimeout(timeoutId);
+                transport.close();
+                reject(new ProviderError(
+                  this.provider, 'TTS_WS_ERROR',
+                  `TTS WebSocket error: ${msg.error?.message || 'Unknown error'} (code: ${msg.error?.code || ''})`, false
+                ));
+                return;
+              }
+
+              // 音频分片（base64）
+              if (msg.type === 'response.audio.delta' && msg.delta) {
+                audioChunks.push(Buffer.from(msg.delta, 'base64'));
+                return;
+              }
+
+              // 完成
+              if (msg.type === 'response.audio.done') {
+                clearTimeout(timeoutId);
+                transport.close();
+
+                if (audioChunks.length === 0) {
+                  hasError = true;
+                  reject(new ProviderError(
+                    this.provider, 'TTS_NO_AUDIO',
+                    'TTS completed but no audio data received', false
+                  ));
+                  return;
+                }
+
+                const buffer = Buffer.concat(audioChunks);
+                resolve({
+                  buffer,
+                  format,
+                  sampleRate,
+                  mimeType: `audio/${format}`,
+                });
+                return;
+              }
+
+              // 采样率跟踪（session.created / session.updated）
+              if (msg.session?.sample_rate) {
+                sampleRate = msg.session.sample_rate;
+              }
+              return;
+            }
+
+            // ── 原有 run-task 协议处理（cosyvoice 等）────────────────
 
             // Check for errors
             if (msg.header?.code && msg.header.code !== 0) {
@@ -440,12 +497,33 @@ class AliyunTtsProvider {
       // ── Connect ────────────────────────────────────────────────
       transport.connect(wsEndpoint, this.client.service.apiKey, 30000)
         .then(() => {
-          // Send TTS command
-          const command = this._buildTtsCommand({ model, text, voiceId, emotion, speed, format });
-          transport.send(command);
+          if (isRealtimeSession) {
+            // Step7-B.3: qwen3 realtime → session 协议。
+            // voice 来自上游已解析的 Voice.voice_key（resolveForSynthesis → voice_key），
+            // 放 session.voice（run-task 的 input.voice 不适用于该模型）。
+            const session = {
+              response_format: format || 'mp3',
+              sample_rate: 24000,
+              mode: 'server_commit',
+            };
+            if (voiceId) {
+              session.voice = voiceId;
+            }
+            transport.send({ type: 'session.update', session });
+            transport.send({ type: 'input_text_buffer.append', text: text.trim() });
+            transport.send({ type: 'input_text_buffer.commit' });
 
-          if (process.env.NODE_ENV === 'development') {
-            console.log(`[TtsProvider] WS command sent | model=${model}`);
+            if (process.env.NODE_ENV === 'development') {
+              console.log(`[TtsProvider] WS session commands sent | model=${model}`);
+            }
+          } else {
+            // Send TTS command (run-task, cosyvoice 等原有路径不变)
+            const command = this._buildTtsCommand({ model, text, voiceId, emotion, speed, format });
+            transport.send(command);
+
+            if (process.env.NODE_ENV === 'development') {
+              console.log(`[TtsProvider] WS command sent | model=${model}`);
+            }
           }
         })
         .catch((err) => {
@@ -545,6 +623,17 @@ class AliyunTtsProvider {
    * Format follows DashScope WebSocket TTS API specification.
    */
   _buildTtsCommand({ model, text, voiceId, emotion, speed, format }) {
+    const input = {
+      text: text.trim(),
+    };
+
+    // Step7-B.3 (W1 / G1b): 将 voiceId 透传至 DashScope input.voice。
+    // 修复：WS 路径此前从未发送 voice，官方音色（qwen3-tts-flash-realtime 的
+    // Cherry 等）依赖 input.voice 才能生效。voiceId 存在时才加入，保持可选。
+    if (voiceId) {
+      input.voice = voiceId;
+    }
+
     return {
       header: {
         action: 'run-task',
@@ -553,9 +642,7 @@ class AliyunTtsProvider {
       },
       payload: {
         model,
-        input: {
-          text: text.trim(),
-        },
+        input,
         parameters: {
           format: format || 'mp3',
           sample_rate: 24000,

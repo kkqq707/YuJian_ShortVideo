@@ -32,6 +32,7 @@ const pipelineTaskService = require('./pipelineTaskService');
 const pipelineAssetService = require('./pipelineAssetService');
 const pipelineObservabilityService = require('./pipelineObservabilityService');
 const scriptService = require('./scriptService');
+const voiceService = require('./voiceService');
 const { PipelineTask } = require('../models');
 
 // 关键节点事件名（唯一事实来源）
@@ -507,16 +508,54 @@ class PipelineOrchestrator {
         current_layer: layer
       });
 
-      // ── 2. 调用 generationService.generateTTS ────────────────────
+      // ── 2. 服务端权威解析 voice_id(主键) → voice_key + model_id（Step7-B.3 / W2+W3）
+      // 前端只传 voice.id（DB 主键），此处解析：
+      //   - 命中   → voiceId = voice_key（真实阿里云 voice_id）、modelId = voice.model_id 优先
+      //   - 解析不到（已删 / 越权 / 伪造）→ 告警 + 按默认音色继续，不中断任务
+      let resolvedVoiceKey = null;
+      let resolvedVoiceModelId = null;
+      if (inputParams.voice_id) {
+        try {
+          const resolved = await voiceService.resolveForSynthesis(inputParams.voice_id, task.enterprise_id);
+          if (resolved && resolved.found) {
+            resolvedVoiceKey = resolved.voiceKey;
+            resolvedVoiceModelId = resolved.modelId;
+            console.log(
+              `[PipelineOrchestrator] voice resolved | ` +
+              `pipelineId=${pipelineId} | voiceId=${inputParams.voice_id} | ` +
+              `voiceKey=${resolved.voiceKey} | modelId=${resolved.modelId || 'N/A'} | ` +
+              `time=${new Date().toISOString()}`
+            );
+          } else {
+            console.warn(
+              `[PipelineOrchestrator] voice UNRESOLVABLE | ` +
+              `pipelineId=${pipelineId} | voiceId=${inputParams.voice_id} | ` +
+              `reason=deleted/forbidden/forged | continue with default voice | ` +
+              `time=${new Date().toISOString()}`
+            );
+          }
+        } catch (resolveError) {
+          console.warn(
+            `[PipelineOrchestrator] voice resolve ERROR | ` +
+            `pipelineId=${pipelineId} | voiceId=${inputParams.voice_id} | ` +
+            `error=${resolveError.message} | continue with default voice | ` +
+            `time=${new Date().toISOString()}`
+          );
+          resolvedVoiceKey = null;
+          resolvedVoiceModelId = null;
+        }
+      }
+
+      // ── 3. 调用 generationService.generateTTS ────────────────────
       const ttsParams = {
         enterpriseId: task.enterprise_id,
         userId: task.user_id,
         text: scriptResult.fullText,
-        voiceId: inputParams.voice_id,
+        voiceId: resolvedVoiceKey || null,       // 真实 voice_key，非 DB 主键
         emotion: inputParams.tts_emotion || inputParams.emotion,
         speed: inputParams.tts_speed || inputParams.speed,
         format: inputParams.tts_format || inputParams.format,
-        modelId: inputParams.tts_model_id
+        modelId: resolvedVoiceModelId || inputParams.tts_model_id  // voice 的 model_id 优先
       };
 
       const result = await generationService.generateTTS(ttsParams);

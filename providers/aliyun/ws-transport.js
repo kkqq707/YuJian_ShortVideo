@@ -72,7 +72,10 @@ function encodeFrame(opcode, payload) {
   const mask = maskKey();
   const maskedPayload = applyMask(buf, mask);
 
-  let headerLen = 2; // minimum: FIN+opcode+mask, len
+  // headerLen = FIN/opcode + mask-bit/len + (extended len) + 4-byte mask。
+  // Step7-B.3 WS Protocol Fix: 原实现漏算了 4 字节 mask，frame 缓冲区短 4 字节，
+  // 导致 mask/payload 的 Buffer.copy 被截断、发出的帧畸形（服务端回 1007 invalid UTF-8）。
+  let headerLen = 2 + 4; // FIN+opcode(1) + mask/len(1) + mask(4)
   if (buf.length > 65535) headerLen += 8; // 64-bit length
   else if (buf.length > 125) headerLen += 2; // 16-bit length
 
@@ -290,6 +293,43 @@ class WsTransport extends EventEmitter {
         this.socket = req.socket || res.socket;
         this.connected = true;
         this._setupSocket();
+
+        if (process.env.NODE_ENV === 'development') {
+          console.log(`[WsTransport] Connected to ${wsUrl.replace(/api_key=[^&]+/, 'api_key=***')}`);
+        }
+
+        resolve();
+      });
+
+      // Step7-B.3 WS Protocol Fix: 服务端返回 101 Switching Protocols 时，Node http
+      // 客户端触发 'upgrade' 事件（而非 'response' 回调），且无监听时静默关闭连接，
+      // 导致 connect() Promise 永不 settle（既有 Bug，影响所有 WS TTS 模型）。
+      // 此处接管 101 成功路径；非 101 仍走上方 'response' 回调的错误分支。
+      req.on('upgrade', (res, socket, head) => {
+        if (res.statusCode !== 101) {
+          this.connected = false;
+          socket.destroy();
+          reject(new Error(`WebSocket upgrade failed: HTTP ${res.statusCode}`));
+          return;
+        }
+
+        // Validate accept key
+        const serverAccept = res.headers['sec-websocket-accept'];
+        if (serverAccept !== acceptKey) {
+          this.connected = false;
+          socket.destroy();
+          reject(new Error('WebSocket handshake failed: invalid Sec-WebSocket-Accept'));
+          return;
+        }
+
+        this.socket = socket;
+        this.connected = true;
+        this._setupSocket();
+
+        // 握手后可能已带缓冲字节（如首个 WS 帧），喂给解析器
+        if (head && head.length) {
+          socket.emit('data', head);
+        }
 
         if (process.env.NODE_ENV === 'development') {
           console.log(`[WsTransport] Connected to ${wsUrl.replace(/api_key=[^&]+/, 'api_key=***')}`);

@@ -38,6 +38,14 @@ exports.adjustAgentQuota = async ({ agentId, changePoints, changeType, remark, r
 };
 
 exports.adjustEnterpriseQuota = async ({ enterpriseId, changePoints, changeType, remark, relatedId, operatorType = 'system', operatorId, dedupeKey }) => {
+  // ── 开发环境计费旁路（Step7-D4）：BILLING_BYPASS 开启时跳过全部计费逻辑 ──
+  // 不扣积分 / 不检查余额 / 不写 QuotaLog / 不改变数据库余额。
+  // 开启条件：环境变量值为 '1' | 'true' | 'on'（大小写不敏感）。
+  // 关闭后完全恢复原 Billing 行为。
+  if (['1', 'true', 'on'].includes(String(process.env.BILLING_BYPASS || '').toLowerCase())) {
+    return { success: true, balance: null, devBypass: true };
+  }
+
   const t = await sequelize.transaction();
 
   try {

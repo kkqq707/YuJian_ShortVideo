@@ -38,6 +38,11 @@ const {
   getModelConfig
 } = require('../config/ai-model-registry');
 
+// ─── Phase DigitalHuman-Rebuild-004 Step7-D2 ───────────────────
+// 数字人口播音频硬限制：估算语速 3.33 字/秒，上限 18 秒。
+const MAX_DIGITAL_HUMAN_AUDIO_SECONDS = 18;
+const TTS_CHARS_PER_SECOND = 3.33;
+
 class GenerationService {
   /**
    * 创建 AI 生成任务（完整流程）
@@ -664,7 +669,7 @@ class GenerationService {
    * @param {string} [params.style]        — professional | casual | energetic | warm
    * @param {number} [params.duration]     — 目标时长（秒）
    * @param {string} [params.productName]  — 产品名称
-   * @param {string} [params.modelId]      — 模型覆盖（默认 qwen3.6-plus）
+   * @param {string} [params.modelId]      — 模型覆盖（默认经 Registry 模板 ai_script_generation 解析）
    * @returns {Promise<{
    *   id: number, title: string, fullText: string, segments: Array,
    *   totalWords: number, estimatedDuration: number, style: string,
@@ -686,7 +691,10 @@ class GenerationService {
       throw new ProviderError('system', 'VALIDATION', 'User ID is required', false);
     }
 
-    const effectiveModel = modelId || 'qwen3.6-plus';
+    // Phase 004-Step7-C.3: 默认模型经 Model Registry 模板 ai_script_generation 解析（Single Source of Truth，禁止硬编码）
+    const scriptModelConfig = getTemplateModelConfig('ai_script_generation');
+    const defaultScriptModel = scriptModelConfig ? scriptModelConfig.apiModelName : undefined;
+    const effectiveModel = modelId || defaultScriptModel;
     const promptText = theme || productName || (visionResult ? visionResult.visualDesc : null) || null;
 
     // ── 2. 创建本地 GenerationTask 记录（pending）──────────────
@@ -801,13 +809,30 @@ class GenerationService {
 
     const effectiveModel = modelId || 'cosyvoice-v3.5-plus';
 
+    // ── Phase DigitalHuman-Rebuild-004 Step7-D2 ─────────────────
+    // 数字人口播音频硬限制：在 synthesizeSpeech 前对文本做确定性截断。
+    // effectiveText 同时用于 localTask.prompt 与 synthesizeSpeech，
+    // 保证「数据库文本 = 实际语音文本」。
+    const truncation = this._truncateDigitalHumanAudio(text);
+    const effectiveText = truncation.effectiveText;
+
+    if (truncation.truncated) {
+      console.log(
+        `[GenerationService] generateTTS audio truncated (digital human limit) | ` +
+        `originalChars=${truncation.originalChars} | ` +
+        `newChars=${truncation.newChars} | ` +
+        `estimatedDuration=${truncation.estimatedDuration.toFixed(2)}s | ` +
+        `maxSeconds=${MAX_DIGITAL_HUMAN_AUDIO_SECONDS}`
+      );
+    }
+
     // ── 2. 创建本地 GenerationTask 记录（pending）──────────────
     const localTask = await GenerationTask.create({
       enterprise_id: enterpriseId,
       user_id: userId,
       task_type: 'tts_generation',
       model: effectiveModel,
-      prompt: text.trim(),
+      prompt: effectiveText,
       status: 'pending',
       provider: 'aliyun',
       params: JSON.stringify({ voiceId, emotion, speed, format, modelId: effectiveModel }),
@@ -817,7 +842,7 @@ class GenerationService {
     // ── 3. 调用 aliyunProvider.synthesizeSpeech ───────────────
     try {
       const aiResult = await aliyunProvider.synthesizeSpeech({
-        text,
+        text: effectiveText,
         voiceId,
         emotion,
         speed,
@@ -873,6 +898,55 @@ class GenerationService {
       this._logTaskFailed(localTask, errorInfo);
       throw error;
     }
+  }
+
+  /**
+   * Phase DigitalHuman-Rebuild-004 Step7-D2: 数字人口播音频硬限制截断
+   *
+   * 确定性截断：按句号/问号/感叹号/换行切分，累计估算时长
+   * （字数 / 3.33），超过 18 秒停止，返回完整句。未超限时保持原文。
+   *
+   * @param {string} text
+   * @returns {{
+   *   effectiveText: string,
+   *   truncated: boolean,
+   *   originalChars: number,
+   *   newChars: number,
+   *   estimatedDuration: number
+   * }}
+   */
+  _truncateDigitalHumanAudio(text) {
+    // 按句号/问号/感叹号/换行切分，保留分隔符
+    const sentences = text.match(/[^。！？!?.\n]+[。！？!?.\n]*/g) || [text];
+
+    let effectiveText = '';
+    let truncated = false;
+
+    for (const sentence of sentences) {
+      const nextText = effectiveText + sentence;
+      if (nextText.length / TTS_CHARS_PER_SECOND > MAX_DIGITAL_HUMAN_AUDIO_SECONDS) {
+        truncated = true;
+        break;
+      }
+      effectiveText = nextText;
+    }
+
+    // 兜底：首个句子本身已超限时，至少保留首句，避免返回空文本
+    if (!effectiveText && sentences.length > 0) {
+      effectiveText = sentences[0];
+      truncated = true;
+    }
+
+    const finalText = truncated ? effectiveText.trim() : text;
+    const newChars = finalText.length;
+
+    return {
+      effectiveText: finalText,
+      truncated,
+      originalChars: text.length,
+      newChars,
+      estimatedDuration: newChars / TTS_CHARS_PER_SECOND
+    };
   }
 
   /**

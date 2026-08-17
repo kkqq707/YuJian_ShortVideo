@@ -31,6 +31,11 @@
  *   │ qwen3-vl-flash               │ vision_understanding  │ text     │
  *   │ qwen3.6-plus                 │ script_generation     │ text     │
  *   │ qwen3.6-flash                │ script_generation     │ text     │
+ *   ├──────────────────────────────┼──────────────────────┼──────────┤
+ *   │ [Phase 004-Step7-C.2.1]      │                      │          │
+ *   │ qwen-plus ★默认生产          │ script_generation     │ text     │
+ *   │ qwen-turbo                   │ script_generation     │ text     │
+ *   │ qwen-max                     │ script_generation     │ text     │
  *   │ cosyvoice-v3.5-plus          │ tts_generation        │ audio    │
  *   │ cosyvoice-v1                 │ tts_generation        │ audio    │
  *   │ qwen3-tts-flash-realtime     │ tts_generation        │ audio    │
@@ -626,6 +631,79 @@ const models = {
     apiPath: '/api/v1/services/aigc/text-generation/generation',
   },
 
+  // ── DigitalHuman Pipeline: Script Generation — 生产可用映射 ─────
+  // Phase 004-Step7-C.2.1: 当前真实 DashScope 环境仅识别以下模型。
+  // qwen3.6-plus / qwen3.6-flash 返回 400 InvalidParameter，不再作为生产默认。
+
+  'qwen-plus': {
+    id: 'qwen-plus',
+    name: 'Qwen Plus 脚本生成',
+    displayName: 'qwen-plus',
+    family: 'qwen',
+    provider: 'aliyun',
+    capability: CAPABILITY.SCRIPT_GENERATION,
+    outputType: 'text',
+    apiModelName: 'qwen-plus',
+
+    description: '数字人口播 AI Script 默认生产模型（Phase 004-Step7-C.2.1 决策）。中文口播质量、结构化输出、成本、延迟综合最佳；真实 DashScope 已验证 200 OK',
+    category: 'script',
+    categoryLabel: '脚本生成',
+    icon: '📝',
+    sort: 8,
+
+    maxPromptLength: 8000,
+
+    pricing: { pointsPerUnit: 2, unit: 'request' },
+
+    apiPath: '/api/v1/services/aigc/text-generation/generation',
+  },
+
+  'qwen-turbo': {
+    id: 'qwen-turbo',
+    name: 'Qwen Turbo 脚本生成',
+    displayName: 'qwen-turbo',
+    family: 'qwen',
+    provider: 'aliyun',
+    capability: CAPABILITY.SCRIPT_GENERATION,
+    outputType: 'text',
+    apiModelName: 'qwen-turbo',
+
+    description: '低成本/低延迟脚本生成备选（Budget tier），结构化输出成立但篇幅略短。真实 DashScope 已验证 200 OK',
+    category: 'script',
+    categoryLabel: '脚本生成',
+    icon: '📄',
+    sort: 8.5,
+
+    maxPromptLength: 8000,
+
+    pricing: { pointsPerUnit: 1, unit: 'request' },
+
+    apiPath: '/api/v1/services/aigc/text-generation/generation',
+  },
+
+  'qwen-max': {
+    id: 'qwen-max',
+    name: 'Qwen Max 脚本生成',
+    displayName: 'qwen-max',
+    family: 'qwen',
+    provider: 'aliyun',
+    capability: CAPABILITY.SCRIPT_GENERATION,
+    outputType: 'text',
+    apiModelName: 'qwen-max',
+
+    description: '最高质量档脚本生成备选（Premium tier），口播文案更丰满但最慢。真实 DashScope 已验证 200 OK',
+    category: 'script',
+    categoryLabel: '脚本生成',
+    icon: '📝',
+    sort: 8.2,
+
+    maxPromptLength: 8000,
+
+    pricing: { pointsPerUnit: 3, unit: 'request' },
+
+    apiPath: '/api/v1/services/aigc/text-generation/generation',
+  },
+
   // ── DigitalHuman Pipeline: TTS Generation ───────────────────────
 
   'cosyvoice-v3.5-plus': {
@@ -839,7 +917,7 @@ const capabilityMap = buildCapabilityMap();
 //   image_edit:           ['qwen-image-edit'],
 //   digital_human:        ['wanx-digital-human', 'wan2.2-s2v', 'emo-v1'],
 //   vision_understanding: ['qwen3-vl-plus', 'qwen3-vl-flash'],
-//   script_generation:    ['qwen3.6-plus', 'qwen3.6-flash'],
+//   script_generation:    ['qwen3.6-plus', 'qwen3.6-flash', 'qwen-plus', 'qwen-turbo', 'qwen-max'],
 //   tts_generation:       ['cosyvoice-v3.5-plus', 'cosyvoice-v1', 'qwen3-tts-flash-realtime', 'sambert-v1'],
 // }
 
@@ -936,7 +1014,7 @@ const templates = [
   },
   {
     id: 'ai_script_generation',
-    modelId: 'qwen3.6-plus',
+    modelId: 'qwen-plus',
     name: 'AI脚本生成',
     description: '基于视觉分析结果使用大语言模型生成口播脚本',
     icon: '📝',

@@ -418,6 +418,50 @@ class VoiceService {
       );
     }
   }
+
+  // ───────────────────────────────────────────────────────────────────
+  // 6. 合成解析（Step7-B.3 / W2：voice_id 主键 → voice_key + model_id）
+  // ───────────────────────────────────────────────────────────────────
+
+  /**
+   * 为语音合成解析 Voice（voice_id 主键 → voice_key / model_id）
+   *
+   * 纯数据访问：复用 getVoice 的双域可见查询（系统全局 enterprise_id IS NULL
+   * + 本企业 custom），不触碰 Provider / Pipeline / OSS。
+   *
+   * 冻结口径（Step7-B.2 §4.1）：解析不到（已删 / 越权 / 伪造）→ 返回
+   * found=false，由调用方记日志告警并按默认音色继续，不中断数字人任务。
+   *
+   * @param {number} id           — Voice 主键 ID（前端传入的 voice.id）
+   * @param {number} enterpriseId — 企业 ID（隔离校验）
+   * @returns {Promise<{ voiceKey: string|null, modelId: string|null, found: boolean }>}
+   */
+  async resolveForSynthesis(id, enterpriseId) {
+    if (!id) {
+      return { voiceKey: null, modelId: null, found: false };
+    }
+
+    try {
+      const voice = await this.getVoice(id, enterpriseId);
+      if (!voice) {
+        return { voiceKey: null, modelId: null, found: false };
+      }
+
+      return {
+        voiceKey: voice.voice_key || null,
+        modelId: voice.model_id || null,
+        found: true,
+      };
+    } catch (error) {
+      // 查询失败按「不可解析」处理（不抛错），保证不中断任务
+      console.warn(
+        `[VoiceService] resolveForSynthesis FAILED (treated as not-found) | ` +
+        `id=${id} | enterpriseId=${enterpriseId} | ` +
+        `error=${error.message} | time=${new Date().toISOString()}`
+      );
+      return { voiceKey: null, modelId: null, found: false };
+    }
+  }
 }
 
 module.exports = new VoiceService();

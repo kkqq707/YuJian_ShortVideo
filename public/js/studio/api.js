@@ -153,6 +153,21 @@
     };
   }
 
+  /**
+   * normalizePlayUrl(data) → 素材播放 URL ViewModel
+   *
+   * 契约 data: { url, expires, type }（后端已返回 camelCase，无 snake_case 转换）
+   * 注：expires=0 表示非 OSS 旧格式 URL 直接透传，无需签名。
+   */
+  function normalizePlayUrl(data) {
+    if (!data) return null;
+    return {
+      url: data.url != null ? data.url : null,
+      expires: data.expires != null ? data.expires : 0,
+      type: data.type != null ? data.type : null
+    };
+  }
+
   // ═══════════════════════════════════════════════════════════════════
   //  错误归一化（唯一容错点，页面禁止各自 catch 映射）
   // ═══════════════════════════════════════════════════════════════════
@@ -489,6 +504,18 @@
     }
   };
 
+  var asset = {
+    /**
+     * 获取素材播放 URL（私有 OSS 签名，7 天有效；视频/图片均支持）
+     * 数字人成品视频前端播放 + 下载的唯一 URL 入口。
+     */
+    playUrl: function (assetId) {
+      return YuJianAPI.get('/enterprise/assets/' + assetId + '/play-url')
+        .then(normalizePlayUrl)
+        .catch(function (err) { throw handleError(err); });
+    }
+  };
+
   // ═══════════════════════════════════════════════════════════════════
   //  实体状态映射（唯一映射点增量，不改请求）
   //  组件层状态徽章经 resolveStatusMeta(domain, status) → { label, tone }
@@ -543,6 +570,7 @@
     voice: voice,
     script: script,
     pipeline: pipeline,
+    asset: asset,
     resolveStatusMeta: resolveStatusMeta
   };
   window.YJ = YJ;
