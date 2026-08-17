@@ -647,6 +647,85 @@ class DigitalHumanTaskService {
   }
 
   // ═══════════════════════════════════════════════════════════════════════
+  //  5. isPipelineCancelledForGenerationTask — 取消回调守卫（Step5-G3）
+  // ═══════════════════════════════════════════════════════════════════════
+
+  /**
+   * 判断某 GenerationTask（数字人）对应的 PipelineTask 是否已被取消
+   *
+   * Step5-G3：流水线「删除 = 终止」会置 status='cancelled'（含 deleted_at），
+   * 但 DashScope 异步任务仍可能回调 SUCCEEDED。回调侧在读到此状态时需提前返回，
+   * 避免：重复扣积分（adjustEnterpriseQuota）、重复建 Asset（storeVideoAndCreateAsset）、
+   * 推进 PipelineTask（handleCallbackCompletion）。
+   *
+   * 只读、不写库、不修改任何状态。
+   *
+   * 匹配顺序（与 handleCallbackCompletion 对齐）：
+   *   1. 优先：PipelineTask.dh_task_id === generationTaskId（新任务，直接索引，
+   *      不过滤 deleted_at，确保能读到「已软删除且已取消」的行）
+   *   2. 兜底：扫描 status='cancelled' 的 PipelineTask，JSON 匹配
+   *      intermediate_results.dh.providerTaskId === dashScopeTaskId
+   *      或 intermediate_results.dh.generationTaskId === generationTaskId
+   *
+   * @param {number|null} generationTaskId — GenerationTask.id（= dh_task_id）
+   * @param {string|null} dashScopeTaskId   — GenerationTask.task_id（DashScope task_id）
+   * @returns {Promise<boolean>} true 表示对应 PipelineTask 已被取消
+   */
+  async isPipelineCancelledForGenerationTask(generationTaskId, dashScopeTaskId) {
+    // ── 1. 优先：dh_task_id 直接索引 ─────────────────────────────
+    if (generationTaskId != null) {
+      try {
+        const byDhTaskId = await PipelineTask.findOne({
+          where: { dh_task_id: generationTaskId }
+        });
+        if (byDhTaskId) {
+          return byDhTaskId.status === 'cancelled';
+        }
+      } catch (err) {
+        // 读失败按「未取消」处理，避免误杀；回调自然推进（扣积分 / 建 Asset）
+        console.warn(
+          `[DigitalHumanTaskService] isPipelineCancelledForGenerationTask dh_task_id read FAILED (treated as not-cancelled) | ` +
+          `generationTaskId=${generationTaskId} | error=${err.message}`
+        );
+      }
+    }
+
+    // ── 2. 兜底：扫描 cancelled PipelineTask，JSON 匹配 ──────────
+    try {
+      const cancelledPipelines = await PipelineTask.findAll({
+        where: { status: 'cancelled' }
+      });
+
+      for (const pt of cancelledPipelines) {
+        let ir = pt.intermediate_results;
+        if (typeof ir === 'string') {
+          try {
+            ir = JSON.parse(ir);
+          } catch (_) {
+            ir = null;
+          }
+        }
+        const dh = ir && ir.dh ? ir.dh : null;
+        if (!dh) continue;
+
+        if (
+          (dashScopeTaskId && dh.providerTaskId === dashScopeTaskId) ||
+          (generationTaskId != null && dh.generationTaskId === generationTaskId)
+        ) {
+          return true;
+        }
+      }
+    } catch (err) {
+      console.warn(
+        `[DigitalHumanTaskService] isPipelineCancelledForGenerationTask cancelled-scan read FAILED (treated as not-cancelled) | ` +
+        `error=${err.message}`
+      );
+    }
+
+    return false;
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════
   //  观察能力：记录关键节点（Step4-F2，失败不影响主流程）
   // ═══════════════════════════════════════════════════════════════════════
 

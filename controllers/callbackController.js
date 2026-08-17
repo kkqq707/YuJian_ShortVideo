@@ -48,6 +48,19 @@ exports.dashscopeCallback = async (req, res) => {
         return res.success({ received: true, duplicated: true });
       }
 
+      // ── 取消回调守卫（Step5-G3）────────────────────────────────
+      // 流水线「删除 = 终止」已置 PipelineTask.status='cancelled'，但 DashScope
+      // 仍可能回调 SUCCEEDED。命中取消时直接返回，禁止：扣积分、storeVideoAndCreateAsset、
+      // handleCallbackCompletion（避免取消任务被误判成功并产生积分/Asset 副作用）。
+      const pipelineCancelled =
+        await digitalHumanTaskService.isPipelineCancelledForGenerationTask(
+          task.id,
+          task.task_id
+        );
+      if (pipelineCancelled) {
+        return res.success({ received: true, cancelled: true });
+      }
+
       // 计算并扣除积分（保持原逻辑不变）
       const pointsPerSecond = await dashscopeService.getPointsPerSecond(task.model);
       const pointsCost = Math.ceil((usage?.duration || 5) * pointsPerSecond);
