@@ -1,0 +1,140 @@
+/*
+ * YuJian Studio — Batch 7 visual direction correction
+ * Digital-human workbench inherits the enterprise Edit Bay at Night language.
+ * Visual-only overrides: route, task, asset, voice, history and API contracts stay unchanged.
+ */
+
+.studio-layout {
+  background:
+    radial-gradient(circle at 78% 0%, rgba(103, 232, 249, .08), transparent 28%),
+    radial-gradient(circle at 12% 42%, rgba(139, 124, 255, .08), transparent 34%),
+    var(--yj-surface-0, #070a12);
+}
+
+#studio-topbar {
+  background: rgba(13, 18, 32, .9);
+  border-bottom-color: var(--yj-border-subtle);
+  box-shadow: 0 8px 24px rgba(0,0,0,.2);
+}
+
+.studio-topbar__logo {
+  background: var(--yj-luminous-gradient);
+  box-shadow: 0 0 20px rgba(78, 167, 255, .24);
+}
+
+#studio-sidebar,
+#studio-back {
+  background: var(--yj-surface-1);
+  border-color: var(--yj-border-subtle);
+}
+
+.studio-nav__group-title {
+  color: var(--yj-text-muted);
+  letter-spacing: .08em;
+}
+
+.studio-nav__item {
+  border: 1px solid transparent;
+  color: var(--yj-text-secondary);
+  transition: color var(--duration-fast) var(--ease-out), background-color var(--duration-fast) var(--ease-out), border-color var(--duration-fast) var(--ease-out), box-shadow var(--duration-fast) var(--ease-out);
+}
+.studio-nav__item:hover {
+  background: var(--yj-surface-2);
+  border-color: var(--yj-border-subtle);
+  color: var(--yj-text-strong);
+}
+.studio-nav__item.is-active {
+  position: relative;
+  background: linear-gradient(90deg, rgba(78,167,255,.16), rgba(139,124,255,.08));
+  border-color: rgba(78,167,255,.32);
+  color: var(--yj-text-strong);
+  box-shadow: inset 0 0 18px rgba(78,167,255,.06);
+}
+.studio-nav__item.is-active::before {
+  content: '';
+  position: absolute;
+  left: -1px;
+  top: 8px;
+  bottom: 8px;
+  width: 2px;
+  border-radius: 0 2px 2px 0;
+  background: var(--yj-luminous-gradient);
+  box-shadow: 0 0 10px rgba(78,167,255,.4);
+}
+.studio-nav__item.is-active i { color: var(--yj-cyan); }
+
+#studio-main { padding: clamp(20px, 3vw, 36px); }
+.studio-page { animation: studio-page-in 320ms var(--ease-out) both; }
+.studio-page__header { gap: var(--space-2); }
+.studio-page__title,
+.studio-workbench__recent-title { color: var(--yj-text-strong); }
+
+.studio-layout .yj-card,
+.studio-layout .studio-tabs,
+.studio-layout .studio-scripts__generate,
+.studio-layout .studio-script-segment {
+  background: var(--yj-surface-2);
+  border-color: var(--yj-border-subtle);
+  box-shadow: var(--yj-shadow-card);
+}
+.studio-layout .yj-card:hover {
+  border-color: var(--yj-border-default);
+  box-shadow: 0 14px 32px rgba(0,0,0,.3), 0 0 0 1px rgba(78,167,255,.08);
+}
+.studio-layout .studio-select-card__media,
+.studio-layout .studio-avatar-card__media,
+.studio-layout .studio-workbench-task__media { background: var(--yj-surface-1); }
+.studio-layout .studio-select-card__image,
+.studio-layout .studio-avatar-card__image,
+.studio-layout .studio-workbench-task__image { transition: transform 360ms var(--ease-out), filter 300ms var(--ease-out); }
+.studio-layout .yj-card:hover .studio-select-card__image,
+.studio-layout .yj-card:hover .studio-avatar-card__image,
+.studio-layout .yj-card:hover .studio-workbench-task__image { transform: scale(1.03); filter: saturate(1.08); }
+
+.studio-layout .yj-btn-primary,
+.studio-layout .studio-workbench__hero-cta {
+  background: var(--yj-luminous-gradient);
+  color: #07101d;
+  border-color: rgba(103,232,249,.62);
+  box-shadow: 0 8px 24px rgba(78,167,255,.2);
+}
+.studio-layout .yj-btn-primary:hover,
+.studio-layout .studio-workbench__hero-cta:hover {
+  box-shadow: 0 12px 30px rgba(78,167,255,.34);
+  transform: translateY(-2px);
+}
+
+.studio-layout .studio-form__input,
+.studio-layout .studio-form__textarea,
+.studio-layout .studio-form__select {
+  background: var(--yj-surface-1);
+  border-color: var(--yj-border-default);
+  color: var(--yj-text-strong);
+}
+.studio-layout .studio-form__input:focus-visible,
+.studio-layout .studio-form__textarea:focus-visible,
+.studio-layout .studio-form__select:focus-visible { border-color: var(--yj-focus-ring); }
+.studio-layout .studio-empty-state__desc,
+.studio-layout .studio-workbench__quick-desc { color: var(--yj-text-secondary); }
+.studio-layout .studio-workbench__quick-icon { background: rgba(78,167,255,.14); color: var(--yj-cyan); }
+
+@keyframes studio-page-in {
+  from { opacity: .72; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@media (max-width: 768px) {
+  #studio-main { padding: 20px 16px; }
+  .studio-layout .yj-card:hover .studio-select-card__image,
+  .studio-layout .yj-card:hover .studio-avatar-card__image,
+  .studio-layout .yj-card:hover .studio-workbench-task__image { transform: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .studio-page { animation: none; }
+  .studio-layout .studio-select-card__image,
+  .studio-layout .studio-avatar-card__image,
+  .studio-layout .studio-workbench-task__image { transition: none; }
+  .studio-layout .yj-btn-primary:hover,
+  .studio-layout .studio-workbench__hero-cta:hover { transform: none; }
+}

@@ -823,5 +823,101 @@
 .gen-status-spinner {
     width: 14px; height: 14px; border: 2px solid currentColor;
     border-top-color: transparent; border-radius: 50%;
-    animation: spin 0.8s linear infinite; flex-shrink: 0;
+
+
+/* ═══════════════════════════════════════════════════════════════
+   Batch 5 — Media-first asset bay / Edit Bay at Night
+   Visual-only override layer; legacy selectors remain intact.
+   ═══════════════════════════════════════════════════════════════ */
+.asset-grid-new {
+    grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+    gap: 16px;
+}
+.asset-card {
+    background: #151c2c;
+    border-color: #33415c;
+    border-radius: 12px;
+    backdrop-filter: none;
+    box-shadow: 0 10px 24px rgba(0, 0, 0, .18);
+    transition: border-color .2s ease, background-color .2s ease, box-shadow .2s ease;
+}
+.asset-card:hover,
+.asset-card:focus-within {
+    border-color: rgba(103, 232, 249, .52);
+    background: #1b263a;
+    transform: none;
+    box-shadow: 0 14px 30px rgba(0, 0, 0, .28), 0 0 0 1px rgba(78, 167, 255, .12);
+}
+.asset-card-thumb {
+    background: #070a12;
+    box-shadow: inset 0 -34px 42px rgba(0, 0, 0, .26);
+}
+.asset-card-thumb::after {
+    content: '';
+    position: absolute;
+    inset: auto 0 0;
+    height: 35%;
+    pointer-events: none;
+    background: linear-gradient(180deg, transparent, rgba(7, 10, 18, .72));
+}
+.asset-card-thumb img { transition: transform .25s ease, filter .25s ease; }
+.asset-card:hover .asset-card-thumb img,
+.asset-card:focus-within .asset-card-thumb img { transform: scale(1.025); filter: saturate(1.05); }
+.asset-card-icon { color: #7d8ba5; }
+.asset-type-badge {
+    bottom: 10px; right: 10px; border: 1px solid rgba(255,255,255,.16);
+    background: rgba(7,10,18,.82); backdrop-filter: none; border-radius: 5px;
+}
+.asset-hover-overlay {
+    border-radius: 12px; background: linear-gradient(180deg, rgba(7,10,18,.22), rgba(7,10,18,.72));
+}
+.asset-card:focus-within .asset-hover-overlay { opacity: 1; pointer-events: auto; }
+.asset-hover-btn {
+    min-width: 44px; min-height: 40px; padding: 8px 12px;
+    background: rgba(21,28,44,.9); border-color: rgba(214,221,234,.38);
+    backdrop-filter: none; transition: background-color .2s ease, border-color .2s ease, color .2s ease;
+}
+.asset-hover-btn:hover,
+.asset-hover-btn:focus-visible { background: #243653; border-color: #67e8f9; box-shadow: none; }
+.asset-more-btn {
+    width: 36px; height: 36px; top: 10px; right: 10px; opacity: .72;
+    background: rgba(7,10,18,.84); backdrop-filter: none; border-color: rgba(214,221,234,.28);
+}
+.asset-card:hover .asset-more-btn,
+.asset-card:focus-within .asset-more-btn,
+.asset-more-btn:focus-visible { opacity: 1; }
+.asset-more-btn:focus-visible,
+.asset-hover-btn:focus-visible,
+.asset-menu-item:focus-visible { outline: 2px solid #7dd3fc; outline-offset: 2px; }
+.asset-more-menu { background: #1b263a; border-color: #33415c; backdrop-filter: blur(12px); border-radius: 10px; }
+.asset-menu-item:hover { background: rgba(78,167,255,.14); color: #67e8f9; }
+.asset-card-info { padding: 13px 14px 15px; }
+.asset-card-name { color: #f6f8fc; font-weight: 600; }
+.asset-card-meta { color: #aab6c8; }
+.asset-card-type { color: #9fc7ff; }
+.asset-card-size, .asset-card-date { color: #aab6c8; }
+.asset-status-tag { border: 1px solid currentColor; background: transparent; }
+.asset-status-tag.processing { animation: none; box-shadow: inset 2px 0 #fbbf24; }
+.asset-picker-modal, .asset-detail-modal { background: #151c2c; border-color: #33415c; backdrop-filter: blur(16px); }
+.asset-picker-filter, .asset-picker-item, .asset-detail-meta-item, .asset-detail-history, .history-item, .ai-work-card {
+    background: #1b263a; border-color: #33415c;
+}
+.asset-picker-item:hover, .asset-picker-item.selected { transform: none; border-color: #67e8f9; box-shadow: 0 0 0 2px rgba(103,232,249,.18); }
+.asset-picker-empty, .asset-picker-loading, .asset-detail-loading, .workspace-state, .empty-works { color: #aab6c8; }
+.asset-picker-loading .spinner, .asset-detail-loading .spinner { border-top-color: #67e8f9; }
+
+@media (pointer: coarse) {
+    .asset-hover-overlay { opacity: 1; pointer-events: auto; background: linear-gradient(180deg, transparent 45%, rgba(7,10,18,.62)); align-items: flex-end; padding-bottom: 10px; }
+    .asset-hover-btn { padding-inline: 9px; }
+}
+@media (max-width: 600px) {
+    .asset-grid-new { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+    .asset-card-info { padding: 10px; }
+    .asset-hover-overlay { gap: 5px; }
+    .asset-hover-btn { font-size: 11px; padding-inline: 7px; }
+}
+@media (prefers-reduced-motion: reduce) {
+    .asset-card, .asset-card-thumb img, .asset-hover-overlay, .asset-hover-btn, .asset-more-btn { transition: none; }
+    .asset-card:hover .asset-card-thumb img, .asset-card:focus-within .asset-card-thumb img { transform: none; }
+    .gen-status-spinner, .asset-status-tag.processing { animation: none; }
 }

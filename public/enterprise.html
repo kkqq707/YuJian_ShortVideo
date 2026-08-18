@@ -21,6 +21,8 @@
     <link rel="stylesheet" href="css/pages/storyboard.css">
     <link rel="stylesheet" href="css/pages/editor.css">
     <link rel="stylesheet" href="css/pages/projects.css">
+    <link rel="stylesheet" href="css/pages/account.css">
+    <link rel="stylesheet" href="css/pages/batch-8-visual.css">
     <style>
         :root {
             --primary: #6366f1;
@@ -29,7 +31,7 @@
             --primary-glow: rgba(99, 102, 241, 0.4);
             --accent-purple: #a855f7;
             --accent-blue: #3b82f6;
-            --sidebar-width: 72px;
+            --sidebar-width: 208px;
             --sidebar-expanded: 220px;
             --header-height: 56px;
             --radius: 12px;
@@ -428,9 +430,227 @@
         /* ─── Auth-Rebuild-010-A: 个人中心（单列卡片布局，深色玻璃拟态） ─── */
         .yj-pc-layout { display: flex; gap: 20px; align-items: flex-start; }
         .yj-pc-content { flex: 1; min-width: 0; }
-        @media (max-width: 900px) {
-            .yj-pc-layout { flex-direction: column; }
+        /* ─── UI-Rebuild-001 Batch 1 + Batch 3 Sidebar Hotfix: Navigation / Shell ─── */
+        /* Stable workspace chrome: preserve legacy selectors and route handlers. */
+        #sidebar {
+            width: var(--sidebar-width, 208px);
+            background: var(--yj-surface-1, #0d1220);
+            border-right: 1px solid var(--yj-border-subtle, rgba(169, 183, 207, 0.24));
+            box-shadow: var(--yj-shadow-card, 0 8px 24px rgba(0, 0, 0, 0.34));
+            overflow: hidden auto;
+            scrollbar-width: thin;
+            scrollbar-color: rgba(169, 183, 207, 0.32) transparent;
         }
+        #sidebar .sidebar-logo {
+            height: var(--header-height, 56px);
+            min-height: var(--header-height, 56px);
+            padding: 0 20px;
+            border-bottom-color: var(--yj-border-subtle, rgba(169, 183, 207, 0.24));
+            background: var(--yj-surface-1, #0d1220);
+        }
+        #sidebar .sidebar-logo .logo-icon {
+            width: 32px;
+            height: 32px;
+            background: var(--yj-luminous-gradient, linear-gradient(110deg, #8b7cff, #4ea7ff 68%, #67e8f9));
+            box-shadow: 0 0 18px rgba(78, 167, 255, 0.2);
+        }
+        #sidebar .nav-menu {
+            padding: 16px 12px 20px;
+            overflow: hidden auto;
+        }
+        #sidebar .nav-section {
+            padding: 20px 10px 8px;
+            color: var(--yj-text-muted, #aab6c8);
+            font-size: 11px;
+            font-weight: 600;
+            letter-spacing: 0.1em;
+            line-height: 1;
+            white-space: nowrap;
+        }
+        #sidebar .nav-item {
+            position: relative;
+            min-height: 44px;
+            padding: 10px 12px;
+            margin-bottom: 4px;
+            gap: 12px;
+            border: 1px solid transparent;
+            border-radius: var(--radius-md, 8px);
+            color: var(--yj-text-secondary, #bcc7d8);
+            justify-content: flex-start;
+            flex-direction: row;
+            align-items: center;
+            text-align: left;
+            white-space: nowrap;
+            font-size: 14px;
+            font-weight: 500;
+            transition: color var(--duration-fast, 150ms) var(--ease-out),
+                        background-color var(--duration-fast, 150ms) var(--ease-out),
+                        border-color var(--duration-fast, 150ms) var(--ease-out),
+                        box-shadow var(--duration-fast, 150ms) var(--ease-out);
+        }
+        #sidebar .nav-item::before {
+            content: '';
+            position: absolute;
+            left: -1px;
+            top: 10px;
+            bottom: 10px;
+            width: 2px;
+            border-radius: 0 2px 2px 0;
+            background: transparent;
+            transition: background-color var(--duration-fast, 150ms) var(--ease-out),
+                        box-shadow var(--duration-fast, 150ms) var(--ease-out);
+        }
+        #sidebar .nav-item:hover {
+            background: var(--yj-surface-2, #151c2c);
+            border-color: var(--yj-border-subtle, rgba(169, 183, 207, 0.24));
+            color: var(--yj-text-strong, #f6f8fc);
+        }
+        #sidebar .nav-item.active {
+            background: linear-gradient(90deg, rgba(78, 167, 255, 0.14), rgba(139, 124, 255, 0.08));
+            border-color: rgba(78, 167, 255, 0.28);
+            color: var(--yj-text-strong, #f6f8fc);
+            box-shadow: inset 0 0 18px rgba(78, 167, 255, 0.06);
+        }
+        #sidebar .nav-item.active::before {
+            background: var(--yj-luminous-gradient, linear-gradient(180deg, #8b7cff, #4ea7ff 68%, #67e8f9));
+            box-shadow: 0 0 10px rgba(78, 167, 255, 0.42);
+        }
+        #sidebar .nav-item i,
+        #sidebar .nav-item.active i,
+        #sidebar .nav-item:hover i {
+            color: currentColor;
+            width: 24px;
+            min-width: 24px;
+            margin-right: 0;
+            font-size: 18px;
+        }
+        #sidebar .nav-item span {
+            min-width: 0;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        #sidebar .sidebar-footer {
+            padding: 12px;
+            background: var(--yj-surface-1, #0d1220);
+            border-top: 1px solid var(--yj-border-subtle, rgba(169, 183, 207, 0.24));
+        }
+        #sidebar .user-mini {
+            min-height: 48px;
+            padding: 6px 10px;
+            justify-content: flex-start;
+            transition: background-color var(--duration-fast, 150ms) var(--ease-out),
+                        border-color var(--duration-fast, 150ms) var(--ease-out);
+        }
+        #sidebar .user-mini:hover {
+            background: var(--yj-surface-2, #151c2c);
+            border-color: var(--yj-border-subtle, rgba(169, 183, 207, 0.24));
+        }
+        #mainHeader {
+            left: var(--sidebar-width, 208px);
+            margin-left: 0;
+            height: var(--header-height, 56px);
+            background: var(--yj-surface-1, #0d1220);
+            border-bottom-color: var(--yj-border-subtle, rgba(169, 183, 207, 0.24));
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.16);
+            backdrop-filter: none;
+            -webkit-backdrop-filter: none;
+        }
+        #mainHeader .page-title {
+            min-width: 0;
+            gap: 12px;
+        }
+        #headerPageTitle {
+            color: var(--yj-text-strong, #f6f8fc);
+            font-size: var(--text-lg, 1.125rem);
+            letter-spacing: 0.01em;
+        }
+        #headerBreadcrumb {
+            min-width: 0;
+            color: var(--yj-text-secondary, #bcc7d8);
+        }
+        #headerBreadcrumb .yj-breadcrumb-item {
+            color: var(--yj-text-secondary, #bcc7d8);
+        }
+        #headerBreadcrumb .yj-breadcrumb-item.yj-breadcrumb-current {
+            color: var(--yj-text-body, #d6ddea);
+        }
+        #headerCredits,
+        .yj-credits-display,
+        .yj-user-entry {
+            cursor: pointer;
+            transition: color var(--duration-fast, 150ms) var(--ease-out),
+                        background-color var(--duration-fast, 150ms) var(--ease-out),
+                        border-color var(--duration-fast, 150ms) var(--ease-out),
+                        box-shadow var(--duration-fast, 150ms) var(--ease-out);
+        }
+        #sidebar .nav-item,
+        #sidebar .user-mini,
+        .yj-credits-display,
+        .yj-user-entry {
+            cursor: pointer;
+        }
+        .yj-credits-display:focus-visible,
+        .yj-user-entry:focus-visible,
+        #sidebar .nav-item:focus-visible,
+        #sidebar .user-mini:focus-visible {
+            outline: 2px solid var(--yj-focus-ring, #7dd3fc);
+            outline-offset: 2px;
+        }
+        .yj-credits-display {
+            min-height: 36px;
+            background: var(--yj-surface-2, #151c2c);
+            border-color: var(--yj-border-default, rgba(169, 183, 207, 0.38));
+            color: var(--yj-text-body, #d6ddea);
+        }
+        .yj-credits-display:hover,
+        .yj-credits-display:focus-visible {
+            background: var(--yj-surface-3, #1b263a);
+            border-color: var(--yj-blue, #4ea7ff);
+            box-shadow: 0 0 0 3px rgba(78, 167, 255, 0.14);
+        }
+        .yj-user-entry {
+            min-height: 40px;
+            border: 1px solid transparent;
+        }
+        .yj-user-entry:hover,
+        .yj-user-entry:focus-visible {
+            background: var(--yj-surface-2, #151c2c);
+            border-color: var(--yj-border-subtle, rgba(169, 183, 207, 0.24));
+        }
+        .yj-user-name {
+            color: var(--yj-text-secondary, #bcc7d8);
+        }
+        .main-content {
+            margin-left: var(--sidebar-width, 208px);
+            padding-top: calc(var(--header-height, 56px) + 16px);
+        }
+        @media (max-width: 1024px) {
+            #sidebar { width: 72px; }
+            #sidebar .sidebar-logo { padding: 0 20px; }
+            #sidebar .sidebar-logo span,
+            #sidebar .nav-item span,
+            #sidebar .nav-section { display: none; }
+            #sidebar .nav-item {
+                justify-content: center;
+                padding: 12px;
+                gap: 0;
+            }
+            #sidebar .nav-item i { margin-right: 0; }
+            #sidebar .user-mini { justify-content: center; padding-inline: 0; }
+            #mainHeader { left: 72px; }
+            .main-content { margin-left: 72px; }
+        }
+        @media (prefers-reduced-motion: reduce) {
+            #sidebar .nav-item,
+            #sidebar .nav-item::before,
+            #sidebar .user-mini,
+            #mainHeader .yj-credits-display,
+            #mainHeader .yj-user-entry {
+                transition-duration: 0.01ms !important;
+            }
+        }
+
     </style>
 </head>
 <body>
@@ -502,9 +722,9 @@
     <div class="header" id="mainHeader">
         <div class="page-title">
             <h1 class="yj-header-page-title" id="headerPageTitle">首页</h1>
-            <div class="yj-breadcrumb" id="headerBreadcrumb">
+            <!-- <div class="yj-breadcrumb" id="headerBreadcrumb">
                 <span class="yj-breadcrumb-item yj-breadcrumb-current">首页</span>
-            </div>
+            </div> -->
         </div>
         <div style="display:flex;align-items:center;gap:16px">
             <div class="yj-credits-display" onclick="navigateTo('billing')" title="点击查看积分详情">

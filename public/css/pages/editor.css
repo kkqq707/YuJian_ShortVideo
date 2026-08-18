@@ -1103,9 +1103,78 @@
   }
 }
 
+
+
+/* ═══════════════════════════════════════════════════════════════
+   Batch 5 — AI video editing workspace visual layer
+   ═══════════════════════════════════════════════════════════════ */
+.yj-editor-container {
+  background: #0d1220;
+  border: 1px solid #33415c;
+  border-radius: 14px;
+  color: #d6ddea;
+}
+.yj-editor-toolbar,
+.yj-editor-player-controls { background: #151c2c; border-color: #33415c; }
+.yj-editor-toolbar { min-height: 52px; padding-inline: 14px; }
+.yj-editor-toolbar-btn {
+  background: #1b263a; border-color: #33415c; color: #d6ddea;
+  transition: background-color .2s ease, border-color .2s ease, color .2s ease;
+}
+.yj-editor-toolbar-btn:hover,
+.yj-editor-toolbar-btn:focus-visible { background: #243653; border-color: #67e8f9; color: #f6f8fc; }
+.yj-editor-toolbar-btn.yj-editor-toolbar-btn--primary {
+  background: linear-gradient(100deg, #7568e8, #398fda); border-color: #7dd3fc;
+  box-shadow: 0 0 16px rgba(78,167,255,.16);
+}
+.yj-editor-media, .yj-editor-inspector { background: #0d1220; border-color: #33415c; }
+.yj-editor-media-header, .yj-editor-inspector-header { color: #aab6c8; border-color: #33415c; }
+.yj-editor-media-tabs { border-color: #33415c; }
+.yj-editor-media-tab { color: #aab6c8; min-height: 36px; }
+.yj-editor-media-tab:hover, .yj-editor-media-tab:focus-visible { color: #f6f8fc; background: #1b263a; }
+.yj-editor-media-tab.yj-editor-media-tab--active {
+  background: rgba(78,167,255,.14); color: #67e8f9; box-shadow: inset 0 -2px #67e8f9;
+}
+.yj-editor-media-item { border: 1px solid transparent; transition: background-color .2s ease, border-color .2s ease; }
+.yj-editor-media-item:hover, .yj-editor-media-item:focus-within { background: #151c2c; border-color: #33415c; }
+.yj-editor-media-item.yj-editor-media-item--selected {
+  background: rgba(78,167,255,.12); outline: 1px solid #4ea7ff; box-shadow: inset 2px 0 #67e8f9;
+}
+.yj-editor-media-item-thumb { background: #070a12; border: 1px solid #33415c; }
+.yj-editor-media-item-name, .yj-editor-media-preview-name { color: #f6f8fc; }
+.yj-editor-media-item-meta, .yj-editor-media-preview-detail, .yj-editor-inspector-label { color: #aab6c8; }
+.yj-editor-media-preview { background: #151c2c; border-color: #33415c; }
+.yj-editor-media-preview-thumb { background: #070a12; }
+.yj-editor-media-preview-add, .yj-editor-player-btn.yj-editor-player-btn--play {
+  background: linear-gradient(100deg, #7568e8, #398fda); border: 1px solid #7dd3fc;
+}
+.yj-editor-media-preview-add:hover, .yj-editor-player-btn.yj-editor-player-btn--play:hover { background: #4ea7ff; }
+.yj-editor-player { background: #070a12; }
+.yj-editor-player-viewport { background: radial-gradient(circle at 50% 42%, #151c2c 0, #070a12 62%); margin: 12px; border: 1px solid #33415c; border-radius: 10px; }
+.yj-editor-player-placeholder, .yj-editor-inspector-empty, .yj-editor-media-empty { color: #aab6c8; }
+.yj-editor-player-btn:hover, .yj-editor-player-btn:focus-visible { background: #1b263a; color: #f6f8fc; }
+.yj-editor-player-progress-track { background: #33415c; }
+.yj-editor-player-progress-fill { background: #67e8f9; }
+.yj-editor-inspector-body { padding: 14px; }
+.yj-editor-inspector-group-title { color: #aab6c8; border-color: #33415c; }
+.yj-editor-inspector-value { color: #f6f8fc; }
+.yj-editor-inspector-input { background: #1b263a; border-color: #33415c; color: #f6f8fc; }
+.yj-editor-inspector-input:focus { border-color: #67e8f9; outline: 2px solid rgba(125,211,252,.3); outline-offset: 1px; }
+.yj-editor-timeline { background: #0d1220; border-color: #33415c; }
+.yj-editor-timeline-header, .yj-editor-timeline-ruler { background: #151c2c; border-color: #33415c; }
+.yj-editor-timeline-header-label, .yj-editor-timeline-header-info, .yj-editor-timeline-ruler-mark { color: #aab6c8; }
+.yj-editor-timeline-track-label { background: #0d1220; border-color: #33415c; }
+.yj-editor-timeline-track { border-color: rgba(51,65,92,.6); }
+.yj-editor-timeline-clip:hover { box-shadow: 0 0 0 1px #67e8f9; }
+.yj-editor-timeline-clip--selected { box-shadow: 0 0 0 2px #f6f8fc, 0 0 12px rgba(103,232,249,.18); }
+.yj-editor-timeline-zoom-btn--active { background: rgba(78,167,255,.16); color: #67e8f9; }
+.yj-editor-toolbar-btn:focus-visible, .yj-editor-player-btn:focus-visible, .yj-editor-media-tab:focus-visible, .yj-editor-timeline-zoom-btn:focus-visible { outline: 2px solid #7dd3fc; outline-offset: 2px; }
 @media (max-width: 900px) {
-  .yj-editor-media,
-  .yj-editor-inspector {
-    display: none;
-  }
+  .yj-editor-toolbar { overflow-x: auto; justify-content: flex-start; }
+  .yj-editor-toolbar-right { margin-left: auto; }
+  .yj-editor-player-viewport { margin: 8px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .yj-editor-toolbar-btn, .yj-editor-media-item, .yj-editor-player-btn, .yj-editor-timeline-clip { transition: none; }
+  .yj-editor-timeline--drop-active::after { animation: none; }
 }

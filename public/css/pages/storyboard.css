@@ -50,4 +50,60 @@
 .storyboard-drawer.show { right: 0; }
 .drawer-header { padding: 20px 24px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
 .drawer-body { flex: 1; padding: 24px; overflow-y: auto; }
-.drawer-footer { padding: 16px 24px; border-top: 1px solid var(--border); display: flex; gap: 12px; justify-content: flex-end; }
+
+
+/* ═══════════════════════════════════════════════════════════════
+   Batch 5 — Story flow visual layer (data and bridge remain frozen)
+   ═══════════════════════════════════════════════════════════════ */
+.storyboard-editor {
+    background: #0d1220; border: 1px solid #33415c; border-radius: 14px;
+    padding: 20px; color: #f6f8fc;
+}
+.storyboard-header { border-color: #33415c; }
+.storyboard-title { letter-spacing: .01em; }
+.storyboard-actions { gap: 8px; }
+.shot-list { gap: 10px; }
+.shot-item {
+    background: #151c2c; border-color: #33415c; border-radius: 12px; padding: 14px 16px;
+    grid-template-columns: 48px minmax(0, 1fr) 130px 70px 96px;
+    transition: background-color .2s ease, border-color .2s ease, box-shadow .2s ease;
+}
+.shot-item:hover, .shot-item:focus-within {
+    background: #1b263a; border-color: rgba(103,232,249,.52);
+    box-shadow: 0 8px 22px rgba(0,0,0,.2), inset 2px 0 #67e8f9;
+}
+.shot-num {
+    width: 40px; height: 40px; border-radius: 9px;
+    background: linear-gradient(145deg, #7568e8, #398fda); box-shadow: 0 0 14px rgba(78,167,255,.16);
+}
+.shot-desc { color: #f6f8fc; font-size: 14px; line-height: 1.65; min-width: 0; }
+.shot-desc .shot-line { color: #aab6c8; border-left: 2px solid #33415c; padding-left: 9px; }
+.shot-style { color: #aab6c8; line-height: 1.5; }
+.shot-duration { color: #67e8f9; font-variant-numeric: tabular-nums; }
+.shot-actions { gap: 5px; }
+.shot-actions button {
+    width: 36px; height: 36px; border: 1px solid #33415c; background: #1b263a; color: #d6ddea;
+    transition: background-color .2s ease, border-color .2s ease, color .2s ease;
+}
+.shot-actions button:hover, .shot-actions button:focus-visible { background: #243653; border-color: #67e8f9; color: #f6f8fc; outline: 2px solid #7dd3fc; outline-offset: 2px; }
+.storyboard-drawer {
+    background: #151c2c; color: #f6f8fc; border-left: 1px solid #33415c;
+    box-shadow: -16px 0 40px rgba(0,0,0,.32); transition: right .25s ease;
+}
+.drawer-header, .drawer-footer { border-color: #33415c; }
+.drawer-body { color: #d6ddea; }
+@media (max-width: 900px) {
+    .shot-item { grid-template-columns: 44px minmax(0, 1fr) 70px; gap: 10px; }
+    .shot-style { grid-column: 2; }
+    .shot-actions { grid-column: 3; grid-row: 1 / span 2; flex-direction: column; }
+}
+@media (max-width: 600px) {
+    .storyboard-editor { padding: 14px; }
+    .shot-item { grid-template-columns: 40px minmax(0, 1fr); padding: 12px; }
+    .shot-style, .shot-duration, .shot-actions { grid-column: 2; grid-row: auto; }
+    .shot-actions { flex-direction: row; justify-content: flex-start; }
+    .storyboard-drawer { width: min(420px, 100vw); }
+}
+@media (prefers-reduced-motion: reduce) {
+    .shot-item, .shot-actions button, .storyboard-drawer { transition: none; }
+}

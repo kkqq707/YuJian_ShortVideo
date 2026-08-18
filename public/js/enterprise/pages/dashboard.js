@@ -31,10 +31,20 @@
       '</div>' +
       '<div class="gallery-section"><div class="gallery-tabs"><div class="gallery-tab active">发现</div><div class="gallery-tab">广告营销</div><div class="gallery-tab">剧场</div><div class="gallery-tab">美学</div></div>' +
       '<div class="gallery-grid">' +
-      ['赛博朋克城市夜景', '产品宣传展示', '自然风景航拍', '人物肖像艺术', '科技感抽象概念', '美食摄影大片', '建筑空间美学', '时尚潮流大片']
+      ['赛博朋克城市夜景', '产品宣传展示', '自然风景航拍', '数字人品牌口播', '科技感抽象概念', '广告电影感', '建筑空间美学', '时尚潮流大片']
         .map(function (title, i) {
-          // Sprint 4.7 Patch1: onerror fallback — hide video when gallery/*.mp4 missing
-          return '<div class="gallery-item"><video class="gallery-video" muted loop playsinline preload="metadata" onmouseenter="this.play()" onmouseleave="this.pause()" onerror="this.parentElement.classList.add(\'gallery-video-missing\')"><source src="gallery/' + (i + 1) + '.mp4" type="video/mp4"></video><div class="gallery-item-overlay"><span class="gallery-item-title">' + title + '</span></div></div>';
+          // UI-Rebuild-001 Batch 7: local licensed stills keep the creative gateway content-first.
+          var media = [
+            'assets/homepage/ai-city.jpg',
+            'assets/homepage/product-film.jpg',
+            'assets/homepage/cinematic-landscape.jpg',
+            'assets/homepage/digital-human.jpg',
+            'assets/homepage/ai-abstract.jpg',
+            'assets/homepage/studio-space.jpg',
+            'assets/homepage/cinematic-landscape.jpg',
+            'assets/homepage/product-film.jpg'
+          ][i];
+          return '<div class="gallery-item" tabindex="0"><img class="gallery-image" src="' + media + '" alt="' + title + ' AI 视频案例" loading="lazy" onerror="this.parentElement.classList.add(\'gallery-media-missing\')"><div class="gallery-item-overlay"><span class="gallery-item-title">' + title + '</span><span class="gallery-item-meta">AI 创作案例</span></div></div>';
         }).join('') +
       '</div></div>';
   }

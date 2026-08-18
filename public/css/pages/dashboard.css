@@ -442,3 +442,364 @@
     transition: opacity 0.3s;
 }
 .showcase-item:hover .showcase-overlay { opacity: 1; }
+
+/* ─── Batch 2: Creative Gateway surface refinement ─── */
+.dashboard-page,
+#mainContent {
+    min-width: 0;
+}
+
+/* Keep the atmosphere behind the work instead of competing with it. */
+.fullscreen-video {
+    opacity: 0.16;
+}
+.fullscreen-overlay {
+    background:
+        linear-gradient(180deg, rgba(7, 10, 18, 0.58), rgba(7, 10, 18, 0.88)),
+        radial-gradient(ellipse at 58% 18%, rgba(78, 167, 255, 0.1), transparent 56%);
+}
+.light-rays,
+.bubbles,
+.particles {
+    opacity: 0.22;
+}
+.ray {
+    animation-duration: 18s;
+}
+.bubble,
+.particle {
+    animation-duration: 32s;
+}
+
+.hero-banner {
+    width: 100%;
+    max-width: 100%;
+    height: 300px;
+    margin: 0 0 24px;
+    padding: 32px clamp(20px, 5vw, 72px);
+    align-items: flex-end;
+    border: 1px solid var(--yj-border-subtle);
+    border-radius: var(--radius-xl, 16px);
+    background:
+        radial-gradient(circle at 82% 28%, rgba(103, 232, 249, 0.1), transparent 34%),
+        linear-gradient(120deg, rgba(21, 28, 44, 0.98), rgba(13, 18, 32, 0.94));
+    box-shadow: var(--yj-shadow-card);
+}
+.hero-banner::before {
+    background:
+        linear-gradient(90deg, rgba(7, 10, 18, 0.18), transparent 64%),
+        linear-gradient(180deg, transparent 38%, rgba(7, 10, 18, 0.42));
+}
+.hero-content {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 24px;
+    text-align: left;
+}
+.hero-title-group {
+    min-width: 0;
+    margin-bottom: 0;
+}
+.title-line {
+    flex-wrap: wrap;
+    justify-content: flex-start;
+    gap: 6px 10px;
+}
+.brush-text {
+    font-size: clamp(40px, 5vw, 60px);
+    text-shadow: 0 4px 24px rgba(0, 0, 0, 0.48);
+}
+.sans-text {
+    font-size: clamp(22px, 3vw, 30px);
+    color: var(--yj-text-body);
+}
+.dot-sep {
+    font-size: 22px;
+    color: var(--yj-text-muted);
+}
+.hero-btn {
+    flex: 0 0 auto;
+    min-height: 48px;
+    padding: 13px 22px;
+    border: 1px solid rgba(125, 211, 252, 0.62);
+    border-radius: var(--radius-md, 8px);
+    background: var(--yj-luminous-gradient);
+    color: #07101d;
+    font-weight: 700;
+    box-shadow: 0 8px 24px rgba(78, 167, 255, 0.2);
+    transition: transform var(--duration-fast, 150ms) var(--ease-out),
+                border-color var(--duration-fast, 150ms) var(--ease-out),
+                box-shadow var(--duration-fast, 150ms) var(--ease-out);
+}
+.hero-btn:hover {
+    background: var(--yj-luminous-gradient);
+    border-color: var(--yj-cyan);
+    transform: translateY(-2px);
+    box-shadow: 0 12px 30px rgba(78, 167, 255, 0.34);
+}
+.hero-btn:focus-visible,
+.feature-card:focus-visible,
+.gallery-item:focus-visible {
+    outline: 2px solid var(--yj-focus-ring);
+    outline-offset: 3px;
+}
+
+.feature-cards {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 10px;
+    margin-bottom: 28px;
+}
+.feature-card {
+    min-width: 0;
+    min-height: 88px;
+    padding: 16px;
+    border: 1px solid var(--yj-border-subtle);
+    border-radius: var(--radius-lg, 12px);
+    background: var(--yj-surface-2);
+    box-shadow: var(--yj-shadow-control);
+    backdrop-filter: none;
+    transition: transform var(--duration-fast, 150ms) var(--ease-out),
+                border-color var(--duration-fast, 150ms) var(--ease-out),
+                background-color var(--duration-fast, 150ms) var(--ease-out),
+                box-shadow var(--duration-fast, 150ms) var(--ease-out);
+}
+.feature-card:hover {
+    border-color: rgba(125, 211, 252, 0.58);
+    background: var(--yj-surface-3);
+    transform: translateY(-2px);
+    box-shadow: var(--yj-shadow-card);
+}
+.feature-card-info {
+    min-width: 0;
+}
+.feature-card-info h4 {
+    color: var(--yj-text-strong);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.feature-card-info p {
+    color: var(--yj-text-secondary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.feature-card-arrow {
+    flex: 0 0 auto;
+    color: var(--yj-text-muted);
+    transition: color var(--duration-fast, 150ms) var(--ease-out), transform var(--duration-fast, 150ms) var(--ease-out);
+}
+.feature-card:hover .feature-card-arrow {
+    color: var(--yj-cyan);
+    transform: translate(2px, -2px);
+}
+
+.gallery-section {
+    min-width: 0;
+    padding-bottom: 32px;
+}
+.gallery-tabs {
+    gap: 20px;
+    margin-bottom: 16px;
+    border-bottom-color: var(--yj-border-subtle);
+}
+.gallery-tab {
+    min-height: 44px;
+    padding: 10px 0;
+    color: var(--yj-text-secondary);
+    transition: color var(--duration-fast, 150ms) var(--ease-out), border-color var(--duration-fast, 150ms) var(--ease-out);
+}
+.gallery-tab.active {
+    color: var(--yj-text-strong);
+    border-bottom-color: var(--yj-cyan);
+}
+.gallery-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 12px;
+}
+.gallery-item {
+    min-width: 0;
+    border-color: var(--yj-border-subtle);
+    border-radius: var(--radius-lg, 12px);
+    background: var(--yj-surface-2);
+    transition: transform var(--duration-fast, 150ms) var(--ease-out), box-shadow var(--duration-fast, 150ms) var(--ease-out), border-color var(--duration-fast, 150ms) var(--ease-out);
+}
+.gallery-item:hover {
+    border-color: rgba(125, 211, 252, 0.46);
+    transform: translateY(-2px);
+    box-shadow: var(--yj-shadow-card);
+}
+.gallery-item-overlay {
+    padding: 12px;
+    opacity: 1;
+    background: linear-gradient(to top, rgba(7, 10, 18, 0.9), rgba(7, 10, 18, 0.08) 68%);
+    transition: background-color var(--duration-fast, 150ms) var(--ease-out);
+}
+.gallery-item-title {
+    color: var(--yj-text-strong);
+    font-size: 13px;
+}
+.gallery-item:hover .gallery-item-overlay {
+    background: linear-gradient(to top, rgba(7, 10, 18, 0.94), rgba(7, 10, 18, 0.12) 72%);
+}
+
+@media (max-width: 1024px) {
+    .feature-cards,
+    .gallery-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
+@media (max-width: 640px) {
+    .hero-banner {
+        height: auto;
+        min-height: 260px;
+        padding: 24px 20px;
+    }
+    .hero-content {
+        display: block;
+    }
+    .hero-title-group {
+        margin-bottom: 24px;
+    }
+    .title-line {
+        gap: 4px 8px;
+    }
+    .hero-btn {
+        width: 100%;
+        justify-content: center;
+    }
+    .feature-cards,
+    .gallery-grid {
+        grid-template-columns: minmax(0, 1fr);
+    }
+    .feature-card {
+        min-height: 76px;
+    }
+    .gallery-tabs {
+        gap: 16px;
+        overflow-x: auto;
+        scrollbar-width: none;
+    }
+    .gallery-tabs::-webkit-scrollbar {
+        display: none;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .fullscreen-video,
+    .ray,
+    .bubble,
+    .particle {
+        animation: none;
+    }
+    .hero-btn:hover,
+    .feature-card:hover,
+    .gallery-item:hover {
+        transform: none;
+    }
+}
+
+/* ─── Batch 7: Creative Gateway visual direction correction ─── */
+.dashboard-page,
+#mainContent:has(.hero-banner) {
+    position: relative;
+}
+
+.dashboard-page::before,
+#mainContent:has(.hero-banner)::before {
+    content: '';
+    position: fixed;
+    inset: 56px 0 0 90px;
+    pointer-events: none;
+    background:
+        radial-gradient(circle at 76% 10%, rgba(103, 232, 249, .12), transparent 25%),
+        radial-gradient(circle at 22% 28%, rgba(139, 124, 255, .1), transparent 30%);
+    z-index: -1;
+}
+
+.hero-banner {
+    min-height: 320px;
+    background:
+        linear-gradient(120deg, rgba(13, 18, 32, .96), rgba(21, 28, 44, .86)),
+        radial-gradient(circle at 78% 20%, rgba(78, 167, 255, .24), transparent 36%),
+        radial-gradient(circle at 42% 100%, rgba(139, 124, 255, .18), transparent 42%);
+    border-color: rgba(103, 232, 249, .32);
+    box-shadow: 0 18px 48px rgba(0, 0, 0, .35), inset 0 1px 0 rgba(255,255,255,.06);
+    animation: gateway-in 420ms var(--ease-out) both;
+}
+.hero-banner::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    right: 18%;
+    width: 1px;
+    height: 44%;
+    background: linear-gradient(180deg, transparent, var(--yj-cyan), transparent);
+    opacity: .65;
+}
+.hero-subtitle { color: var(--yj-text-secondary); }
+.hero-btn { position: relative; overflow: hidden; }
+.hero-btn::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    transform: translateX(-110%);
+    background: linear-gradient(100deg, transparent, rgba(255,255,255,.34), transparent);
+    transition: transform 360ms var(--ease-out);
+}
+.hero-btn:hover::after { transform: translateX(110%); }
+
+.feature-card,
+.gallery-item {
+    box-shadow: 0 8px 24px rgba(0, 0, 0, .24), inset 0 1px 0 rgba(255,255,255,.035);
+}
+.feature-card:focus-visible,
+.gallery-item:focus-visible { border-color: var(--yj-focus-ring); }
+.feature-card:hover { box-shadow: 0 14px 34px rgba(0,0,0,.34), 0 0 0 1px rgba(78,167,255,.18); }
+
+.gallery-image,
+.gallery-video {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transition: transform 420ms var(--ease-out), filter 300ms var(--ease-out);
+}
+.gallery-item:hover .gallery-image,
+.gallery-item:focus-visible .gallery-image { transform: scale(1.035); filter: saturate(1.08) contrast(1.04); }
+.gallery-item-overlay {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
+}
+.gallery-item-meta { color: var(--yj-text-muted); font-size: 11px; }
+.gallery-media-missing::before {
+    content: '媒体预览暂不可用';
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    color: var(--yj-text-muted);
+    background: linear-gradient(135deg, var(--yj-surface-2), var(--yj-surface-3));
+    font-size: 12px;
+}
+
+@keyframes gateway-in {
+    from { opacity: .72; transform: translateY(8px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+@media (max-width: 640px) {
+    .dashboard-page::before,
+    #mainContent:has(.hero-banner)::before { inset: 56px 0 0; }
+    .hero-banner::after { display: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .hero-banner { animation: none; }
+    .hero-btn::after { display: none; }
+    .gallery-image,
+    .gallery-video { transition: none; }
+}

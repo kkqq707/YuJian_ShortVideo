@@ -83,12 +83,12 @@
     // ─── 统计卡片（余额来自真实接口） ───────────────────────
     function statCards(balance, expireAt) {
         function card(label, value, color) {
-            return '<div class="card" style="padding:20px;margin:0">'
-                + '<div class="stat-label" style="font-size:13px;color:var(--text-sub);margin-bottom:8px">' + label + '</div>'
-                + '<div style="font-size:22px;font-weight:700;' + (color ? 'color:' + color + ';' : '') + '">' + esc(value) + '</div>'
+            return '<div class="yj-billing-stat card" style="padding:20px;margin:0">'
+                + '<div class="yj-billing-stat-label stat-label" style="font-size:13px;color:var(--text-sub);margin-bottom:8px">' + label + '</div>'
+                + '<div class="yj-billing-stat-value" style="font-size:22px;font-weight:700;' + (color ? 'color:' + color + ';' : '') + '">' + esc(value) + '</div>'
                 + '</div>';
         }
-        return '<div style="display:grid;grid-template-columns:repeat(2,1fr);gap:16px;margin-bottom:24px">'
+        return '<div class="yj-billing-summary" data-billing-summary style="display:grid;grid-template-columns:repeat(2,1fr);gap:16px;margin-bottom:24px">'
             + card('💰 当前余额', fmtNum(balance), 'var(--success)')
             + card('⏰ 有效期', fmtExpire(expireAt), null)
             + '</div>';
@@ -97,10 +97,10 @@
     // ─── 充值套餐（静态展示；对齐 /quota/plans 属 P2，本阶段不动） ──
     function planCards() {
         return '' +
-            '<div class="card" style="margin-bottom:24px">' +
+            '<div class="card yj-billing-plans" style="margin-bottom:24px">' +
             '<div class="card-header"><h3>🛒 积分充值</h3><span style="font-size:13px;color:var(--text-sub)">多买多送，即时到账</span></div>' +
             '<div class="card-body">' +
-            '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:16px">' +
+            '<div class="yj-billing-plans-grid" style="display:grid;grid-template-columns:repeat(4,1fr);gap:16px">' +
             '<div class="plan-card" style="padding:20px;border:1px solid var(--border-glass);border-radius:12px;cursor:pointer;transition:all 0.2s;text-align:center;background:rgba(255,255,255,0.02)">' +
             '<div style="font-size:24px;font-weight:700;margin-bottom:4px">1,000</div><div style="font-size:13px;color:var(--text-sub);margin-bottom:12px">积分</div>' +
             '<div style="font-size:20px;font-weight:700;color:var(--primary);margin-bottom:12px">¥99</div>' +
@@ -137,9 +137,9 @@
             rows = emptyRow();
         }
 
-        return statCards(bal.balance, bal.expire_at)
+        return '<div class="yj-billing-page">' + statCards(bal.balance, bal.expire_at)
             + planCards()
-            + '<div class="card">'
+            + '<div class="card yj-billing-history">'
             + '<div class="card-header"><h3>📋 积分明细</h3></div>'
             + '<div class="table-wrap">'
             + '<table>'

@@ -64,13 +64,13 @@
     // ─── 页面壳：单列三卡片（个人信息 / 修改密码 / 退出登录） ──
     function render() {
         return `
-            <div class="yj-pc-layout">
+            <div class="yj-settings-page"><div class="yj-pc-layout">
                 <div class="yj-pc-content">
                     ${renderProfileCard()}
                     ${renderPasswordCard()}
                     ${renderLogoutCard()}
                 </div>
-            </div>
+            </div></div>
         `;
     }
 
@@ -112,8 +112,7 @@
     // 卡片3：退出登录（YuJianAuth.logout()）
     function renderLogoutCard() {
         return `
-                <div class="card">
-                    <div class="card-header"><h3>🚪 退出登录</h3></div>
+                <div class="yj-settings-danger card"></div>
                     <div class="card-body">
                         <div class="form-group">
                             <label>退出当前账号</label>

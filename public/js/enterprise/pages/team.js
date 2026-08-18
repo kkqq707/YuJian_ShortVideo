@@ -106,7 +106,7 @@
 
     // ─── 页面壳（工具栏 + 表格，tbody 随状态刷新） ──────────
     function pageShell(tbodyHtml) {
-        return '<div class="toolbar">'
+        return '<div class="yj-team-page"><div class="toolbar">'
             + '<div class="search-box"><i class="fas fa-search"></i><input type="text" placeholder="搜索姓名 / 邮箱..." oninput="YJ.pages.team.filter(this.value)"></div>'
             + '<button class="btn btn-primary" onclick="openModal(\'邀请成员\', \'' + INVITE_CONTENT + '\')">'
             + '<i class="fas fa-user-plus"></i> 邀请成员'

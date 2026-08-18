@@ -756,7 +756,7 @@
   height: 100%;
   background: linear-gradient(90deg, var(--primary), var(--accent-purple));
   border-radius: 999px;
-  transition: width 0.3s ease;
+  transition: none;
 }
 
 .yj-project-progress-text {
@@ -928,4 +928,328 @@
   .project-grid {
     grid-template-columns: 1fr;
   }
+}
+
+/* ================================================================
+   Batch 4 — AI Creative Library visual layer
+   CSS-only refinement: selectors, handlers and data contracts stay intact.
+   ================================================================ */
+
+.yj-project-page,
+.yj-project-detail {
+  --yj-library-surface: #111827;
+  --yj-library-surface-raised: #172033;
+  --yj-library-border: rgba(148, 163, 184, 0.18);
+  --yj-library-border-active: rgba(103, 232, 249, 0.48);
+  --yj-library-text: #f3f6fb;
+  --yj-library-body: #d4dce8;
+  --yj-library-muted: #aab7c9;
+  color: var(--yj-library-body);
+}
+
+.yj-project-page {
+  gap: 22px;
+}
+
+.yj-project-toolbar {
+  padding: 10px;
+  border: 1px solid var(--yj-library-border);
+  border-radius: 12px;
+  background: rgba(17, 24, 39, 0.82);
+  box-shadow: 0 12px 30px rgba(3, 7, 18, 0.18);
+  gap: 10px;
+}
+
+.yj-project-toolbar-left,
+.yj-project-toolbar-right {
+  gap: 8px;
+}
+
+.yj-project-filter {
+  height: 36px;
+  min-width: 132px;
+  padding-top: 6px;
+  padding-bottom: 6px;
+  border-color: var(--yj-library-border);
+  border-radius: 8px;
+  background-color: rgba(23, 32, 51, 0.96);
+  color: var(--yj-library-body);
+  transition: border-color 180ms ease, box-shadow 180ms ease, background-color 180ms ease;
+}
+
+.yj-project-filter:hover {
+  border-color: rgba(148, 163, 184, 0.36);
+  background-color: #1b263a;
+}
+
+.yj-project-filter:focus-visible {
+  border-color: var(--yj-library-border-active);
+  outline: 2px solid rgba(125, 211, 252, 0.3);
+  outline-offset: 2px;
+  box-shadow: none;
+}
+
+.yj-project-toolbar .btn {
+  min-height: 36px;
+  border-radius: 8px;
+}
+
+.yj-project-grid {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.yj-project-card {
+  min-width: 0;
+  border-color: var(--yj-library-border);
+  border-radius: 12px;
+  background: var(--yj-library-surface);
+  box-shadow: 0 10px 24px rgba(3, 7, 18, 0.16);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  transition: border-color 180ms ease, background-color 180ms ease, box-shadow 180ms ease;
+}
+
+.yj-project-card:hover,
+.yj-project-card:focus-within {
+  transform: none;
+  border-color: rgba(125, 211, 252, 0.36);
+  background: var(--yj-library-surface-raised);
+  box-shadow: 0 16px 32px rgba(3, 7, 18, 0.3), 0 0 0 1px rgba(103, 232, 249, 0.08) inset;
+}
+
+.yj-project-card:focus-visible {
+  outline: 2px solid rgba(125, 211, 252, 0.72);
+  outline-offset: 3px;
+}
+
+.yj-project-card-cover {
+  aspect-ratio: 16 / 10;
+  background: #0b1020;
+}
+
+.yj-project-card-cover::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  background: linear-gradient(135deg, rgba(77, 126, 255, 0.16), transparent 48%, rgba(103, 232, 249, 0.08));
+  pointer-events: none;
+}
+
+.yj-project-card-cover::after {
+  background: linear-gradient(180deg, transparent 42%, rgba(3, 7, 18, 0.7) 100%);
+}
+
+.yj-project-card-cover img {
+  transition: transform 280ms ease, filter 280ms ease;
+}
+
+.yj-project-card:hover .yj-project-card-cover img,
+.yj-project-card:focus-within .yj-project-card-cover img {
+  transform: scale(1.025);
+  filter: saturate(1.05) contrast(1.02);
+}
+
+.yj-project-card-cover-icon,
+.yj-project-card-cover > i {
+  position: relative;
+  z-index: 2;
+  color: rgba(214, 221, 234, 0.68);
+}
+
+.yj-project-card-body {
+  padding: 14px;
+  gap: 9px;
+}
+
+.yj-project-card-title {
+  color: var(--yj-library-text);
+  font-size: 15px;
+  letter-spacing: -0.01em;
+}
+
+.yj-project-card-type,
+.yj-project-type-tag {
+  border: 1px solid rgba(148, 163, 184, 0.14);
+  background: rgba(148, 163, 184, 0.08);
+  color: var(--yj-library-body);
+}
+
+.yj-project-card-stats {
+  padding-top: 9px;
+  border-top-color: rgba(148, 163, 184, 0.14);
+}
+
+.yj-project-card-stat {
+  color: var(--yj-library-muted);
+}
+
+.yj-project-card-stat i {
+  color: #8ea2bb;
+}
+
+.yj-project-status {
+  border: 1px solid currentColor;
+  border-color: color-mix(in srgb, currentColor 28%, transparent);
+  background: rgba(3, 7, 18, 0.7);
+}
+
+.yj-project-status-generating::before,
+.yj-project-status-processing::before {
+  animation-duration: 2.4s;
+}
+
+.yj-project-card-progress {
+  padding-top: 1px;
+}
+
+.yj-project-progress-track {
+  height: 3px;
+  background: rgba(148, 163, 184, 0.16);
+}
+
+.yj-project-progress-fill {
+  background: linear-gradient(90deg, #7c6cff, #4ea7ff 70%, #67e8f9);
+}
+
+.yj-project-progress-text {
+  color: var(--yj-library-muted);
+}
+
+.yj-project-card-error {
+  color: #fda4af;
+}
+
+.yj-project-card-delete {
+  width: 34px;
+  height: 34px;
+  right: 10px;
+  bottom: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  opacity: 0;
+  transition: opacity 180ms ease, background-color 180ms ease, border-color 180ms ease;
+}
+
+.yj-project-card:hover .yj-project-card-delete,
+.yj-project-card:focus-within .yj-project-card-delete,
+.yj-project-card-delete:focus-visible {
+  opacity: 1;
+}
+
+.yj-project-card-delete:focus-visible,
+.yj-project-detail-back:focus-visible {
+  outline: 2px solid rgba(125, 211, 252, 0.72);
+  outline-offset: 3px;
+}
+
+.yj-project-detail {
+  gap: 20px;
+}
+
+.yj-project-detail-back {
+  min-height: 36px;
+  color: var(--yj-library-muted);
+  transition: color 180ms ease, background-color 180ms ease;
+}
+
+.yj-project-detail-back:hover,
+.yj-project-detail-back:focus-visible {
+  color: var(--yj-library-text);
+}
+
+.yj-project-detail-title {
+  color: var(--yj-library-text);
+  letter-spacing: -0.02em;
+}
+
+.yj-project-detail-subtitle {
+  color: var(--yj-library-muted);
+}
+
+.yj-project-detail-actions .btn {
+  min-height: 38px;
+  border-radius: 8px;
+}
+
+.yj-project-media {
+  border-color: var(--yj-library-border);
+  border-radius: 14px;
+  background: #080c16;
+  box-shadow: 0 18px 42px rgba(3, 7, 18, 0.28);
+}
+
+.yj-project-media video,
+.yj-project-media img {
+  max-height: min(62vh, 640px);
+}
+
+.yj-project-info-card {
+  border-color: var(--yj-library-border);
+  border-radius: 12px;
+  background: var(--yj-library-surface);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+
+.yj-project-info-card-header {
+  border-bottom-color: rgba(148, 163, 184, 0.14);
+}
+
+.yj-project-info-card-title,
+.yj-project-info-row-value {
+  color: var(--yj-library-text);
+}
+
+.yj-project-info-row-label,
+.yj-project-empty-desc,
+.yj-project-loading-text {
+  color: var(--yj-library-muted);
+}
+
+.yj-project-empty,
+.yj-project-loading {
+  min-height: 260px;
+  padding: 56px 24px;
+  border: 1px dashed rgba(148, 163, 184, 0.2);
+  border-radius: 14px;
+  background: rgba(17, 24, 39, 0.58);
+}
+
+.yj-project-empty-icon {
+  color: #8ea2bb;
+  opacity: 0.7;
+}
+
+.yj-project-loading-spinner {
+  border-color: rgba(148, 163, 184, 0.18);
+  border-top-color: #67e8f9;
+}
+
+@media (max-width: 1400px) {
+  .yj-project-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+
+@media (max-width: 1024px) {
+  .yj-project-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+@media (max-width: 640px) {
+  .yj-project-toolbar { align-items: stretch; }
+  .yj-project-toolbar-left,
+  .yj-project-toolbar-right { width: 100%; }
+  .yj-project-toolbar-right .btn { width: 100%; }
+  .yj-project-filter { flex: 1; min-width: 0; }
+  .yj-project-grid { grid-template-columns: 1fr; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .yj-project-card,
+  .yj-project-card-cover img,
+  .yj-project-filter,
+  .yj-project-detail-back,
+  .yj-project-card-delete { transition: none; }
+  .yj-project-status-generating::before,
+  .yj-project-status-processing::before,
+  .yj-project-loading-spinner { animation: none; }
 }

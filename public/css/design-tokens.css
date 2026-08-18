@@ -27,34 +27,72 @@
   --accent-blue: #3b82f6;
 
   /* ── Background（三层深度）── */
-  --bg-base: #0a0a0a;                       /* 最底层背景（body） */
-  --bg-surface: rgba(255, 255, 255, 0.03);   /* 表面层（页面容器） */
-  --bg-card: rgba(255, 255, 255, 0.05);      /* 卡片层 */
-  --bg-card-hover: rgba(255, 255, 255, 0.08);/* 卡片悬停 */
-  --bg-card-active: rgba(99, 102, 241, 0.12);/* 卡片选中 */
-  --bg-input: rgba(255, 255, 255, 0.06);     /* 输入框背景 */
+  --bg-base: #0b1020;                       /* 最底层背景（body） */
+  --bg-surface: #121a2e;                    /* Surface 1：页面容器 */
+  --bg-card: #1b2740;                       /* Surface 2：卡片层 */
+  --bg-card-hover: #243452;                 /* Surface 3：悬停/浮层 */
+  --bg-card-active: rgba(139, 124, 255, 0.18); /* 卡片选中 */
+  --bg-input: #17233a;                      /* 输入框背景 */
+
+  /* ── YuJian Surface Foundation（Edit Bay at Night）── */
+  --yj-surface-0: #0b1020;                  /* 页面底色 */
+  --yj-surface-1: #121a2e;                  /* shell / content grouping */
+  --yj-surface-2: #1b2740;                  /* card / form / table workspace */
+  --yj-surface-3: #243452;                  /* floating panel / popover */
+  --yj-surface-elevated: #2b3c5b;           /* modal / elevated preview */
+  --yj-glass-surface: rgba(27, 39, 64, 0.88); /* 仅供浮层类组件使用 */
+
+  /* ── Batch 8 spatial light / warm balance ── */
+  --yj-warm: #f4c58a;
+  --yj-ink-highlight: #dce8ff;
+  --yj-space-light: linear-gradient(120deg, rgba(139,124,255,.2), rgba(78,167,255,.16) 52%, rgba(103,232,249,.14));
+  --yj-border-glow: linear-gradient(110deg, rgba(139,124,255,.56), rgba(103,232,249,.48));
+  --yj-shadow-workspace: 0 18px 46px rgba(3, 8, 22, .34), 0 0 0 1px rgba(141, 173, 224, .08);
+  --yj-motion-ambient: 18s;
+
+  /* ── YuJian Accent（仅建立基础，不扩大应用范围）── */
+  --yj-violet: #8b7cff;
+  --yj-blue: #4ea7ff;
+  --yj-cyan: #67e8f9;
+  --yj-luminous-gradient: linear-gradient(110deg, var(--yj-violet), var(--yj-blue) 68%, var(--yj-cyan));
 
   /* ── Text ── */
-  --text-primary: #ffffff;                   /* 主要文字 */
-  --text-secondary: #9ca3af;                 /* 次要文字 */
-  --text-muted: #6b7280;                     /* 提示文字 */
-  --text-inverse: #0a0a0a;                   /* 反色文字（浅色背景上） */
+  --text-primary: #f6f8fc;                  /* 主要文字 */
+  --text-secondary: #d6ddea;                /* 正文/次要文字 */
+  --text-muted: #aab6c8;                    /* 提示/元数据文字 */
+  --text-inverse: #070a12;                  /* 反色文字（浅色背景上） */
+
+  /* ── YuJian Text Roles ── */
+  --yj-text-strong: #f6f8fc;
+  --yj-text-body: #d6ddea;
+  --yj-text-secondary: #bcc7d8;
+  --yj-text-muted: #aab6c8;
+  --yj-text-disabled: #7f8ba0;
 
   /* ── Border ── */
-  --border-subtle: rgba(255, 255, 255, 0.06);  /* 最弱边框（分隔线） */
-  --border-default: rgba(255, 255, 255, 0.10); /* 默认边框 */
-  --border-strong: rgba(255, 255, 255, 0.16);  /* 强调边框（悬停/选中） */
-  --border-focus: rgba(99, 102, 241, 0.5);     /* 聚焦边框 */
+  --border-subtle: rgba(169, 183, 207, 0.24);  /* 最弱边框（分隔线） */
+  --border-default: rgba(169, 183, 207, 0.38); /* 默认边框 */
+  --border-strong: rgba(214, 221, 234, 0.56);  /* 强调边框（悬停/选中） */
+  --border-focus: #7dd3fc;                     /* 聚焦边框 */
+
+  /* ── YuJian Border / Elevation ── */
+  --yj-border-subtle: rgba(169, 183, 207, 0.24);
+  --yj-border-default: rgba(169, 183, 207, 0.38);
+  --yj-border-strong: rgba(214, 221, 234, 0.56);
+  --yj-focus-ring: #7dd3fc;
+  --yj-shadow-control: 0 1px 3px rgba(3, 8, 22, 0.28);
+  --yj-shadow-card: 0 10px 28px rgba(3, 8, 22, 0.3);
+  --yj-shadow-elevated: 0 18px 52px rgba(3, 8, 22, 0.46);
 
   /* ── Semantic（语义色）── */
-  --success: #10b981;
-  --success-bg: rgba(16, 185, 129, 0.12);
-  --warning: #f59e0b;
-  --warning-bg: rgba(245, 158, 11, 0.12);
-  --danger: #ef4444;
-  --danger-bg: rgba(239, 68, 68, 0.12);
-  --info: #3b82f6;
-  --info-bg: rgba(59, 130, 246, 0.12);
+  --success: #34d399;
+  --success-bg: rgba(52, 211, 153, 0.16);
+  --warning: #fbbf24;
+  --warning-bg: rgba(251, 191, 36, 0.16);
+  --danger: #fb7185;
+  --danger-bg: rgba(251, 113, 133, 0.16);
+  --info: #67b7ff;
+  --info-bg: rgba(103, 183, 255, 0.16);
 }
 
 /* ================================================================
@@ -70,12 +108,23 @@
   /* ── Font Size（基于 16px）── */
   --text-xs: 0.75rem;     /* 12px — 标签、徽章 */
   --text-sm: 0.8125rem;   /* 13px — 辅助文字 */
-  --text-base: 0.875rem;  /* 14px — 正文 */
+  --text-base: 0.9375rem; /* 15px — 正文 */
   --text-md: 1rem;        /* 16px — 强调正文 */
   --text-lg: 1.125rem;    /* 18px — 小标题 */
   --text-xl: 1.25rem;     /* 20px — 页面标题 */
   --text-2xl: 1.5rem;     /* 24px — 大标题 */
   --text-3xl: 2rem;       /* 32px — Hero 标题 */
+
+  /* ── Typography Roles ── */
+  --font-display: var(--font-sans);
+  --text-display: 2.5rem;
+  --text-h1: 2rem;
+  --text-h2: 1.5rem;
+  --text-h3: 1.125rem;
+  --text-body: 0.9375rem;
+  --text-secondary-role: 0.875rem;
+  --text-caption: 0.8125rem;
+  --text-label: 0.75rem;
 
   /* ── Font Weight ── */
   --font-normal: 400;
@@ -161,13 +210,19 @@
 
 :root {
   /* ── Duration ── */
-  --duration-fast: 100ms;     /* 微交互（hover 颜色变化） */
+  --duration-fast: 150ms;     /* 微交互（hover 颜色变化） */
   --duration-normal: 200ms;   /* 标准交互（展开/收起） */
   --duration-slow: 300ms;     /* 大型动画（模态框进出） */
 
   /* ── Easing ── */
   --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-in: cubic-bezier(0.7, 0, 0.84, 0);
   --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+
+  /* ── Motion aliases ── */
+  --motion-fast: var(--duration-fast);
+  --motion-normal: var(--duration-normal);
+  --motion-slow: var(--duration-slow);
 }
 
 /* ================================================================
@@ -176,7 +231,7 @@
 
 :root {
   /* 侧边栏 */
-  --sidebar-width: 90px;
+  --sidebar-width: 208px;
   --sidebar-expanded: 220px;
 
   /* 头部 */
