@@ -424,6 +424,13 @@
             .project-grid { grid-template-columns: repeat(2, 1fr); }
             .creation-form { grid-template-columns: 1fr; }
         }
+
+        /* ─── Auth-Rebuild-010-A: 个人中心（单列卡片布局，深色玻璃拟态） ─── */
+        .yj-pc-layout { display: flex; gap: 20px; align-items: flex-start; }
+        .yj-pc-content { flex: 1; min-width: 0; }
+        @media (max-width: 900px) {
+            .yj-pc-layout { flex-direction: column; }
+        }
     </style>
 </head>
 <body>
@@ -479,14 +486,14 @@
                 <i class="fas fa-coins"></i><span>积分中心</span>
             </div>
             <div class="nav-item" data-page="settings" onclick="navigateTo('settings')">
-                <i class="fas fa-gear"></i><span>系统设置</span>
+                <i class="fas fa-user-circle"></i><span>个人中心</span>
             </div>
         </div>
 
         <!-- 侧边栏底部：用户头像 -->
         <div class="sidebar-footer">
-            <div class="user-mini" onclick="navigateTo('settings')">
-                <div class="avatar-sm">王</div>
+            <div class="user-mini" onclick="navigateTo('settings')" title="个人中心">
+                <div class="avatar-sm">用</div>
             </div>
         </div>
     </div>
@@ -503,12 +510,12 @@
             <div class="yj-credits-display" onclick="navigateTo('billing')" title="点击查看积分详情">
                 <i class="fas fa-coins"></i>
                 <span>剩余</span>
-                <span class="yj-credits-value" id="headerCredits">18,700</span>
+                <span class="yj-credits-value" id="headerCredits">--</span>
                 <span>积分</span>
             </div>
-            <div class="yj-user-entry" onclick="navigateTo('settings')" title="账户设置">
-                <div class="yj-user-avatar">王</div>
-                <span class="yj-user-name">王磊</span>
+            <div class="yj-user-entry" onclick="navigateTo('settings')" title="个人中心">
+                <div class="yj-user-avatar">用</div>
+                <span class="yj-user-name">未登录</span>
             </div>
         </div>
     </div>
@@ -679,6 +686,33 @@
                 </div>
                 <div class="login-error" id="setPasswordError"></div>
                 <button type="submit" class="btn-login" id="setPasswordBtn" onclick="handleSetPassword()">确 认</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- 修改密码弹窗（Auth-Rebuild-011：登录态改密，复用 login-overlay/login-modal 视觉） -->
+    <div class="login-overlay" id="changePasswordOverlay">
+        <div class="login-modal">
+            <h2>修改密码</h2>
+            <div class="login-subtitle">请输入旧密码并设置新密码（至少6位）</div>
+            <form id="changePasswordForm" onsubmit="return false;">
+                <div class="form-group">
+                    <label>旧密码</label>
+                    <input type="password" id="changeOldPassword" placeholder="请输入当前密码" autocomplete="current-password">
+                </div>
+                <div class="form-group">
+                    <label>新密码</label>
+                    <input type="password" id="changeNewPassword" placeholder="请输入新密码（至少6位）" autocomplete="new-password">
+                </div>
+                <div class="form-group">
+                    <label>确认新密码</label>
+                    <input type="password" id="changeConfirmPassword" placeholder="请再次输入新密码" autocomplete="new-password">
+                </div>
+                <div class="login-error" id="changePasswordError"></div>
+                <button type="submit" class="btn-login" id="changePasswordBtn" onclick="YJ.pages.settings.submitChangePassword()">确 认</button>
+                <div class="login-links">
+                    <a onclick="YJ.pages.settings.closeChangePassword()">取消</a>
+                </div>
             </form>
         </div>
     </div>
@@ -914,12 +948,6 @@
                 { id: 7, name: '客户 testimonial', type: '数字人', time: '2026-06-28', status: '已完成' },
                 { id: 8, name: '教程系列第一集', type: '文生视频', time: '2026-06-25', status: '进行中' }
             ],
-            members: [
-                { id: 1, name: '王磊', role: '管理员', joined: '2026-02-10', status: 'active' },
-                { id: 2, name: '李娜', role: '创作者', joined: '2026-03-15', status: 'active' },
-                { id: 3, name: '赵岩', role: '创作者', joined: '2026-04-01', status: 'active' },
-                { id: 4, name: '陈静', role: '查看者', joined: '2026-05-20', status: 'inactive' }
-            ],
             billingRecords: [
                 { id: 1, type: '开通', plan: '专业版', amount: 799, time: '2026-02-10', status: 'paid' },
                 { id: 2, type: '续费', plan: '专业版', amount: 799, time: '2026-07-10', status: 'paid' },
@@ -942,13 +970,14 @@
                 case 'ref2video': container.innerHTML = renderStudio(); initTemplateSelector('#studioTemplateContainer', 'studioPrompt', 'reference_to_video'); (function(){var c=document.querySelector('.yj-studio-type-card[data-type="ref2video"]');studioSelectType(c,'ref2video');})(); break;
                 case 'digitalhuman': renderDigitalHumanAsync(container); break;
                 case 'imageGen': container.innerHTML = renderImageGen(); initTemplateSelector('#imgGenTemplateContainer', 'imgGenPrompt', 'image'); break;
-                case 'projects': container.innerHTML = renderProjects(); break;
+                // DigitalHuman-Rebuild-006: projects 页统一由 projects.js 负责（不再使用内部 renderProjects）
+                case 'projects': container.innerHTML = (window.YJ && YJ.pages && YJ.pages.projects && typeof YJ.pages.projects.render === 'function') ? YJ.pages.projects.render() : renderProjects(); break;
                 case 'myworks': container.innerHTML = renderMyWorks(); setTimeout(() => loadMyWorks(1), 0); break;
                 case 'assets': container.innerHTML = renderAssets(); break;
                 case 'editor': container.innerHTML = renderEditor(); setTimeout(function() { if (window.YJ && window.YJ.EditorApp && window.YJ.EditorApp.initEditor) { window.YJ.EditorApp.initEditor(); } }, 0); break;
                 case 'team': container.innerHTML = renderTeam(); break;
                 case 'billing': container.innerHTML = renderBilling(); break;
-                case 'settings': container.innerHTML = renderSettings(); break;
+                case 'settings': container.innerHTML = YJ.pages.settings.render(); setTimeout(function () { if (YJ.pages.settings.init) YJ.pages.settings.init(); }, 0); break;
                 default: container.innerHTML = '<div class="card"><div class="card-body">页面开发中</div></div>';
             }
             document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
@@ -1415,6 +1444,8 @@
                 + '  <div class="yj-studio-cost-hint" id="studioCostHint">'
                 + '    <i class="fas fa-coins"></i>'
                 + '    <span>预计消耗 <strong id="studioCostEstimate">~ 80</strong> 积分</span>'
+                // DigitalHuman-Rebuild-005-A: 生成页余额真实化 — 复用 refreshGenerationCredits 共享刷新
+                + '    <span style="margin-left:14px">当前余额：<strong data-gen-balance>--</strong> 积分</span>'
                 + '  </div>'
                 + '  <button class="yj-studio-generate-btn" id="studioGenerateBtn" onclick="studioStartGenerate()">'
                 + '    <i class="fas fa-magic"></i> <span id="studioGenerateText">开始生成</span>'
@@ -2712,7 +2743,7 @@ var templateCapability = STUDIO_TPL_CAP_MAP[type] || 'image_to_video';
                                 <div style="display:flex;justify-content:space-between;margin-bottom:10px;font-size:13px">
                                     <span>1080P · 10秒</span><strong>~ 80 积分</strong>
                                 </div>
-                                <div style="font-size:12px;color:var(--text-sub)">当前余额：18,700 积分</div>
+                                <div style="font-size:12px;color:var(--text-sub)">当前余额：<span data-gen-balance>--</span> 积分</div>
                             </div>
                         </div>
                         <div class="card">
@@ -3160,7 +3191,7 @@ var templateCapability = STUDIO_TPL_CAP_MAP[type] || 'image_to_video';
                             </div>
                             <div class="cost-estimate-row">
                                 <span class="label">当前余额</span>
-                                <span class="value" style="color:var(--success)">18,700 积分</span>
+                                <span class="value" style="color:var(--success)"><span data-gen-balance>--</span> 积分</span>
                             </div>
                         </div>
                     </div>
@@ -3398,7 +3429,7 @@ var templateCapability = STUDIO_TPL_CAP_MAP[type] || 'image_to_video';
                             </div>
                             <div class="cost-estimate-row">
                                 <span class="label">当前余额</span>
-                                <span class="value" style="color:var(--success)">18,700 积分</span>
+                                <span class="value" style="color:var(--success)"><span data-gen-balance>--</span> 积分</span>
                             </div>
                         </div>
                     </div>
@@ -3962,38 +3993,9 @@ var templateCapability = STUDIO_TPL_CAP_MAP[type] || 'image_to_video';
             `;
         }
 
-        function renderSettings() {
-            const e = APP.enterprise;
-            return `
-                <div class="card">
-                    <div class="card-header"><h3>🏢 企业基本信息</h3></div>
-                    <div class="card-body">
-                        <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
-                            <div class="form-group"><label>企业名称</label><input type="text" value="${e.name}" disabled></div>
-                            <div class="form-group"><label>联系人</label><input type="text" value="${e.contact}" disabled></div>
-                            <div class="form-group"><label>手机号</label><input type="text" value="${e.phone}" disabled></div>
-                            <div class="form-group"><label>套餐</label><input type="text" value="${e.plan}" disabled></div>
-                        </div>
-                        <div style="margin-top:12px;font-size:12px;color:var(--text-sub)">
-                            <i class="fas fa-info-circle"></i> 企业信息由代理商统一配置，如需修改请联系您的代理商
-                        </div>
-                    </div>
-                </div>
-                
-                <div class="card">
-                    <div class="card-header"><h3>🎨 品牌设置</h3></div>
-                    <div class="card-body">
-                        <div class="form-group"><label>企业Logo</label><input type="file" accept="image/*" disabled></div>
-                        <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
-                            <div class="form-group"><label>品牌名称</label><input type="text" value="${e.name} SaaS创作平台" disabled></div>
-                        </div>
-                        <div style="margin-top:12px;font-size:12px;color:var(--text-sub)">
-                            <i class="fas fa-info-circle"></i> 品牌贴牌由代理商统一配置，如需修改请联系您的代理商
-                        </div>
-                    </div>
-                </div>
-            `;
-        }
+        // Auth-Rebuild-010: 内联 renderSettings 已删除。
+        // 「个人中心」以 public/js/enterprise/pages/settings.js 为唯一事实源，
+        // render() 分发收敛至 YJ.pages.settings.render()（见 render() 的 case 'settings'）。
 
         // =====================
         // 工具函数
@@ -4037,7 +4039,7 @@ var templateCapability = STUDIO_TPL_CAP_MAP[type] || 'image_to_video';
             'myworks':      { title: '作品库',      section: '资源', icon: 'fa-film' },
             'team':         { title: '团队',        section: '账户', icon: 'fa-users' },
             'billing':      { title: '积分中心',    section: '账户', icon: 'fa-coins' },
-            'settings':     { title: '系统设置',    section: '账户', icon: 'fa-gear' }
+            'settings':     { title: '个人中心',    section: '账户', icon: 'fa-user-circle' }
         };
 
         function updateHeaderForPage(page) {
@@ -4996,12 +4998,79 @@ var templateCapability = STUDIO_TPL_CAP_MAP[type] || 'image_to_video';
             }
         }
 
+        // Auth-Rebuild-012: 顶部头像 / 顶部名称 / 侧边栏头像统一渲染（同一渲染函数）
+        // 名称优先级：userInfo.name → company_name → phone
+        // 头像优先级：name 首字 → company_name 首字 → phone 后四位 → 默认「用」
         function updateUserDisplay(userInfo) {
-            var name = (userInfo && userInfo.email) ? userInfo.email.split('@')[0] : '';
-            var initial = name ? name[0].toUpperCase() : '用';
-            // 更新侧边栏用户头像
-            var userAvatars = document.querySelectorAll('.avatar-sm');
-            userAvatars.forEach(function (el) { if (el) el.textContent = initial; });
+            var name = '未登录';
+            var avatar = '用';
+            if (userInfo) {
+                var n = String(userInfo.name || '').trim();
+                var c = String(userInfo.company_name || '').trim();
+                var p = String(userInfo.phone || '').trim();
+                if (n || c || p) {
+                    name = n || c || p;
+                    avatar = n ? n[0] : (c ? c[0] : p.slice(-4));
+                }
+            }
+            var nameEl = document.querySelector('.yj-user-name');
+            if (nameEl) nameEl.textContent = name;
+            // 顶部头像与侧边栏头像共用同一渲染
+            document.querySelectorAll('.yj-user-avatar, .avatar-sm').forEach(function (el) {
+                if (el) el.textContent = avatar;
+            });
+        }
+
+        // Auth-Rebuild-012: 顶部积分从真实接口读取（GET /api/enterprise/quota/balance → balance）
+        // 失败不阻断登录，保留当前占位（--）
+        function refreshHeaderCredits() {
+            var el = document.getElementById('headerCredits');
+            if (!el) return;
+            if (typeof YuJianAPI === 'undefined' || typeof YuJianAuth === 'undefined') return;
+            if (!YuJianAuth.isAuthenticated()) return;
+            YuJianAPI.get('/enterprise/quota/balance')
+                .then(function (res) {
+                    if (res && res.balance !== undefined && res.balance !== null && res.balance !== '') {
+                        var balance = Number(res.balance);
+                        if (!isNaN(balance)) {
+                            el.textContent = balance.toLocaleString('en-US');
+                        }
+                    }
+                })
+                .catch(function (err) {
+                    console.warn('[Auth-Rebuild-012] 顶部积分加载失败，保留占位', err);
+                });
+        }
+
+        // DigitalHuman-Rebuild-005-A: 生成页余额真实化 — 共享余额刷新函数
+        // 复用 GET /api/enterprise/quota/balance（与 refreshHeaderCredits 同源），一次请求更新全部 [data-gen-balance] 占位。
+        // 规则：成功 → 填充真实余额；失败 → 显示 --；不阻塞页面。
+        function refreshGenerationCredits() {
+            var els = document.querySelectorAll('[data-gen-balance]');
+            if (!els.length) return;
+            if (typeof YuJianAPI === 'undefined' || typeof YuJianAuth === 'undefined') return;
+            if (!YuJianAuth.isAuthenticated()) return;
+            YuJianAPI.get('/enterprise/quota/balance')
+                .then(function (res) {
+                    if (res && res.balance !== undefined && res.balance !== null && res.balance !== '') {
+                        var balance = Number(res.balance);
+                        if (!isNaN(balance)) {
+                            var text = balance.toLocaleString('en-US');
+                            els.forEach(function (el) { el.textContent = text; });
+                        }
+                    }
+                })
+                .catch(function (err) {
+                    console.warn('[Rebuild-005-A] 生成页余额加载失败，显示 --', err);
+                    els.forEach(function (el) { el.textContent = '--'; });
+                });
+        }
+
+        // Auth-Rebuild-012: 退出登录后重置顶部/侧边栏用户标识与积分占位
+        function resetUserDisplay() {
+            updateUserDisplay(null);
+            var el = document.getElementById('headerCredits');
+            if (el) el.textContent = '--';
         }
 
         // ─── Auth-Rebuild-009：登录门禁 / 权限隔离（对齐 admin/agent 的 Auth-Rebuild-008 模式）───
@@ -5031,6 +5100,10 @@ var templateCapability = STUDIO_TPL_CAP_MAP[type] || 'image_to_video';
                 if (userType === 'enterprise') {
                     var userInfo = YuJianAuth.getUserInfo();
                     if (userInfo) updateUserDisplay(userInfo);
+                    // Auth-Rebuild-012: 页面刷新（initAuth）后从真实接口刷新顶部积分
+                    refreshHeaderCredits();
+                    // DigitalHuman-Rebuild-005-A: 页面加载同步刷新生成页余额（[data-gen-balance] 占位）
+                    refreshGenerationCredits();
                     // 尝试恢复任务（从数据库查询所有未完成任务）
                     setTimeout(function () {
                         YuJianVideoTask.recoverIncompleteTasks({

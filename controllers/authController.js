@@ -304,3 +304,37 @@ exports.forgotPassword = async (req, res) => {
 
   res.success({ message: '密码重置成功' });
 };
+
+/**
+ * 修改密码（登录态：旧密码 + 新密码）
+ * POST /api/auth/enterprise/change-password
+ *   { old_password, new_password, confirm_password? }（必须已登录，enterpriseAuth）
+ *
+ * 约束（Auth-Rebuild-011）：
+ *   - 模型无 beforeUpdate 钩子 → 必须手动 bcrypt.hash 后赋值再 save()，否则明文入库
+ *   - 不重新签发 JWT：载荷不含密码相关字段，改密后当前 token 继续有效（保持登录）
+ *   - 只操作 req.user.userId 定位的本人账号，忽略请求体中任何 user_id，防越权
+ */
+exports.changePassword = async (req, res) => {
+  const { old_password, new_password, confirm_password } = req.body;
+
+  if (!old_password) return res.fail('请输入原密码');
+  if (!new_password) return res.fail('请输入新密码');
+  if (new_password.length < 6) return res.fail('新密码至少6位');
+  if (confirm_password !== undefined && new_password !== confirm_password) {
+    return res.fail('两次输入的新密码不一致');
+  }
+
+  const user = await EnterpriseUser.findByPk(req.user.userId);
+  if (!user) return res.fail('用户不存在');
+  if (user.status !== 1) return res.fail('账号已被禁用');
+
+  const isValid = await user.comparePassword(old_password);
+  if (!isValid) return res.fail('原密码错误');
+
+  // 密码不得明文存储；沿用 set-password / forgot-password 的手动 hash 更新方式
+  user.password = await bcrypt.hash(new_password, 10);
+  await user.save();
+
+  res.success({ message: '密码修改成功' });
+};

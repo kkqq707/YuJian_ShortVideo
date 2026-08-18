@@ -80,6 +80,8 @@
     hideLogin();
     showToast('登录成功，欢迎回来！', 'success');
     updateUserDisplay(result.userInfo);
+    // Auth-Rebuild-012: 登录成功后刷新顶部积分（真实余额）
+    if (typeof refreshHeaderCredits === 'function') refreshHeaderCredits();
     recoverPendingTasks();
     // Auth-Rebuild-005: 确认登录成功后才落「记住该账户」（仅手机号）
     persistRememberedAccountAfterLogin();
@@ -282,6 +284,8 @@
       showToast(result.message || '密码设置成功', 'success');
       var userInfo = YuJianAuth.getUserInfo();
       if (userInfo) updateUserDisplay(userInfo);
+      // Auth-Rebuild-012: 首次设密完成登录后同步刷新顶部积分（真实余额）
+      if (typeof refreshHeaderCredits === 'function') refreshHeaderCredits();
       recoverPendingTasks();
     } catch (err) {
       console.error('[Auth] 设置密码失败', err);

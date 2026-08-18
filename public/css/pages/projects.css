@@ -217,6 +217,7 @@
   inset: 0;
   background: linear-gradient(180deg, transparent 50%, rgba(0, 0, 0, 0.3) 100%);
   pointer-events: none;
+  z-index: 1;
 }
 
 .yj-project-card-cover i {
@@ -235,7 +236,7 @@
   position: absolute;
   top: 10px;
   right: 10px;
-  z-index: 1;
+  z-index: 2;
 }
 
 /* ── 卡片内容区 ── */
@@ -726,7 +727,144 @@
 }
 
 /* ================================================================
-   10. 向后兼容：保留旧选择器
+   10. DigitalHuman-Rebuild-006: 真实作品列表新增样式
+   ================================================================ */
+
+/* ── 封面图（填充 16:9 封面区） ── */
+.yj-project-card-cover img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+}
+
+/* ── 卡片进度条（pending / processing） ── */
+.yj-project-card-progress {
+  margin-top: 2px;
+}
+
+.yj-project-progress-track {
+  height: 4px;
+  background: var(--border-subtle);
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.yj-project-progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--primary), var(--accent-purple));
+  border-radius: 999px;
+  transition: width 0.3s ease;
+}
+
+.yj-project-progress-text {
+  display: inline-block;
+  margin-top: 4px;
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}
+
+/* ── 卡片失败提示 ── */
+.yj-project-card-error {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: var(--text-xs);
+  color: #f87171;
+}
+
+/* ── 卡片删除按钮（仅管理员可见，悬停显示） ── */
+.yj-project-card-delete {
+  position: absolute;
+  bottom: 10px;
+  right: 10px;
+  z-index: 3;
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.45);
+  color: #f87171;
+  border: none;
+  border-radius: var(--radius-sm);
+  font-size: 12px;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity var(--duration-fast) var(--ease-out);
+}
+
+.yj-project-card:hover .yj-project-card-delete {
+  opacity: 1;
+}
+
+.yj-project-card-delete:hover {
+  background: rgba(239, 68, 68, 0.25);
+}
+
+/* ── 详情页媒体区（视频 / 封面 / 占位） ── */
+.yj-project-media {
+  width: 100%;
+  background: #000;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+}
+
+.yj-project-media video,
+.yj-project-media img {
+  display: block;
+  width: 100%;
+  max-height: 480px;
+  object-fit: contain;
+  background: #000;
+}
+
+.yj-project-media-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-3);
+  padding: var(--space-16) var(--space-6);
+  color: var(--text-muted);
+  background: var(--bg-card);
+}
+
+.yj-project-media-empty i {
+  font-size: 40px;
+  opacity: 0.4;
+}
+
+.yj-project-media-empty span {
+  font-size: var(--text-sm);
+}
+
+/* ── 详情页失败原因文字色 ── */
+.yj-project-detail .yj-project-info-row-value {
+  word-break: break-all;
+}
+
+/* ── 新增类型色彩（DigitalHuman-Rebuild-006） ── */
+.yj-project-type-ref2video {
+  background: rgba(251, 191, 36, 0.15);
+  color: #fbbf24;
+}
+
+.yj-project-type-text2image {
+  background: rgba(236, 72, 153, 0.15);
+  color: #f472b6;
+}
+
+.yj-project-type-video-edit {
+  background: rgba(56, 189, 248, 0.15);
+  color: #38bdf8;
+}
+
+/* ================================================================
+   11. 向后兼容：保留旧选择器
    ================================================================ */
 
 /* 旧选择器 .project-grid / .project-card 保留与旧代码兼容 */

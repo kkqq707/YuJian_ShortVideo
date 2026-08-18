@@ -13,5 +13,7 @@ router.post('/enterprise/login-by-code', authController.loginByCode);
 // 首次设置密码：必须已登录（enterpriseAuth），不接受仅凭手机号改密
 router.post('/enterprise/set-password', enterpriseAuth, authController.setPassword);
 router.post('/enterprise/forgot-password', authController.forgotPassword);
+// Auth-Rebuild-011: 登录态修改密码：必须已登录（enterpriseAuth），旧密码校验 + 新密码手动 bcrypt hash
+router.post('/enterprise/change-password', enterpriseAuth, authController.changePassword);
 
 module.exports = router;

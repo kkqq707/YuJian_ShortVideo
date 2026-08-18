@@ -41,12 +41,6 @@
       { id: 7, name: '客户见证视频', type: 'digitalhuman', typeLabel: '数字人', typeIcon: 'fa-user-circle', time: '2026-06-28', status: 'completed', statusLabel: '已完成', materialCount: 6, shotCount: 5, generatedVideos: 3, description: '客户使用体验分享与推荐' },
       { id: 8, name: '教程系列第一集', type: 'text2video', typeLabel: '文生视频', typeIcon: 'fa-video', time: '2026-06-25', status: 'generating', statusLabel: '生成中', materialCount: 15, shotCount: 10, generatedVideos: 2, description: '产品使用教程系列第一集' }
     ],
-    members: [
-      { id: 1, name: '王磊', role: '管理员', joined: '2026-02-10', status: 'active' },
-      { id: 2, name: '李娜', role: '创作者', joined: '2026-03-15', status: 'active' },
-      { id: 3, name: '赵岩', role: '创作者', joined: '2026-04-01', status: 'active' },
-      { id: 4, name: '陈静', role: '查看者', joined: '2026-05-20', status: 'inactive' }
-    ],
     billingRecords: [
       { id: 1, type: '开通', plan: '专业版', amount: 799, time: '2026-02-10', status: 'paid' },
       { id: 2, type: '续费', plan: '专业版', amount: 799, time: '2026-07-10', status: 'paid' },
@@ -284,6 +278,13 @@
       }
     }
     _originalRender(page);
+    // DigitalHuman-Rebuild-005-A: 生成页余额真实化 — 进入创作页（renderStudio 各子模式）时刷新当前余额
+    // 复用 enterprise.html 的共享函数 refreshGenerationCredits（GET /enterprise/quota/balance），不改变路由。
+    if (['studio', 'text2video', 'image2video', 'ref2video', 'imageGen'].indexOf(page) !== -1) {
+      if (typeof refreshGenerationCredits === 'function') {
+        refreshGenerationCredits();
+      }
+    }
     // Auto-load assets when entering assets page
     if (page === 'assets') {
       setTimeout(function () { if (typeof loadAssets === 'function') loadAssets(1); }, 0);
