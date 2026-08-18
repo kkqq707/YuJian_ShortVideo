@@ -146,7 +146,7 @@
   function render(page) {
     var container = document.getElementById('mainContent');
     switch (page) {
-      case 'dashboard': container.innerHTML = (typeof renderDashboard === 'function' ? renderDashboard() : '<div class="card"><div class="card-body">页面开发中</div></div>'); break;
+      case 'dashboard': container.innerHTML = (window.YJ && YJ.pages && YJ.pages.dashboard && typeof YJ.pages.dashboard.render === 'function' ? YJ.pages.dashboard.render() : (typeof renderDashboard === 'function' ? renderDashboard() : '<div class="card"><div class="card-body">页面开发中</div></div>')); break;
       case 'storyboard': container.innerHTML = (typeof renderStoryboardPage === 'function' ? renderStoryboardPage() : '<div class="card"><div class="card-body">页面开发中</div></div>'); break;
       case 'text2video': container.innerHTML = (typeof renderStudio === 'function' ? renderStudio() : renderFallback('AI创作中心')); initTemplateSelector('#studioTemplateContainer', 'studioPrompt', 'text_to_video'); if (typeof studioSelectType === 'function') { var card = document.querySelector('.yj-studio-type-card[data-type="text2video"]'); if (card) studioSelectType(card, 'text2video'); } break;
       case 'image2video': container.innerHTML = (typeof renderStudio === 'function' ? renderStudio() : renderFallback('AI创作中心')); initTemplateSelector('#studioTemplateContainer', 'studioPrompt', 'image_to_video'); if (typeof studioSelectType === 'function') { var card = document.querySelector('.yj-studio-type-card[data-type="image2video"]'); if (card) studioSelectType(card, 'image2video'); } break;
