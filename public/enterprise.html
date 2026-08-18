@@ -371,6 +371,38 @@
             transition: color 0.2s;
         }
         .login-modal .login-links a:hover { color: #a78bfa; }
+        /* --- Auth-Rebuild-005: 记住该账户 --- */
+        .remember-account {
+            display: flex; align-items: center; gap: 8px;
+            padding: 12px 0; margin-top: 6px;
+            cursor: pointer; user-select: none;
+        }
+        .remember-account input[type="checkbox"] {
+            appearance: none; -webkit-appearance: none;
+            width: 16px; height: 16px; margin: 0; flex-shrink: 0;
+            background: rgba(20, 30, 60, 0.45);
+            border: 1px solid rgba(255, 255, 255, 0.35);
+            border-radius: 4px; cursor: pointer;
+            outline: none; position: relative;
+            transition: all 0.2s;
+        }
+        .remember-account input[type="checkbox"]:checked {
+            background: linear-gradient(135deg, #20a4f3, #8b5cf6);
+            border-color: transparent;
+        }
+        .remember-account input[type="checkbox"]:checked::after {
+            content: ''; position: absolute; left: 4px; top: 1px;
+            width: 5px; height: 9px;
+            border: solid #fff; border-width: 0 2px 2px 0;
+            transform: rotate(45deg);
+        }
+        .remember-account input[type="checkbox"]:focus-visible {
+            box-shadow: 0 0 0 3px rgba(32, 164, 243, 0.35);
+        }
+        .remember-account span {
+            font-size: 13px; color: rgba(255, 255, 255, 0.65);
+            line-height: 20px;
+        }
         /* 移动端适配 */
         @media (max-width: 480px) {
             .login-modal {
@@ -557,7 +589,7 @@
     <div class="login-overlay" id="loginOverlay">
         <div class="login-modal">
             <h2>煜见光影</h2>
-            <div class="login-subtitle">请使用企业账号手机号登录创作平台</div>
+            <!-- <div class="login-subtitle">请使用企业账号手机号登录创作平台</div> -->
             <div class="login-tabs">
                 <button type="button" class="login-tab active" id="tabPassword" onclick="switchLoginTab('password')">账号密码登录</button>
                 <button type="button" class="login-tab" id="tabCode" onclick="switchLoginTab('code')">验证码登录</button>
@@ -593,10 +625,15 @@
                     <button type="submit" class="btn-login" id="codeLoginBtn" onclick="handleCodeLogin()">登 录</button>
                 </form>
             </div>
+            <!-- Auth-Rebuild-005: 记住该账户（仅账号标识，绝不保存密码/token） -->
+            <label class="remember-account" id="rememberAccountRow">
+                <input type="checkbox" id="rememberAccount">
+                <span>记住该账户</span>
+            </label>
             <div class="login-links">
                 <a onclick="showForgotModal()">忘记密码？</a>
             </div>
-            <div class="login-register-hint">还没有账号？<a>立即注册</a></div>
+            <div class="login-register-hint">还没有账号？<a onclick="showLogin();switchLoginTab('code')">立即注册</a></div>
         </div>
     </div>
 
@@ -4967,20 +5004,49 @@ var templateCapability = STUDIO_TPL_CAP_MAP[type] || 'image_to_video';
             userAvatars.forEach(function (el) { if (el) el.textContent = initial; });
         }
 
-        // 页面加载时检查登录状态
-        (function initAuth() {
-            if (YuJianAuth.isAuthenticated()) {
-                var userInfo = YuJianAuth.getUserInfo();
-                if (userInfo) updateUserDisplay(userInfo);
-                // 尝试恢复任务（从数据库查询所有未完成任务）
-                setTimeout(function () {
-                    YuJianVideoTask.recoverIncompleteTasks({
-                        onUpdate: function (t) { updateTaskStatusDisplay(t); refreshMyWorksIfActive(); },
-                        onSuccess: function (t) { handleTaskSuccess(t); refreshMyWorksIfActive(); },
-                        onFailed: function (t) { handleTaskFailed(t); refreshMyWorksIfActive(); }
-                    });
-                }, 500);
+        // ─── Auth-Rebuild-009：登录门禁 / 权限隔离（对齐 admin/agent 的 Auth-Rebuild-008 模式）───
+        // 本页仅允许 userType === 'enterprise'
+
+        // 客户端解码 JWT payload（仅用于前端角色判定，鉴权由后端完成）
+        function parseJwtUserType(token) {
+            try {
+                var parts = String(token).split('.');
+                if (parts.length < 2) return null;
+                var base64 = parts[1].replace(/-/g, '+').replace(/_/g, '/');
+                var decoded = decodeURIComponent(atob(base64).split('').map(function(c) {
+                    return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+                }).join(''));
+                var payload = JSON.parse(decoded);
+                return payload.userType || null;
+            } catch (_) {
+                return null;
             }
+        }
+
+        // 页面加载守卫：无 token / 角色不符 / 无法解码 → 清除 token 并显示登录
+        (function initAuth() {
+            var token = sessionStorage.getItem('yj_token');
+            if (token) {
+                var userType = parseJwtUserType(token);
+                if (userType === 'enterprise') {
+                    var userInfo = YuJianAuth.getUserInfo();
+                    if (userInfo) updateUserDisplay(userInfo);
+                    // 尝试恢复任务（从数据库查询所有未完成任务）
+                    setTimeout(function () {
+                        YuJianVideoTask.recoverIncompleteTasks({
+                            onUpdate: function (t) { updateTaskStatusDisplay(t); refreshMyWorksIfActive(); },
+                            onSuccess: function (t) { handleTaskSuccess(t); refreshMyWorksIfActive(); },
+                            onFailed: function (t) { handleTaskFailed(t); refreshMyWorksIfActive(); }
+                        });
+                    }, 500);
+                    return;
+                }
+                // token 存在但角色不符 / 无法解码 → 清除后回登录
+                if (typeof YuJianAPI !== 'undefined') YuJianAPI.clearToken();
+                sessionStorage.removeItem('yj_token');
+                sessionStorage.removeItem('yj_user');
+            }
+            showLogin();
         })();
 
         // ─── 拦截导航，确保登录 ────────────────────────────

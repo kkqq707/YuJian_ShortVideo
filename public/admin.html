@@ -6,6 +6,7 @@
     <title>煜见光影 · 总后台管理系统</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <script src="js/api.js"></script>
     <style>
         :root {
             --primary: #0a58ca;
@@ -145,6 +146,36 @@
         .page-btn { width: 32px; height: 32px; border: 1px solid var(--border); background: #fff; border-radius: 6px; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 13px; }
         .page-btn.active { background: var(--primary); color: #fff; border-color: var(--primary); }
         
+        /* 登录遮罩（Auth-Rebuild-008：沿用浅色 + #0a58ca 体系） */
+        .login-overlay {
+            position: fixed; inset: 0;
+            background: rgba(245, 247, 250, 0.94);
+            display: none; align-items: center; justify-content: center;
+            z-index: 2000; backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px);
+        }
+        .login-overlay.show { display: flex; }
+        .login-card {
+            background: #fff; border-radius: 16px; width: 380px; max-width: 90vw;
+            padding: 36px 32px;
+            box-shadow: 0 12px 40px rgba(10, 88, 202, 0.12), 0 0 0 1px var(--border);
+        }
+        .login-logo {
+            width: 56px; height: 56px; border-radius: 16px; margin: 0 auto 16px;
+            background: linear-gradient(135deg, var(--primary), var(--primary-light));
+            display: flex; align-items: center; justify-content: center;
+            color: #fff; font-size: 24px;
+        }
+        .login-card h2 { text-align: center; font-size: 22px; font-weight: 700; margin-bottom: 4px; }
+        .login-card .login-sub { text-align: center; font-size: 13px; color: var(--text-sub); margin-bottom: 24px; }
+        .login-card .form-group label { font-size: 13px; }
+        .login-card .form-group input { height: 44px; }
+        .login-card .login-error { color: var(--danger); font-size: 13px; margin-bottom: 8px; min-height: 20px; }
+        .btn-login { width: 100%; height: 44px; font-size: 15px; margin-top: 4px; justify-content: center; }
+        .btn-login:disabled { opacity: 0.6; cursor: not-allowed; }
+        @media (max-width: 480px) {
+            .login-card { padding: 28px 20px; border-radius: 14px; }
+        }
+
         /* 响应式 */
         @media (max-width: 1024px) {
             .sidebar { width: 72px; }
@@ -218,14 +249,35 @@
             <div class="header-icon"><i class="fas fa-bell"></i></div>
             <div class="header-icon"><i class="fas fa-search"></i></div>
             <div class="admin-avatar">
-                <div class="avatar-circle">超</div>
-                <span style="font-size: 14px;">超级管理员</span>
+                <div class="avatar-circle" id="avatarCircle">超</div>
+                <span style="font-size: 14px;" id="avatarName">超级管理员</span>
             </div>
         </div>
     </div>
 
     <!-- 主内容 -->
     <div class="main-content" id="mainContent"></div>
+
+    <!-- 登录遮罩（Auth-Rebuild-008） -->
+    <div class="login-overlay" id="loginOverlay">
+        <div class="login-card">
+            <div class="login-logo"><i class="fas fa-cube"></i></div>
+            <h2>煜见光影 · 总后台</h2>
+            <p class="login-sub">请使用管理员账号登录</p>
+            <form id="loginForm" onsubmit="return handleLogin(event)">
+                <div class="form-group">
+                    <label for="loginUsername">用户名</label>
+                    <input type="text" id="loginUsername" placeholder="请输入用户名" autocomplete="username">
+                </div>
+                <div class="form-group">
+                    <label for="loginPassword">密码</label>
+                    <input type="password" id="loginPassword" placeholder="请输入密码" autocomplete="current-password">
+                </div>
+                <div class="login-error" id="loginError"></div>
+                <button type="submit" class="btn btn-primary btn-login" id="loginBtn">登 录</button>
+            </form>
+        </div>
+    </div>
 
     <!-- 模态框 -->
     <div class="modal-overlay" id="modalOverlay" onclick="closeModal()">
@@ -1374,8 +1426,105 @@
             }
         }
 
-        // 初始化
-        render('dashboard');
+        // ─── Auth-Rebuild-008：登录门禁 / 权限隔离 ─────────────────────────
+        const REQUIRED_ROLE = 'admin'; // 本页仅允许 userType === 'admin'
+
+        // 客户端解码 JWT payload（仅用于前端角色判定，鉴权由后端完成）
+        function parseJwtUserType(token) {
+            try {
+                const parts = String(token).split('.');
+                if (parts.length < 2) return null;
+                const base64 = parts[1].replace(/-/g, '+').replace(/_/g, '/');
+                const decoded = decodeURIComponent(atob(base64).split('').map(function(c) {
+                    return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+                }).join(''));
+                const payload = JSON.parse(decoded);
+                return payload.userType || null;
+            } catch (_) {
+                return null;
+            }
+        }
+
+        // 登录成功后用 userInfo 替换硬编码头像区
+        function updateUserDisplay(userInfo) {
+            if (!userInfo) return;
+            const name = userInfo.username || userInfo.role || '管理员';
+            const circle = document.getElementById('avatarCircle');
+            const nameEl = document.getElementById('avatarName');
+            if (circle) circle.textContent = (name || '管').charAt(0);
+            if (nameEl) nameEl.textContent = name;
+        }
+
+        function showLogin() {
+            document.getElementById('loginOverlay').classList.add('show');
+            setTimeout(function() {
+                const u = document.getElementById('loginUsername');
+                if (u) u.focus();
+            }, 50);
+        }
+
+        function hideLogin() {
+            document.getElementById('loginOverlay').classList.remove('show');
+        }
+
+        function handleLogin(e) {
+            if (e && e.preventDefault) e.preventDefault();
+            const errEl = document.getElementById('loginError');
+            errEl.textContent = '';
+            const username = document.getElementById('loginUsername').value.trim();
+            const password = document.getElementById('loginPassword').value;
+            if (!username || !password) {
+                errEl.textContent = '请输入用户名和密码';
+                return false;
+            }
+            if (typeof YuJianAPI === 'undefined') {
+                errEl.textContent = '网络组件未加载，请刷新页面重试';
+                return false;
+            }
+            const btn = document.getElementById('loginBtn');
+            btn.disabled = true;
+            btn.textContent = '登录中...';
+            YuJianAPI.post('/auth/admin/login', { username: username, password: password })
+                .then(function(res) {
+                    if (res && res.token) {
+                        YuJianAPI.setToken(res.token);
+                        sessionStorage.setItem('yj_user', JSON.stringify(res.userInfo || {}));
+                        updateUserDisplay(res.userInfo);
+                        hideLogin();
+                        render('dashboard');
+                    } else {
+                        errEl.textContent = '登录响应异常，请重试';
+                    }
+                })
+                .catch(function(err) {
+                    errEl.textContent = (err && err.message) || '登录失败，请重试';
+                })
+                .finally(function() {
+                    btn.disabled = false;
+                    btn.textContent = '登 录';
+                });
+            return false;
+        }
+
+        // 页面加载守卫：无 token / 角色不符 / 无法解码 → 清除 token 并显示登录
+        (function initAuthGate() {
+            const token = sessionStorage.getItem('yj_token');
+            if (token) {
+                const userType = parseJwtUserType(token);
+                if (userType === REQUIRED_ROLE) {
+                    let storedUser = null;
+                    try { storedUser = JSON.parse(sessionStorage.getItem('yj_user') || 'null'); } catch (_) { storedUser = null; }
+                    if (storedUser) updateUserDisplay(storedUser);
+                    render('dashboard');
+                    return;
+                }
+                // token 存在但角色不符 / 无法解码 → 清除后回登录
+                if (typeof YuJianAPI !== 'undefined') YuJianAPI.clearToken();
+                sessionStorage.removeItem('yj_token');
+                sessionStorage.removeItem('yj_user');
+            }
+            showLogin();
+        })();
 
         // 响应式侧边栏
         window.addEventListener('resize', () => {

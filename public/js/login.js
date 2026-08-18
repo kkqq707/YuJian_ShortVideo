@@ -18,6 +18,57 @@
 
   var CODE_COOLDOWN_SEC = 60; // 获取验证码倒计时（秒）
 
+  // ─── 记住该账户（Auth-Rebuild-005） ──────────────────────────────────
+  // 仅把账号标识（手机号）写入 localStorage；绝不保存 password / token / userInfo。
+  var REMEMBER_KEY = 'yj_remembered_account';
+
+  function readRememberedAccount() {
+    try {
+      var raw = localStorage.getItem(REMEMBER_KEY);
+      if (!raw) return null;
+      var data = JSON.parse(raw);
+      return (data && typeof data.phone === 'string' && data.phone) ? data : null;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  // phone 为空 → 移除存储（未勾选即显式清除曾记忆的账号）
+  function saveRememberedAccount(phone) {
+    try {
+      if (phone) {
+        localStorage.setItem(REMEMBER_KEY, JSON.stringify({ phone: phone }));
+      } else {
+        localStorage.removeItem(REMEMBER_KEY);
+      }
+    } catch (_) { /* storage 异常静默降级，不阻塞登录 */ }
+  }
+
+  // 登录成功统一钩子：读取当前活跃登录 Tab 的手机号 + 勾选态，落存储。
+  // 仅在 handleLoginSuccess 走到完整成功分支（已跳过 needSetPassword）后调用。
+  function persistRememberedAccountAfterLogin() {
+    var remember = document.getElementById('rememberAccount');
+    if (!remember) return;
+    var paneCode = document.getElementById('loginPaneCode');
+    var useCode = paneCode && paneCode.style.display !== 'none';
+    var phoneEl = document.getElementById(useCode ? 'codeLoginPhone' : 'loginPhone');
+    var phone = phoneEl ? (phoneEl.value || '').trim() : '';
+    saveRememberedAccount(remember.checked ? phone : '');
+  }
+
+  // 页面加载时：有记忆 → 恢复勾选态并预填两 Tab 手机号；无 → 勾选框置空
+  window.applyRememberedAccount = function () {
+    var remember = document.getElementById('rememberAccount');
+    var data = readRememberedAccount();
+    if (remember) remember.checked = !!data;
+    if (data) {
+      var loginPhone = document.getElementById('loginPhone');
+      var codeLoginPhone = document.getElementById('codeLoginPhone');
+      if (loginPhone && !loginPhone.value) loginPhone.value = data.phone;
+      if (codeLoginPhone && !codeLoginPhone.value) codeLoginPhone.value = data.phone;
+    }
+  };
+
   // ─── 登录成功后的统一处理（账号密码 / 验证码两条登录链路共用） ──────────
   // 被 enterprise.html 内联 handleLogin 与下方 handleCodeLogin 调用。
   window.handleLoginSuccess = function (result) {
@@ -30,6 +81,8 @@
     showToast('登录成功，欢迎回来！', 'success');
     updateUserDisplay(result.userInfo);
     recoverPendingTasks();
+    // Auth-Rebuild-005: 确认登录成功后才落「记住该账户」（仅手机号）
+    persistRememberedAccountAfterLogin();
   };
 
   // 恢复未完成任务（与内联旧逻辑保持一致）
@@ -261,6 +314,7 @@
   }
 
   onReady(function () {
+    applyRememberedAccount(); // Auth-Rebuild-005: 打开页面时恢复勾选态并预填手机号
     bindEnter('codeLoginPhone', function () { var c = document.getElementById('codeLoginCode'); if (c) c.focus(); });
     bindEnter('codeLoginCode', window.handleCodeLogin);
     bindEnter('forgotPhone', function () { var c = document.getElementById('forgotCode'); if (c) c.focus(); });
