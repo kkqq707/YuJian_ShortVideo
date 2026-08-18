@@ -19,6 +19,7 @@ const PipelineTask = require('./PipelineTask');
 const ScriptRecord = require('./ScriptRecord');
 const Avatar = require('./Avatar');
 const Voice = require('./Voice');
+const VerificationCode = require('./VerificationCode');
 
 // 关联关系
 Agent.hasMany(Enterprise, { foreignKey: 'agent_id' });
@@ -221,5 +222,6 @@ module.exports = {
   PipelineTask,
   ScriptRecord,
   Avatar,
-  Voice
+  Voice,
+  VerificationCode
 };

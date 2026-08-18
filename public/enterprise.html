@@ -328,6 +328,49 @@
         .login-modal .login-register-hint a:hover {
             color: #a78bfa;
         }
+        /* --- Auth-Rebuild-004: 登录 Tab / 验证码 / 忘记密码 / 弹窗 --- */
+        .login-tabs {
+            display: flex; gap: 6px; padding: 4px;
+            background: rgba(255, 255, 255, 0.06);
+            border-radius: 12px; margin-bottom: 22px;
+        }
+        .login-tab {
+            flex: 1; height: 38px; border: none;
+            background: transparent; color: rgba(255, 255, 255, 0.55);
+            border-radius: 10px; font-size: 14px; cursor: pointer;
+            transition: all 0.25s; outline: none;
+        }
+        .login-tab:hover { color: rgba(255, 255, 255, 0.85); }
+        .login-tab.active {
+            background: linear-gradient(135deg, #20a4f3, #8b5cf6);
+            color: #fff; box-shadow: 0 2px 12px rgba(32, 164, 243, 0.3);
+        }
+        .login-modal .code-input-row { display: flex; gap: 10px; }
+        .login-modal .code-input-row input { flex: 1 1 0; width: auto; min-width: 0; }
+        .login-modal .btn-get-code {
+            flex-shrink: 0; width: 116px; height: 48px;
+            border: 1px solid rgba(139, 92, 246, 0.5);
+            background: rgba(139, 92, 246, 0.15);
+            color: rgba(255, 255, 255, 0.9);
+            border-radius: 12px; font-size: 13px; cursor: pointer;
+            transition: all 0.25s; outline: none;
+        }
+        .login-modal .btn-get-code:hover:not(:disabled) {
+            background: rgba(139, 92, 246, 0.3);
+        }
+        .login-modal .btn-get-code:disabled {
+            opacity: 0.5; cursor: not-allowed;
+        }
+        .login-modal .login-links {
+            text-align: center; margin-top: 16px;
+            font-size: 13px;
+        }
+        .login-modal .login-links a {
+            color: rgba(139, 92, 246, 0.9); cursor: pointer;
+            text-decoration: none; font-weight: 500;
+            transition: color 0.2s;
+        }
+        .login-modal .login-links a:hover { color: #a78bfa; }
         /* 移动端适配 */
         @media (max-width: 480px) {
             .login-modal {
@@ -510,23 +553,95 @@
     <!-- Toast 通知容器 -->
     <div class="toast-container" id="toastContainer"></div>
 
-    <!-- 登录弹层（Sprint 3.3.2 UI Patch：玻璃拟态风格） -->
+    <!-- 登录弹层（Sprint 3.3.2 UI Patch：玻璃拟态风格 + Auth-Rebuild-004 双 Tab） -->
     <div class="login-overlay" id="loginOverlay">
         <div class="login-modal">
             <h2>煜见光影</h2>
             <div class="login-subtitle">请使用企业账号手机号登录创作平台</div>
-            <form id="loginForm" onsubmit="return false;">
+            <div class="login-tabs">
+                <button type="button" class="login-tab active" id="tabPassword" onclick="switchLoginTab('password')">账号密码登录</button>
+                <button type="button" class="login-tab" id="tabCode" onclick="switchLoginTab('code')">验证码登录</button>
+            </div>
+            <div id="loginPanePassword">
+                <form id="loginForm" onsubmit="return false;">
+                    <div class="form-group">
+                        <label>手机号</label>
+                        <input type="tel" id="loginPhone" placeholder="请输入手机号" autocomplete="tel">
+                    </div>
+                    <div class="form-group">
+                        <label>登录密码</label>
+                        <input type="password" id="loginPassword" placeholder="请输入密码" autocomplete="current-password">
+                    </div>
+                    <div class="login-error" id="loginError"></div>
+                    <button type="submit" class="btn-login" id="loginBtn" onclick="handleLogin()">登 录</button>
+                </form>
+            </div>
+            <div id="loginPaneCode" style="display:none;">
+                <form id="codeLoginForm" onsubmit="return false;">
+                    <div class="form-group">
+                        <label>手机号</label>
+                        <input type="tel" id="codeLoginPhone" placeholder="请输入手机号" autocomplete="tel">
+                    </div>
+                    <div class="form-group">
+                        <label>验证码</label>
+                        <div class="code-input-row">
+                            <input type="text" id="codeLoginCode" placeholder="请输入验证码" autocomplete="one-time-code" maxlength="6">
+                            <button type="button" class="btn-get-code" id="getCodeBtn" onclick="handleGetLoginCode()">获取验证码</button>
+                        </div>
+                    </div>
+                    <div class="login-error" id="codeLoginError"></div>
+                    <button type="submit" class="btn-login" id="codeLoginBtn" onclick="handleCodeLogin()">登 录</button>
+                </form>
+            </div>
+            <div class="login-links">
+                <a onclick="showForgotModal()">忘记密码？</a>
+            </div>
+            <div class="login-register-hint">还没有账号？<a>立即注册</a></div>
+        </div>
+    </div>
+
+    <!-- 忘记密码弹窗（Auth-Rebuild-004） -->
+    <div class="login-overlay" id="forgotOverlay">
+        <div class="login-modal">
+            <h2>忘记密码</h2>
+            <div class="login-subtitle">通过手机验证码重置登录密码</div>
+            <form id="forgotForm" onsubmit="return false;">
                 <div class="form-group">
                     <label>手机号</label>
-                    <input type="tel" id="loginPhone" placeholder="请输入手机号" autocomplete="tel">
+                    <input type="tel" id="forgotPhone" placeholder="请输入手机号" autocomplete="tel">
                 </div>
                 <div class="form-group">
-                    <label>登录密码</label>
-                    <input type="password" id="loginPassword" placeholder="请输入密码" autocomplete="current-password">
+                    <label>验证码</label>
+                    <div class="code-input-row">
+                        <input type="text" id="forgotCode" placeholder="请输入验证码" autocomplete="one-time-code" maxlength="6">
+                        <button type="button" class="btn-get-code" id="forgotGetCodeBtn" onclick="handleGetForgotCode()">获取验证码</button>
+                    </div>
                 </div>
-                <div class="login-error" id="loginError"></div>
-                <button type="submit" class="btn-login" id="loginBtn" onclick="handleLogin()">登 录</button>
-                <div class="login-register-hint">还没有账号？<a>立即注册</a></div>
+                <div class="form-group">
+                    <label>新密码</label>
+                    <input type="password" id="forgotPassword" placeholder="请输入新密码（至少6位）" autocomplete="new-password">
+                </div>
+                <div class="login-error" id="forgotError"></div>
+                <button type="submit" class="btn-login" id="forgotBtn" onclick="handleForgotPassword()">确 认</button>
+                <div class="login-links">
+                    <a onclick="closeForgotModal()">返回登录</a>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- 首次设置密码弹窗（Auth-Rebuild-004） -->
+    <div class="login-overlay" id="setPasswordOverlay">
+        <div class="login-modal">
+            <h2>设置密码</h2>
+            <div class="login-subtitle">请设置登录密码（至少6位）</div>
+            <form id="setPasswordForm" onsubmit="return false;">
+                <div class="form-group">
+                    <label>新密码</label>
+                    <input type="password" id="setPasswordInput" placeholder="请输入新密码（至少6位）" autocomplete="new-password">
+                </div>
+                <div class="login-error" id="setPasswordError"></div>
+                <button type="submit" class="btn-login" id="setPasswordBtn" onclick="handleSetPassword()">确 认</button>
             </form>
         </div>
     </div>
@@ -722,6 +837,8 @@
     <script src="js/page-state.js"></script>
     <script src="js/api.js"></script>
     <script src="js/auth.js"></script>
+    <!-- Auth-Rebuild-004: 企业登录页增强（Tab / 验证码 / 忘记密码 / 首次设密） -->
+    <script src="js/login.js"></script>
     <script src="js/upload.js"></script>
     <script src="js/video-task.js"></script>
     <script src="js/prompt-templates.js"></script>
@@ -4798,6 +4915,8 @@ var templateCapability = STUDIO_TPL_CAP_MAP[type] || 'image_to_video';
         function showLogin() {
             var overlay = document.getElementById('loginOverlay');
             if (overlay) overlay.classList.add('show');
+            // Auth-Rebuild-004: 每次打开回到账号密码 Tab 并清空各表单
+            if (window.switchLoginTab) switchLoginTab('password');
         }
 
         function hideLogin() {
@@ -4805,6 +4924,10 @@ var templateCapability = STUDIO_TPL_CAP_MAP[type] || 'image_to_video';
             if (overlay) overlay.classList.remove('show');
             document.getElementById('loginError').textContent = '';
             document.getElementById('loginPassword').value = '';
+            var codeError = document.getElementById('codeLoginError');
+            if (codeError) codeError.textContent = '';
+            var codeInput = document.getElementById('codeLoginCode');
+            if (codeInput) codeInput.value = '';
         }
 
         async function handleLogin() {
@@ -4825,15 +4948,8 @@ var templateCapability = STUDIO_TPL_CAP_MAP[type] || 'image_to_video';
 
             try {
                 var result = await YuJianAuth.login({ phone: phone, password: password });
-                hideLogin();
-                showToast('登录成功，欢迎回来！', 'success');
-                updateUserDisplay(result.userInfo);
-                // 检查是否有待恢复的任务
-                YuJianVideoTask.recoverIncompleteTasks({
-                    onUpdate: function (t) { updateTaskStatusDisplay(t); refreshMyWorksIfActive(); },
-                    onSuccess: function (t) { handleTaskSuccess(t); refreshMyWorksIfActive(); },
-                    onFailed: function (t) { handleTaskFailed(t); refreshMyWorksIfActive(); }
-                });
+                // Auth-Rebuild-004: 统一走 handleLoginSuccess（含 needSetPassword 首次设密 / 任务恢复）
+                handleLoginSuccess(result);
             } catch (err) {
                 console.error('[Auth] 登录失败', err);
                 errorEl.textContent = err.message || '登录失败，请重试';
