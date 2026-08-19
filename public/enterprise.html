@@ -25,6 +25,8 @@
     <link rel="stylesheet" href="css/pages/batch-8-visual.css">
     <!-- Premium AI Creative Studio theme: final visual override layer -->
     <link rel="stylesheet" href="css/ai-studio-theme.css">
+    <!-- UI-003 Homepage visual rebuild (test5 reference): homepage-only override layer -->
+    <link rel="stylesheet" href="css/ai-home-ui003.css">
     <style>
         :root {
             --primary: #6366f1;
@@ -713,11 +715,11 @@
         </div>
 
         <!-- 侧边栏底部：用户头像 -->
-        <div class="sidebar-footer">
+        <!-- <div class="sidebar-footer">
             <div class="user-mini" onclick="navigateTo('settings')" title="个人中心">
                 <div class="avatar-sm">用</div>
             </div>
-        </div>
+        </div> -->
     </div>
 
     <!-- 顶部栏 — Phase 2-B: 统一头部 -->
@@ -1220,23 +1222,25 @@
 
         function renderDashboard() {
             return `
-                <!-- Hero Banner -->
+                <!-- Hero Banner · DigitalHuman-Rebuild-UI-007: 无卡片/按钮/播放器/状态框 · 单一 AI 创作核心视觉 -->
                 <div class="hero-banner">
+                    <!-- 左区 45%：大标题（单行）/ 副标题 / CTA -->
                     <div class="hero-content">
-                        <div class="hero-title-group">
-                            <div class="title-line">
-                                <span class="brush-text">煜见</span>
-                                <span class="sans-text">光影</span>
-                                <span class="dot-sep">·</span>
-                                <span class="brush-text">一镜</span>
-                                <span class="sans-text">生辉</span>
-                            </div>
-                        </div>
+                        <h1 class="ai-hero-title">AI驱动创意 <em>·</em> 一键生成大片</h1>
+                        <p class="ai-hero-subtitle">从灵感到成片，只需要想象力。</p>
                         <button class="hero-btn" onclick="navigateTo('studio')">
                             开始AI创作
                             <i class="fas fa-arrow-right"></i>
                         </button>
                     </div>
+                    <!-- 右区 55%：单一 AI 创作核心视觉（核心光球 + 双轨道 + 能量环 + 科技线条，不含任何 video / 播放逻辑） -->
+                    <div class="hero-chip">
+                        <div class="hero-chip-core"><i class="hero-chip-mark">AI</i></div>
+                        <div class="hero-chip-line hero-chip-line-a"></div>
+                        <div class="hero-chip-line hero-chip-line-b"></div>
+                    </div>
+                    <div class="hero-orbit hero-orbit-one"></div>
+                    <div class="hero-orbit hero-orbit-two"></div>
                 </div>
                 
                 <!-- 功能卡片 -->

@@ -64,10 +64,11 @@
     }).join('');
 
     var html = '<div class="hero-banner">'
+      // DigitalHuman-Rebuild-UI-007: Hero 右侧清理漂浮组件（AI创意引擎标签 / 魔法棒卡片 / 视频卡片 / 空白视频窗口 / 实时渲染·AI CORE 状态标签）
+      // 右区仅保留单一「AI 创作核心」视觉主体（核心光球 + 双轨道 + 能量环 + 科技线条），无卡片 / 按钮 / 播放器 / 状态框，不含任何 video 标签。
+      + '<div class="hero-chip"><span class="hero-chip-core"><i class="hero-chip-mark">AI</i></span><span class="hero-chip-line hero-chip-line-a"></span><span class="hero-chip-line hero-chip-line-b"></span></div>'
       + '<div class="hero-orbit hero-orbit-one"></div><div class="hero-orbit hero-orbit-two"></div>'
-      + '<div class="hero-chip"><span class="hero-chip-core"></span><span class="hero-chip-line hero-chip-line-a"></span><span class="hero-chip-line hero-chip-line-b"></span><span class="hero-chip-label">AI CORE</span></div>'
-      + '<div class="hero-preview"><span class="hero-preview-bar"><i></i><i></i><i></i><b>CREATIVE / 01</b></span><span class="hero-preview-screen"><span class="hero-preview-play"><i class="fas fa-play"></i></span></span><span class="hero-preview-caption">生成 · 预览 · 发布</span></div>'
-      + '<div class="hero-content"><div class="hero-title-group"><div class="hero-kicker"><span></span> PREMIUM AI CREATIVE STUDIO</div><h1 class="ai-hero-title">AI驱动创意<br><em>一键生成大片</em></h1><p class="ai-hero-subtitle">从灵感到成片，让每一次创作都拥有电影般的表现力。</p></div><button class="hero-btn" onclick="navigateTo(\'studio\')"><i class="fas fa-wand-magic-sparkles"></i> 开始 AI 创作 <i class="fas fa-arrow-right"></i></button></div>'
+      + '<div class="hero-content"><div class="hero-title-group"><h1 class="ai-hero-title">AI驱动创意 <em>·</em> 一键生成大片</h1><p class="ai-hero-subtitle">从灵感到成片，只需要想象力。</p></div><button class="hero-btn" onclick="navigateTo(\'studio\')"><i class="fas fa-wand-magic-sparkles"></i> 开始 AI 创作 <i class="fas fa-arrow-right"></i></button></div>'
       + '</div>'
       + renderStats()
       + '<section class="ai-capability-section"><div class="ai-section-heading"><div><h2>把灵感变成镜头</h2><p>选择一条创作路径，进入你的 AI 工作台</p></div><span class="ai-live-status"><i></i> STUDIO ONLINE</span></div>'

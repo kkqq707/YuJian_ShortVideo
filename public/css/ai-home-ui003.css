@@ -1,0 +1,533 @@
+/*
+ * ───────────────────────────────────────────────────────────────────
+ * 煜见光影 · Premium AI Creative Studio — 首页视觉重构（UI-003 / UI-007）
+ * 严格参考 test5.png：深海军蓝底 + 紫蓝青三色渐变 AI 核心 + 玻璃拟态
+ * ───────────────────────────────────────────────────────────────────
+ * 纯 CSS 覆盖层（final visual override layer），加载于 ai-studio-theme.css 之后。
+ * 功能零修改：不触碰任何 JS / 接口 / 认证 / 路由 / 数据结构 / DOM 逻辑。
+ *
+ * 设计语言：
+ *   背景   — 近黑深海军蓝（#030614 → #0d1125），以暗衬亮
+ *   主色   — 紫 #8b5cff / 蓝 #4ea7ff / 青 #22f6ff（与 --ai-* 令牌同族）
+ *   视觉   — Hero 右区单一「AI 创作核心」：核心光球 + 双轨道 + 能量环 + 科技线条
+ *           （UI-007：已删除全部漂浮卡片/播放器/状态标签，仅保留一个整体 AI 视觉主体）
+ *   字体   — Inter, PingFang SC, Microsoft YaHei（任务第九节规范）
+ *   排版   — Hero 大标题渐变、数据数字 32-40px、模块间距 48px+
+ */
+
+/* ─── 0. 首页内容容器：铺满侧边栏右侧全部空间（UI-006 宽度修正）────── */
+/* 目标：#mainContent 完整铺满 calc(100vw - sidebar)，取消固定 max-width，消除右侧空白 */
+#mainContent:has(.hero-banner) {
+  box-sizing: border-box;
+  width: calc(100vw - var(--sidebar-width, 208px)) !important;
+  max-width: none !important;
+  margin-left: var(--sidebar-width, 208px) !important;
+  padding-top: calc(var(--header-height, 56px) + 24px) !important;
+  padding-left: clamp(16px, 2.4vw, 40px) !important;
+  padding-right: clamp(16px, 2.4vw, 40px) !important;
+}
+
+/* ─── 1. 顶部导航 · 玻璃拟态 + 微弱发光 + 悬浮 ─────────────────────── */
+.sidebar {
+  background: rgba(5, 8, 22, .6) !important;
+  border-right: 1px solid rgba(154, 174, 224, .14) !important;
+  backdrop-filter: blur(26px) saturate(150%) !important;
+  -webkit-backdrop-filter: blur(26px) saturate(150%) !important;
+  box-shadow: 12px 0 48px rgba(1, 3, 16, .3) !important;
+}
+.sidebar::after {
+  content: '';
+  position: absolute;
+  right: 0; top: 0; bottom: 0;
+  width: 1px;
+  pointer-events: none;
+  background: linear-gradient(180deg, transparent 4%, rgba(139, 92, 255, .55), rgba(34, 246, 255, .32) 88%, transparent);
+}
+.sidebar-logo .logo-icon {
+  box-shadow: 0 0 26px rgba(139, 92, 255, .5), 0 0 60px rgba(139, 92, 255, .2) !important;
+}
+.header {
+  background: rgba(5, 8, 22, .5) !important;
+  border-bottom: 1px solid rgba(154, 174, 224, .12) !important;
+  backdrop-filter: blur(26px) saturate(150%) !important;
+  -webkit-backdrop-filter: blur(26px) saturate(150%) !important;
+}
+.header::after {
+  content: '';
+  position: absolute;
+  left: 0; right: 0; bottom: 0;
+  height: 1px;
+  pointer-events: none;
+  background: linear-gradient(90deg, transparent 6%, rgba(139, 92, 255, .4), rgba(34, 246, 255, .28) 92%, transparent);
+}
+.yj-credits-display {
+  background: rgba(139, 92, 255, .1) !important;
+  border-color: rgba(139, 92, 255, .32) !important;
+  box-shadow: 0 0 22px rgba(139, 92, 255, .14), inset 0 1px 0 rgba(255, 255, 255, .06) !important;
+  color: var(--ai-text, #f4f7ff) !important;
+}
+.yj-credits-value {
+  color: var(--ai-accent, #22f6ff) !important;
+  font-weight: 700;
+}
+
+/* ─── 2. Hero 主视觉区 · 背景重塑（右区紫蓝青辉光）──────────────────── */
+.hero-banner {
+  min-height: clamp(420px, 46vh, 540px) !important;
+  margin: 0 0 36px !important;
+  border-radius: 26px !important;
+  border: 1px solid rgba(139, 92, 255, .32) !important;
+  background:
+    radial-gradient(circle at 78% 44%, rgba(74, 65, 171, .34), transparent 44%),
+    radial-gradient(circle at 72% 52%, rgba(139, 92, 255, .26), transparent 34%),
+    radial-gradient(circle at 64% 58%, rgba(34, 246, 255, .1), transparent 30%),
+    repeating-linear-gradient(0deg, rgba(150, 180, 255, .05) 0 1px, transparent 1px 46px),
+    repeating-linear-gradient(90deg, rgba(150, 180, 255, .05) 0 1px, transparent 1px 46px),
+    linear-gradient(120deg, rgba(4, 7, 20, .96), rgba(9, 12, 30, .94) 45%, rgba(13, 10, 38, .96)) !important;
+  box-shadow: 0 30px 80px rgba(2, 3, 18, .55), inset 0 1px 0 rgba(196, 210, 255, .1), 0 0 90px rgba(139, 92, 255, .14) !important;
+}
+/* 流光轨迹：对角光束扫过 */
+.hero-banner::before {
+  background: linear-gradient(115deg, transparent 18%, rgba(34, 246, 255, .16) 46%, rgba(139, 92, 255, .12) 56%, transparent 78%) !important;
+  background-size: 260% 100% !important;
+  animation: ui3-flow-sweep 12s ease-in-out infinite !important;
+  filter: blur(3px);
+}
+@keyframes ui3-flow-sweep {
+  0%, 100% { background-position: 0% 50%; opacity: .45; }
+  50% { background-position: 100% 50%; opacity: 1; }
+}
+/* 未来科技元素：漂浮粒子场 */
+.hero-banner::after {
+  inset: 0 !important;
+  width: auto !important;
+  height: auto !important;
+  background:
+    radial-gradient(circle, rgba(34, 246, 255, .5) 0 1.5px, transparent 2.5px) 0 0/150px 150px,
+    radial-gradient(circle, rgba(139, 92, 255, .4) 0 1px, transparent 2px) 50px 70px/210px 210px !important;
+  box-shadow: none !important;
+  opacity: .8 !important;
+  animation: ui3-star-drift 42s linear infinite !important;
+}
+@keyframes ui3-star-drift {
+  to { background-position: -150px -150px, -210px -210px; }
+}
+
+/* ─── 2a. Hero 左区 · 大标题 / 副标题 / CTA（左 45% · 右 55%）──────── */
+.hero-content {
+  width: 45% !important;
+  max-width: 660px !important;
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: flex-start !important;
+  align-self: center !important;
+  margin-left: clamp(28px, 5vw, 64px) !important;
+}
+/* UI-007: 已删除「AI 创意引擎」标签框（.hero-kicker），左区仅保留 标题 / 副标题 / CTA */
+.ai-hero-title {
+  margin: 20px 0 16px !important;
+  max-width: none !important;
+  font-family: Inter, "PingFang SC", "Microsoft YaHei", "Noto Sans CJK SC", sans-serif !important;
+  font-size: clamp(42px, 3.2vw, 52px) !important;
+  font-weight: 800 !important;
+  line-height: 1.1 !important;
+  letter-spacing: -.045em !important;
+  white-space: nowrap;                 /* UI-006: 标题强制单行，禁止自动换行 */
+  color: transparent !important;
+  -webkit-text-fill-color: transparent !important;
+  background: linear-gradient(115deg, #d9ccff 0%, #9d7bff 36%, #4ea7ff 68%, #3adcff 100%) !important;
+  -webkit-background-clip: text !important;
+  background-clip: text !important;
+  text-shadow: none !important;
+  filter: drop-shadow(0 0 26px rgba(139, 92, 255, .22));
+}
+.ai-hero-title em {
+  margin: 0 .12em !important;          /* 紧凑「·」分隔符，收紧行宽 */
+  font-style: normal !important;
+  color: transparent !important;
+  -webkit-text-fill-color: transparent !important;
+  background: linear-gradient(115deg, #4ea7ff, #22f6ff 70%, #8ff6ff) !important;
+  -webkit-background-clip: text !important;
+  background-clip: text !important;
+  text-shadow: none !important;
+  animation: none !important;
+  filter: drop-shadow(0 0 16px rgba(34, 246, 255, .38));
+}
+.ai-hero-subtitle {
+  max-width: 30em !important;
+  margin: 0 0 34px !important;
+  font-family: Inter, "PingFang SC", "Microsoft YaHei", "Noto Sans CJK SC", sans-serif !important;
+  font-size: clamp(15px, 1.3vw, 18px) !important;
+  font-weight: 450;
+  letter-spacing: .06em !important;
+  line-height: 1.8 !important;
+  color: rgba(210, 219, 241, .9) !important;
+  text-shadow: none !important;
+}
+.hero-btn {
+  min-height: 50px !important;
+  padding: 0 30px !important;
+  border-radius: 14px !important;
+  font-size: 16px !important;
+  font-weight: 600 !important;
+  letter-spacing: .08em !important;
+}
+.hero-btn .fa-arrow-right { transition: transform 300ms var(--ai-ease, cubic-bezier(.16, 1, .3, 1)); }
+.hero-btn:hover .fa-arrow-right { transform: translateX(4px); }
+
+/* ─── 2b. Hero 右区 · 大型球形 AI 核心（紫蓝青渐变发光体 + 中心 AI 标识）──── */
+.hero-chip {
+  position: absolute !important;
+  z-index: 2 !important;
+  right: 6% !important;
+  top: 50% !important;
+  width: clamp(320px, 32vw, 400px) !important;
+  height: clamp(320px, 32vw, 400px) !important;
+  margin: 0 !important;
+  transform: translateY(-50%) !important;
+  border: 0 !important;
+  border-radius: 50% !important;
+  background:
+    radial-gradient(circle at 50% 50%, rgba(122, 178, 255, .5), rgba(74, 65, 171, .3) 34%, rgba(13, 10, 38, 0) 68%),
+    radial-gradient(circle at 50% 50%, rgba(139, 92, 255, .2), transparent 70%) !important;
+  box-shadow:
+    inset 0 0 0 1px rgba(150, 175, 255, .14),
+    0 0 70px rgba(74, 65, 171, .5),
+    0 0 150px rgba(139, 92, 255, .28),
+    0 0 260px rgba(0, 212, 255, .16) !important;
+  animation: none !important;
+}
+/* 外层虚线轨道环（缓慢自旋） */
+.hero-chip::before {
+  content: '';
+  position: absolute;
+  inset: -9%;
+  border-radius: 50%;
+  border: 1px dashed rgba(140, 170, 255, .34);
+  animation: ui3-ring-spin 44s linear infinite;
+}
+/* 外层发光轨道环（反向自旋） */
+.hero-chip::after {
+  content: '';
+  position: absolute;
+  inset: -18%;
+  border-radius: 50%;
+  border: 1px solid rgba(34, 246, 255, .2);
+  box-shadow: inset 0 0 26px rgba(0, 212, 255, .08);
+  animation: ui3-ring-spin 28s linear infinite reverse;
+}
+@keyframes ui3-ring-spin { to { transform: rotate(360deg); } }
+/* 白热核心 + 能量辉光（呼吸：scale 1 → 1.05 → 1，光晕同步变化） */
+.hero-chip-core {
+  position: absolute !important;
+  inset: 38% !important;
+  border-radius: 50% !important;
+  background: radial-gradient(circle, #ffffff 0%, rgba(196, 232, 255, .95) 26%, rgba(120, 170, 255, .5) 55%, rgba(34, 246, 255, .06) 72%) !important;
+  box-shadow:
+    0 0 46px rgba(160, 220, 255, .9),
+    0 0 120px rgba(74, 65, 171, .6),
+    0 0 200px rgba(139, 92, 255, .4) !important;
+  animation: ui3-core-pulse 6s ease-in-out infinite !important;
+}
+@keyframes ui3-core-pulse {
+  0%, 100% {
+    transform: scale(1);
+    box-shadow: 0 0 42px rgba(160, 220, 255, .8), 0 0 110px rgba(74, 65, 171, .55), 0 0 190px rgba(139, 92, 255, .36);
+  }
+  50% {
+    transform: scale(1.05);
+    box-shadow: 0 0 58px rgba(184, 242, 255, .95), 0 0 140px rgba(74, 65, 171, .66), 0 0 230px rgba(139, 92, 255, .46);
+  }
+}
+/* 核心旋转能量流（缓慢自旋，非快速闪烁） */
+.hero-chip-core::before {
+  content: '';
+  position: absolute;
+  inset: -10%;
+  border-radius: 50%;
+  background: conic-gradient(from 0deg, transparent, rgba(34, 246, 255, .45), transparent 32%);
+  animation: ui3-ring-spin 14s linear infinite;
+  mix-blend-mode: screen;
+}
+/* 穿过核心的十字流光（科技线条） */
+.hero-chip-line-a {
+  left: -28% !important;
+  top: 50% !important;
+  width: 156% !important;
+  height: 1px !important;
+  background: linear-gradient(90deg, transparent, rgba(34, 246, 255, .7) 22%, rgba(139, 92, 255, .6) 50%, rgba(34, 246, 255, .7) 78%, transparent) !important;
+  box-shadow: 0 0 14px rgba(0, 212, 255, .5) !important;
+}
+.hero-chip-line-b {
+  left: 50% !important;
+  top: -28% !important;
+  height: 156% !important;
+  width: 1px !important;
+  background: linear-gradient(180deg, transparent, rgba(160, 220, 255, .5) 30%, rgba(139, 92, 255, .5) 62%, transparent) !important;
+  box-shadow: 0 0 14px rgba(139, 92, 255, .42) !important;
+}
+
+/* ─── 2c. 椭圆轨道 + 沿轨运行的发光卫星（围绕 AI 核心居中旋转）────── */
+.hero-orbit-one {
+  width: clamp(430px, 40vw, 560px) !important;
+  height: clamp(170px, 16vw, 210px) !important;
+  right: 0 !important;
+  top: 50% !important;
+  border-color: rgba(34, 246, 255, .28) !important;
+  box-shadow: 0 0 34px rgba(0, 212, 255, .12), inset 0 0 24px rgba(0, 212, 255, .06) !important;
+  animation: ui3-orbit-1 26s linear infinite !important;
+}
+.hero-orbit-two {
+  width: clamp(340px, 32vw, 440px) !important;
+  height: clamp(130px, 12vw, 165px) !important;
+  right: 2% !important;
+  top: 50% !important;
+  border-color: rgba(139, 92, 255, .32) !important;
+  box-shadow: 0 0 30px rgba(139, 92, 255, .14), inset 0 0 20px rgba(139, 92, 255, .08) !important;
+  animation: ui3-orbit-2 16s linear infinite reverse !important;
+}
+@keyframes ui3-orbit-1 { from { transform: translateY(-50%) rotate(0deg); } to { transform: translateY(-50%) rotate(360deg); } }
+@keyframes ui3-orbit-2 { from { transform: translateY(-50%) rotate(0deg); } to { transform: translateY(-50%) rotate(-360deg); } }
+.hero-orbit-one::after,
+.hero-orbit-two::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: -7px;
+  width: 13px;
+  height: 13px;
+  border-radius: 50%;
+  background: radial-gradient(circle, #eafcff, rgba(34, 246, 255, .55) 45%, transparent 72%);
+  box-shadow: 0 0 18px rgba(34, 246, 255, .95), 0 0 46px rgba(0, 212, 255, .55);
+}
+.hero-orbit-two::after {
+  background: radial-gradient(circle, #f2e9ff, rgba(139, 92, 255, .55) 45%, transparent 72%);
+  box-shadow: 0 0 18px rgba(139, 92, 255, .95), 0 0 46px rgba(139, 92, 255, .5);
+}
+
+/* ─── 2d. Hero 右区 · 单一「AI 创作核心」视觉主体（UI-007）────────── */
+/* UI-007 已删除：AI创意引擎标签 / 魔法棒卡片(.hero-float-ai) / 视频卡片(.hero-float-video)
+   图片卡片(.hero-float-image) / 实时渲染·数据节点(.hero-float-data) / AI CORE 标签(.hero-chip-label) */
+/* AI 核心整体轻微漂浮（叠加于原 translateY(-50%) 定位之上，慢速优雅） */
+.hero-chip {
+  animation: ui3-chip-float 9s ease-in-out infinite !important;
+}
+@keyframes ui3-chip-float {
+  0%, 100% { transform: translateY(calc(-50% - 0px)); }
+  50%      { transform: translateY(calc(-50% - 8px)); }
+}
+/* 核心中心「AI」字母标识（梯度文字 + 冷色光晕） */
+.hero-chip-mark {
+  position: absolute !important;
+  left: 50% !important;
+  top: 50% !important;
+  transform: translate(-50%, -50%) !important;
+  z-index: 1;
+  font-family: Inter, "Segoe UI", -apple-system, sans-serif !important;
+  font-size: clamp(30px, 3.2vw, 46px) !important;
+  font-weight: 800 !important;
+  letter-spacing: .02em !important;
+  line-height: 1 !important;
+  font-style: normal !important;
+  color: transparent !important;
+  -webkit-text-fill-color: transparent !important;
+  background: linear-gradient(115deg, #ffffff 0%, #d8f3ff 45%, #46e8ff 100%) !important;
+  -webkit-background-clip: text !important;
+  background-clip: text !important;
+  text-shadow: none !important;
+  filter: drop-shadow(0 0 20px rgba(160, 230, 255, .55));
+  pointer-events: none;
+}
+/* 核心内侧能量环（慢速反向自旋，增加层次） */
+.hero-chip-core::after {
+  content: '';
+  position: absolute;
+  inset: -28%;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, .14);
+  box-shadow: 0 0 26px rgba(0, 212, 255, .14), inset 0 0 20px rgba(0, 212, 255, .1);
+  animation: ui3-ring-spin 22s linear infinite reverse;
+}
+
+/* ─── 3. 数据卡 · 数字 32-40px 渐变强调 ────────────────────────────── */
+.ai-studio-stats {
+  grid-template-columns: repeat(4, 1fr) !important;
+  gap: 16px !important;
+  margin: 0 0 48px !important;
+}
+.ai-stat-card {
+  min-height: 132px !important;
+  padding: 20px !important;
+  border-radius: 18px !important;
+  border-color: rgba(154, 174, 224, .16) !important;
+}
+.ai-stat-icon {
+  width: 42px !important;
+  height: 42px !important;
+  border-radius: 12px !important;
+  border-color: rgba(34, 246, 255, .34) !important;
+  background: linear-gradient(135deg, rgba(139, 92, 255, .18), rgba(0, 212, 255, .1)) !important;
+  box-shadow: 0 0 20px rgba(139, 92, 255, .14), inset 0 0 14px rgba(34, 246, 255, .08) !important;
+  font-size: 16px !important;
+}
+.ai-stat-label {
+  margin-top: 18px !important;
+  color: rgba(180, 198, 230, .72) !important;
+  font-size: 12px !important;
+  letter-spacing: .08em;
+}
+.ai-stat-card strong {
+  margin-top: 6px !important;
+  font-family: Inter, "PingFang SC", "Microsoft YaHei", sans-serif !important;
+  font-size: clamp(28px, 3vw, 38px) !important;
+  font-weight: 700 !important;
+  letter-spacing: -.02em !important;
+  color: transparent !important;
+  -webkit-text-fill-color: transparent !important;
+  background: linear-gradient(115deg, #ffffff, rgba(140, 220, 255, .92) 55%, rgba(34, 246, 255, .85)) !important;
+  -webkit-background-clip: text !important;
+  background-clip: text !important;
+}
+.ai-stat-card small {
+  color: rgba(160, 185, 220, .62) !important;
+  font-size: 11px !important;
+}
+
+/* ─── 4. 创作入口卡 · 标题高亮白 / 描述灰蓝 ────────────────────────── */
+.ai-capability-section,
+.ai-gallery-section,
+.ai-studio-lower-grid { margin-bottom: 56px !important; }
+.ai-section-heading { margin-bottom: 22px !important; }
+.ai-section-heading h2 {
+  font-size: 24px !important;
+  letter-spacing: -.03em !important;
+}
+.ai-section-heading p { font-size: 14px !important; }
+
+.feature-cards {
+  grid-template-columns: repeat(4, 1fr) !important;
+  gap: 18px !important;
+}
+.feature-card {
+  min-height: 156px !important;
+  padding: 22px !important;
+  gap: 16px !important;
+  border-radius: 18px !important;
+}
+.ai-feature-glyph {
+  width: 44px !important;
+  height: 44px !important;
+  border-radius: 12px !important;
+  font-size: 17px !important;
+  border-color: rgba(34, 246, 255, .3) !important;
+  background: linear-gradient(135deg, rgba(139, 92, 255, .2), rgba(0, 212, 255, .1)) !important;
+  box-shadow: 0 0 22px rgba(139, 92, 255, .14), inset 0 0 14px rgba(34, 246, 255, .06) !important;
+}
+.feature-card-info h4 {
+  font-size: 17px !important;
+  font-weight: 600 !important;
+}
+.feature-card-info p { font-size: 13px !important; }
+.feature-card-badge {
+  display: inline-block;
+  padding: 2px 9px;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: .04em;
+  color: #061021;
+  background: linear-gradient(110deg, var(--ai-accent, #22f6ff), var(--ai-secondary, #00d4ff));
+  box-shadow: 0 0 14px rgba(34, 246, 255, .4);
+}
+
+/* ─── 5. AI Gallery · 作品展示 ────────────────────────────────────── */
+.gallery-item {
+  min-height: 190px !important;
+  border-radius: 16px !important;
+}
+.gallery-item .gallery-image {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 500ms var(--ai-ease, cubic-bezier(.16, 1, .3, 1));
+}
+.gallery-item:hover .gallery-image { transform: scale(1.05); }
+
+/* ─── 6. 任务队列 / 创作概览 ──────────────────────────────────────── */
+.ai-studio-lower-grid { gap: 18px !important; }
+.ai-task-panel,
+.ai-trend-panel {
+  padding: 24px !important;
+  border-radius: 18px !important;
+}
+.ai-trend-value strong {
+  font-size: 42px !important;
+  letter-spacing: -.02em !important;
+}
+
+/* ─── 7. 响应式 ──────────────────────────────────────────────────── */
+@media (max-width: 1100px) {
+  .hero-chip { width: 310px !important; height: 310px !important; right: 4% !important; }
+  .hero-orbit-one { width: 420px !important; height: 165px !important; }
+  .hero-orbit-two { width: 330px !important; height: 130px !important; }
+  .hero-chip-mark { font-size: clamp(26px, 4vw, 36px) !important; }
+}
+@media (max-width: 900px) {
+  .ai-studio-stats,
+  .feature-cards { grid-template-columns: repeat(2, 1fr) !important; }
+  .ai-studio-lower-grid { grid-template-columns: 1fr !important; }
+  .hero-content { width: 64% !important; }
+  .hero-chip { width: 250px !important; height: 250px !important; opacity: .92; }
+  .hero-orbit-one { width: 340px !important; height: 140px !important; }
+  .hero-orbit-two { width: 270px !important; height: 110px !important; }
+}
+@media (max-width: 600px) {
+  .hero-banner { min-height: 520px !important; }
+  .hero-content {
+    width: calc(100% - 36px) !important;
+    margin: 0 18px !important;
+    align-self: flex-start;
+    padding-top: 42px;
+  }
+  .ai-hero-title { font-size: clamp(24px, 7.6vw, 44px) !important; max-width: none !important; white-space: nowrap !important; letter-spacing: -.03em !important; }
+  .ai-hero-subtitle { max-width: 22em !important; }
+  .hero-chip {
+    right: 18px !important;
+    top: auto !important;
+    bottom: -30px !important;
+    width: 225px !important;
+    height: 225px !important;
+    transform: none !important;
+    opacity: .85;
+  }
+  .hero-chip-mark { font-size: 26px !important; }
+  .hero-orbit-one,
+  .hero-orbit-two { display: none !important; }
+  .ai-stat-card { min-height: 116px !important; padding: 15px !important; }
+  .ai-stat-card strong { font-size: 26px !important; }
+  .ai-section-heading { align-items: flex-start; flex-direction: column; }
+  #mainContent:has(.ai-studio-stats) { padding-left: 12px !important; padding-right: 12px !important; }
+}
+
+/* ─── 8. 减弱动效偏好 ────────────────────────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  .hero-chip,
+  .hero-chip::before,
+  .hero-chip::after,
+  .hero-chip-core,
+  .hero-chip-core::before,
+  .hero-chip-core::after,
+  .hero-chip-mark,
+  .hero-orbit-one,
+  .hero-orbit-two,
+  .hero-orbit-one::after,
+  .hero-orbit-two::after,
+  .hero-banner::before,
+  .hero-banner::after,
+  .ai-hero-title em,
+  .gallery-item .gallery-image {
+    animation: none !important;
+    transition: none !important;
+  }
+}
